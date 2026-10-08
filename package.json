@@ -1,0 +1,17 @@
+{
+  "name": "pour-decisions",
+  "private": true,
+  "type": "module",
+  "description": "Dev tools only. The app itself has no build step and no npm dependencies.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-pour-tests \"node --test --test-concurrency=1 tests/rules/*.test.mjs\"",
+    "emulators": "firebase emulators:start --only firestore,auth --project demo-pour",
+    "deploy:rules": "firebase deploy --only firestore:rules"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.32.1"
+  }
+}
