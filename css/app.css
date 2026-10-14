@@ -81,12 +81,20 @@ button { cursor: pointer; touch-action: manipulation; }
 .brand-mark { background: var(--accent); color: var(--accent-ink); box-shadow: var(--glow); }
 .brand-mark svg, .icon-btn svg { width: 24px; height: 24px; }
 .icon-btn { color: var(--head-ink); background: rgba(255, 255, 255, .14); text-decoration: none; }
-.sync { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 99px; white-space: nowrap; background: rgba(255, 255, 255, .14); }
-.sync:empty { display: none; }
-.sync::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: currentColor; vertical-align: 1px; }
-.sync.live::before { background: #6BE29A; }
-.sync.offline::before, .sync.busy::before { background: #FFC24B; }
-.sync.bad::before { background: #FF6B5E; }
+a.brand-mark { text-decoration: none; }
+/* The status ball: a small dot on the glass (or on Back) for the connection. Same colours in both looks. */
+.has-ball { position: relative; }
+.has-ball > span { display: grid; }
+.status-ball {
+  --ball: #2FD27A; position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--ball); border: 3px solid var(--head-bg);
+}
+.status-ball.status-offline { --ball: #3D8BFF; }
+.status-ball.status-bad { --ball: #E5160B; }
+.status-ball.status-busy { animation: ball-pulse 1.2s ease-in-out infinite; }
+.status-ball.status-off { display: none; }
+@keyframes ball-pulse { 50% { box-shadow: 0 0 0 5px rgba(47, 210, 122, .35); opacity: .6; } }
+.status-ball.big { position: static; flex: none; width: 22px; height: 22px; border: 0; }
 .me-btn { flex: none; border-radius: 50%; display: block; }
 
 /* ---------- Main and nav ---------- */
@@ -234,6 +242,7 @@ a.member-row:active { background: var(--surface-2); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; margin: 0; }
 .facts dt { font-weight: 800; color: var(--muted); }
 .facts dd { margin: 0; font-weight: 600; }
+.facts .fact { display: contents; } /* a dt/dd pair kept together in code; laid out by the grid */
 .ingredients { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ingredients li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .ingredients b { color: var(--primary); white-space: nowrap; }
@@ -267,7 +276,7 @@ body.gated .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
 #toast-text { flex: 1; }
 .toast-btn { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; border-radius: 10px; min-height: 40px; padding: 0 14px; }
 
-@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .btn { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .btn { transition: none; } .status-ball.status-busy { animation: none; opacity: .6; } }
 
 /* ---------- Logging ---------- */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }

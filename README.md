@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.6.1 (beta)
+**Current version:** 0.7.0 (beta)
 
 ## Features
 
@@ -39,6 +39,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Cocktail recipes:** 210 default recipes (201 cocktails plus 9 mocktails), each with ingredients (in oz or ml), garnish, glass and method. Classics, tiki, frozen drinks, shots and shooters, with Canada well covered: seven Caesars, Rye and Ginger, the Paralyzer, Caribou, the Toronto, Moose Milk and Spanish Coffee.
   - **Ingredients:** tap an ingredient in a recipe to see which drinks in the list count as it (any Canadian rye counts as "Rye") and the other cocktails that use it. Each drink's page lists the cocktails you can use it in.
   - The list sticks to drinks known to be real, so it doesn't have every craft beer. Members add what's missing when they log it.
+- **Status light.** A small ball on the glass at the top shows the connection: green = connected, pulsing green = syncing, blue = offline, red = a sync problem. On inner pages the glass turns into Back, and the ball stays on it.
+- **System info.** Tap the glass (or **System info** on your profile) to see the connection in words (since when, the last sync, drinks and changes still waiting to send), the app version with **Check for an update**, whether the app is installed and ready offline, and this phone (space used, whether its saved data is protected, and the look).
 - **Works offline.** After the first sign-in the app opens with no signal. The drink list is built in, so it's always there. With a weak signal it waits a few seconds, then opens from the copy saved on the phone. If it ever fails to start, it says so with a Reload button and details to screenshot, not a blank screen.
 
 ## Roadmap
@@ -46,8 +48,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
 
 1. **Status light, System info and admin tools.**
-   - **Status light:** a glass icon at the top shows the connection: green = connected, pulsing = syncing, blue = offline, red = a sync problem. Tap it for System info.
-   - **System info:** connection state and since when, when the group last synced, drinks and changes still waiting to send, the outbox, the app version with **Check for an update**, whether the app is installed and ready offline, and space used on the phone (and whether the phone protects it).
+   - ✅ **Status light** and **System info** (0.7.0).
    - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
    - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
 2. **Ratings and reviews.** Ratings, notes and flavour tags already come with each log. This step puts them together on each drink's page: the group's average rating, everyone's notes and the most-picked flavours, plus a group top-rated list. Admins can delete any review.
@@ -251,6 +252,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.7.0** (2026-Oct-13): Status light and System info. The Live/Offline pill is gone from the header, making room for an alerts icon later. Instead, a small ball on the glass shows the connection (green connected, pulsing green syncing, blue offline, red a sync problem), and stays on Back on inner pages. Tap the glass, or **System info** on your profile, for the connection in words, the app version with **Check for an update**, and this phone. No new security rules.
 - **0.6.1** (2026-Oct-13): A much bigger whisky and spirits list: about 580 more bottles (whisky 255 to 539, spirits 203 to 513). More Canadian whisky (Wiser's, Canadian Club, Lot No. 40, Forty Creek, Alberta and BC distilleries), many more Scotch single malts and blends, bourbon and rye, Irish, Japanese and world whisky. More gin, vodka and flavours, rum, tequila and mezcal, cognac and brandy, and liqueurs (including the McGuinness and Sour Puss range), amari and vermouths. Every new bottle counts toward the recipes that call for its style.
 - **0.6.0** (2026-Oct-13): Catalogue moderation for admins. A Drink list page under Group admin (with a reminder on Home) for new drinks to check: Looks good, Fix, Merge or Delete. Fix details on any drink, built-in ones included (laid over the list, can be undone), including which recipe ingredients it counts as. Merge duplicates: hidden from the list, their logs count as the drink kept, undoable. Add, rename and describe styles. Rename and merge places. Logs show a drink's or place's current name. **New `firestore.rules`: publish them before merging.**
 - **0.5.0** (2026-Oct-13): The Drinks tab drills down: category, then family, then style, each on its own page with a short description (all 7 categories, 49 families and 271 styles) and breadcrumbs back up. Drink and recipe pages show the full trail too. Empty styles say so, with a button to log one.
