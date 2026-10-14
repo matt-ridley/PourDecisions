@@ -16,6 +16,7 @@ export const cloud = {
   on: !!FIREBASE_CONFIG || USE_EMULATOR, api: null, db: null, auth: null,
   user: null, authKnown: false, failed: false, loadError: false,
   meta: {}, unsubs: [], memberUnsubs: [], retry: null,
+  statusKind: "", statusSince: Date.now(), lastServerAt: 0,
 };
 
 export const store = {
@@ -59,21 +60,31 @@ export function gate() {
 }
 
 /* ---------- Sync status ---------- */
+/* What the dot on the glass shows: live (connected), busy (syncing), offline, bad (a sync problem) or off.
+   `since` is when it last changed; `pending` = changes on this phone the group doesn't have yet. */
 export function syncStatus() {
+  const s = currentStatus();
+  if (s.kind !== cloud.statusKind) { cloud.statusKind = s.kind; cloud.statusSince = Date.now(); }
+  return { ...s, since: cloud.statusSince };
+}
+function currentStatus() {
   if (!cloud.on || !cloud.user) return { kind: "off", label: "" };
-  if (cloud.failed) return { kind: "bad", label: "Sync problem" };
   const m = Object.values(cloud.meta);
   const pending = m.some(x => x.hasPendingWrites);
-  if (!navigator.onLine || m.some(x => x.fromCache)) return { kind: "offline", label: pending ? "Offline · changes waiting" : "Offline" };
-  if (pending) return { kind: "busy", label: "Syncing" };
-  return { kind: "live", label: "Live" };
+  if (cloud.failed) return { kind: "bad", label: "Sync problem", pending };
+  if (!navigator.onLine || m.some(x => x.fromCache)) return { kind: "offline", label: pending ? "Offline · changes waiting" : "Offline", pending };
+  if (pending) return { kind: "busy", label: "Syncing", pending };
+  return { kind: "live", label: "Connected", pending };
 }
 window.addEventListener("online", emit);
 window.addEventListener("offline", emit);
 
 /* ---------- Listeners ---------- */
 const OPTS = { includeMetadataChanges: true };
-const seen = (key, snap) => { cloud.meta[key] = snap.metadata; cloud.failed = false; };
+const seen = (key, snap) => {
+  cloud.meta[key] = snap.metadata; cloud.failed = false;
+  if (!snap.metadata.fromCache) cloud.lastServerAt = Date.now();
+};
 
 function startListeners() {
   const { onSnapshot, doc } = cloud.api;

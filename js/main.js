@@ -9,6 +9,7 @@ import { renderCatalogAdmin } from "./moderation.js";
 import { renderHome } from "./home.js";
 import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
 import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
+import { renderSystem, statusText } from "./systempage.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -28,6 +29,7 @@ const ROUTES = {
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
   admin: { tab: null, live: true, render: renderAdmin },
   catalog: { tab: null, live: true, render: renderCatalogAdmin },
+  system: { tab: null, live: true, render: renderSystem },
 };
 
 function parseRoute() {
@@ -66,14 +68,19 @@ function renderHeader(inApp) {
   head.hidden = !inApp;
   if (!inApp) return;
   const s = syncStatus(), r = parseRoute();
-  // Pages without a tab, and pages inside the Drinks tab, get a back button.
-  const back = !r.tab || r.sub ? el("button", { class: "icon-btn", type: "button", "aria-label": "Back", html: icon.back,
-    onclick: () => history.length > 1 ? history.back() : (location.hash = r.tab ? `#/${r.tab}` : "#/home") }) : null;
+  // A ball on the glass shows the connection: green connected, pulsing syncing, blue offline, red a problem.
+  // Tap the glass for System info. Pages without a tab, and pages inside the Drinks tab, swap the glass for Back,
+  // which keeps the ball.
+  const said = statusText(s.kind).title;
+  const ball = el("i", { class: `status-ball status-${s.kind}`, "aria-hidden": "true" });
+  const back = !r.tab || r.sub ? el("button", { class: "icon-btn has-ball", type: "button", "aria-label": `Back. ${said}`,
+    onclick: () => history.length > 1 ? history.back() : (location.hash = r.tab ? `#/${r.tab}` : "#/home") },
+    el("span", { html: icon.back }), ball) : null;
   fill(head,
-    back || el("span", { class: "brand-mark", html: icon.glass }),
+    back || el("a", { class: "brand-mark has-ball", href: "#/system", "aria-label": `${said}. System info` },
+      el("span", { html: icon.glass }), ball),
     el("div", { class: "brand" },
       el("div", { class: "brand-name", text: (store.group && store.group.name) || APP_NAME })),
-    el("span", { class: `sync ${s.kind}`, role: "status", text: s.label }),
     el("a", { class: "me-btn", href: "#/me", "aria-label": "Your profile" }, avatar({ ...store.me, id: uid() }, "sm")));
 }
 
