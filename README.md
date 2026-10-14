@@ -6,12 +6,18 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.5.0 (beta)
+**Current version:** 0.6.0 (beta)
 
 ## Features
 
 - **Accounts for friends only.** Friends create an account with their email and a password, confirm they're of legal drinking age, then join with the group's invite code. Nobody else can see anything.
 - **Group owner and admins.** Whoever sets up the group owns it. The owner can make other members admins. Admins can change the invite code, rename the group, and pause or remove members.
+- **Keeping the drink list tidy (admins).** **Group admin › Drink list** (and a reminder on Home) shows:
+  - **New drinks to check:** drinks members added, newest first, each with **Looks good**, **Fix**, **Merge** or **Delete** (Delete only when nobody has logged it).
+  - **Fix details** on any drink's page: name, brand, flavour, style, alcohol %, approximate, where it's from, and extra recipe ingredients it counts as (a new dry vermouth counts as "Dry vermouth"). A fix to a built-in drink is laid over the built-in list for everyone, so a wrong ABV is fixed without a new app version, and it can be undone.
+  - **Merge duplicates:** pick the drink to keep. The duplicate disappears from search and browsing, and its logs show and count as the drink kept. Nobody's logs change, so it can be undone.
+  - **Styles:** add a style under an existing family (with its description), or rename a built-in style or rewrite its description. Only admins can.
+  - **Places:** rename a place, or merge a duplicate ("Keg" into "The Keg"). Logs at the duplicate show the place kept.
 - **Profiles.** Each member has a name, an optional hometown and a favourite drink.
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
 - **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal.
@@ -39,25 +45,18 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
 
-1. **Catalogue moderation (admins).** Keeps the shared drink list clean as members add to it.
-   - **New drinks to check:** drinks added by members, newest first, with a count on Group admin. Admins mark them checked, fix them or merge them.
-   - **Fix details:** admins can edit any drink a member added (name, brand, style, where it's from, ABV, flavour). For built-in drinks a fix is saved as a correction that the app lays over the built-in list, so a wrong ABV can be fixed without a new app version.
-   - **Merge duplicates:** pick the one to keep. The duplicate is hidden from search and points at the one kept, and logs of the duplicate show and count as the kept drink. Nobody's logs are rewritten, so a merge works offline and can be undone.
-   - **Places:** admins rename shared places and merge duplicates ("Keg" and "The Keg").
-   - **Styles:** only admins add styles (under an existing family) or rename them.
-   - **Ingredients:** admins can say which recipe ingredient a member's drink counts as (a new dry vermouth counts as "Dry vermouth"), so it shows up in recipes and, later, in what you can make.
-2. **Status light, System info and admin tools.**
+1. **Status light, System info and admin tools.**
    - **Status light:** a glass icon at the top shows the connection: green = connected, pulsing = syncing, blue = offline, red = a sync problem. Tap it for System info.
    - **System info:** connection state and since when, when the group last synced, drinks and changes still waiting to send, the outbox, the app version with **Check for an update**, whether the app is installed and ready offline, and space used on the phone (and whether the phone protects it).
    - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
    - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
-3. **Ratings and reviews.** Ratings, notes and flavour tags already come with each log. This step puts them together on each drink's page: the group's average rating, everyone's notes and the most-picked flavours, plus a group top-rated list. Admins can delete any review.
-4. **The feed.** What everyone's pouring. Admins can delete any comment.
-5. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+2. **Ratings and reviews.** Ratings, notes and flavour tags already come with each log. This step puts them together on each drink's page: the group's average rating, everyone's notes and the most-picked flavours, plus a group top-rated list. Admins can delete any review.
+3. **The feed.** What everyone's pouring. Admins can delete any comment.
+4. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
 
 ### After the core: the bar, the fridge and the tab
 
-These milestones come after steps 1 to 5, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
+These milestones come after steps 1 to 4, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
 
 **A. Stock: the fridge and the bar**
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
@@ -178,6 +177,7 @@ npm run deploy:rules
 ## Where data is stored
 
 - Accounts, profiles, logged drinks, shared places and drinks members add are stored in the group's Firebase project. Only members can read them.
+- Admins' fixes to built-in drinks (`fixes`, only the fields that differ) and their new or renamed styles (`styles`) are stored there too, and laid over the built-in list by the app.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
@@ -251,6 +251,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.6.0** (2026-Oct-13): Catalogue moderation for admins. A Drink list page under Group admin (with a reminder on Home) for new drinks to check: Looks good, Fix, Merge or Delete. Fix details on any drink, built-in ones included (laid over the list, can be undone), including which recipe ingredients it counts as. Merge duplicates: hidden from the list, their logs count as the drink kept, undoable. Add, rename and describe styles. Rename and merge places. Logs show a drink's or place's current name. **New `firestore.rules`: publish them before merging.**
 - **0.5.0** (2026-Oct-13): The Drinks tab drills down: category, then family, then style, each on its own page with a short description (all 7 categories, 49 families and 271 styles) and breadcrumbs back up. Drink and recipe pages show the full trail too. Empty styles say so, with a button to log one.
 - **0.4.0** (2026-Oct-13): Logging a drink. Pick it (or one of your recent drinks), then size with standard drinks, a half-star rating, flavour tags, a place from the group's shared list, now or earlier, notes and an optional photo. "Another" logs the same drink again in one tap, with Undo. Logs wait on the phone until the group has them, and a refused one is shown with Try again. Open a log to edit or delete it (admins can delete anyone's). Members can add drinks to the shared list. Home and profiles show recent drinks, and drink pages show how often you've had it. Fixed the start-up safety net, which had a typo that stopped it from ever showing. **New `firestore.rules`: publish them before merging.**
 - **0.3.0** (2026-Oct-13): Cocktail recipes: 210 (201 cocktails and 9 mocktails, up from 12), from Old Fashioneds and Negronis to tiki, frozen drinks, shots and layered shooters, with seven Caesars and Canadian favourites (Rye and Ginger, Paralyzer, Caribou, Toronto, Moose Milk, Spanish Coffee, B-52). Recipes are now made of ingredients that know which drinks count as them, ready for "what can I make". Tap an ingredient for its page (the drinks that count and the cocktails that use it), and each drink's page lists the cocktails it goes in.

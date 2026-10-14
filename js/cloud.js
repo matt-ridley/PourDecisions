@@ -3,7 +3,7 @@
    Firestore's persistent cache keeps a copy on the phone, so the app opens and accepts changes with no signal;
    queued writes are sent when the phone is back online. Times are stored as epoch milliseconds from the phone clock. */
 import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
-import { setMemberDrinks } from "./catalog.js";
+import { setMemberDrinks, setFixes, setStyles } from "./catalog.js";
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
 
@@ -26,6 +26,8 @@ export const store = {
   logs: [],               // every drink logged in the group
   places: [],             // the group's shared places
   drinks: [],             // drinks members added to the list
+  fixes: [],              // admins' corrections to built-in drinks (and built-in drinks merged into others)
+  styles: [],             // admins' new and renamed styles
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -108,6 +110,7 @@ function refreshMemberListeners() {
   cloud.memberUnsubs = [];
   for (const k of Object.keys(cloud.meta)) if (k !== "group" && k !== "me") delete cloud.meta[k];
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
+  store.fixes = []; store.styles = []; setFixes([]); setStyles([]);
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -123,6 +126,8 @@ function refreshMemberListeners() {
   list("logs", l => { store.logs = l; });
   list("places", l => { store.places = l; });
   list("drinks", l => { store.drinks = l; setMemberDrinks(l); });
+  list("fixes", l => { store.fixes = l; setFixes(l); });
+  list("styles", l => { store.styles = l; setStyles(l); });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -138,6 +143,7 @@ function stopListeners() {
   cloud.meta = {};
   store.group = undefined; store.me = undefined; store.members = new Map(); store.invite = undefined;
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
+  store.fixes = []; store.styles = []; setFixes([]); setStyles([]);
 }
 
 function syncError(e) {
@@ -398,3 +404,54 @@ export function addDrink(f) {
   setMemberDrinks(store.drinks);
   return id;
 }
+
+/* ---------- Catalogue moderation (admins) ---------- */
+const stamp = () => ({ by: uid(), at: Date.now() });
+const cleanAbv = v => Math.round(Number(v) * 10) / 10;
+
+/* A new member drink looks right. */
+export const checkDrink = id => write(cloud.api.updateDoc(ref("drinks", id), { checked: true }));
+
+/* Fixing a drink's details. A member's drink is changed in place; a built-in drink gets a correction that the app
+   lays over the built-in list. `fix` holds only the fields that differ from the built-in drink (empty = no fix). */
+export function updateMemberDrink(id, f) {
+  const del = cloud.api.deleteField();
+  const d = { brand: clip(f.brand, 60), name: clip(f.name, 80), style: f.style, abv: cleanAbv(f.abv), checked: true,
+    variant: clip(f.variant, 40) || del, origin: clip(f.origin, 10) || del, ing: f.ing && f.ing.length ? f.ing.slice(0, 10) : del };
+  write(cloud.api.updateDoc(ref("drinks", id), d));
+}
+export function saveFix(id, fix) {
+  const old = store.fixes.find(x => x.id === id);
+  const keep = old && old.mergedInto ? { mergedInto: old.mergedInto } : {};
+  if (!Object.keys(fix).length && !keep.mergedInto) return write(cloud.api.deleteDoc(ref("fixes", id)));
+  write(cloud.api.setDoc(ref("fixes", id), { ...fix, ...keep, ...stamp() }));
+}
+
+/* Merging a duplicate into the drink to keep, and undoing it. */
+export function mergeDrink(item, intoId) {
+  if (item.member) return write(cloud.api.updateDoc(ref("drinks", item.id), { mergedInto: intoId, checked: true }));
+  write(cloud.api.setDoc(ref("fixes", item.id), { mergedInto: intoId, ...stamp() }, { merge: true }));
+}
+export function unmergeDrink(item) {
+  if (item.member) return write(cloud.api.updateDoc(ref("drinks", item.id), { mergedInto: cloud.api.deleteField() }));
+  const f = store.fixes.find(x => x.id === item.id) || {};
+  const rest = Object.keys(f).filter(k => !["id", "mergedInto", "by", "at"].includes(k));
+  write(rest.length ? cloud.api.updateDoc(ref("fixes", item.id), { mergedInto: cloud.api.deleteField() }) : cloud.api.deleteDoc(ref("fixes", item.id)));
+}
+/* Only for a member drink nobody has logged; otherwise merge it. */
+export const deleteMemberDrink = id => write(cloud.api.deleteDoc(ref("drinks", id)));
+
+/* A new style ({ name, family: "cat/fam", about }) or a built-in one's new name or description ({ name, about }). */
+export function saveStyle(id, f) {
+  const d = { ...stamp() };
+  if (clip(f.name, 40)) d.name = clip(f.name, 40);
+  if (clip(f.about, 200)) d.about = clip(f.about, 200);
+  if (f.family) d.family = f.family;
+  write(cloud.api.setDoc(ref("styles", id), d));
+}
+export const resetStyle = id => write(cloud.api.deleteDoc(ref("styles", id)));
+
+/* Places: rename, or merge a duplicate into the one to keep (and undo). */
+export const renamePlace = (id, name) => write(cloud.api.updateDoc(ref("places", id), { name: clip(name, 60) }));
+export const mergePlace = (id, intoId) => write(cloud.api.updateDoc(ref("places", id), { mergedInto: intoId }));
+export const unmergePlace = id => write(cloud.api.updateDoc(ref("places", id), { mergedInto: cloud.api.deleteField() }));

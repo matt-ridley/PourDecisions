@@ -188,5 +188,35 @@ export const CATEGORIES = [
 ];
 
 /* style id -> { style, family, category } */
-export const STYLE_INDEX = new Map(CATEGORIES.flatMap(category => category.families.flatMap(family =>
-  family.styles.map(style => [style.id, { style, family, category }]))));
+export const STYLE_INDEX = new Map();
+const indexStyles = () => {
+  STYLE_INDEX.clear();
+  for (const category of CATEGORIES) for (const family of category.families) for (const style of family.styles)
+    STYLE_INDEX.set(style.id, { style, family, category });
+};
+indexStyles();
+
+/* Admins' changes to the tree, from Firestore: a doc whose id is a built-in style renames it or rewrites its
+   description ({ name, about }); any other id is a new style under an existing family ({ name, family: "cat/fam",
+   about }). Applied to the shared tree in place, so every screen sees it. Calling again replaces the last overlay. */
+const BUILT_IN_NAMES = new Map([...STYLE_INDEX].map(([id, s]) => [id, s.style.name]));
+export const isBuiltInStyle = id => BUILT_IN_NAMES.has(id);
+export const builtInStyleName = id => BUILT_IN_NAMES.get(id) || null;
+export function applyStyleOverlay(docs) {
+  for (const c of CATEGORIES) for (const f of c.families) {
+    f.styles = f.styles.filter(st => !st.custom);
+    for (const st of f.styles) { st.name = BUILT_IN_NAMES.get(st.id); delete st.about; }
+  }
+  for (const d of docs) {
+    const fix = BUILT_IN_NAMES.has(d.id) && STYLE_INDEX.get(d.id);
+    if (fix) {
+      if (d.name) fix.style.name = d.name;
+      if (d.about) fix.style.about = d.about;
+      continue;
+    }
+    const [cid, fid] = String(d.family || "").split("/");
+    const fam = ((CATEGORIES.find(c => c.id === cid) || {}).families || []).find(f => f.id === fid);
+    if (fam && d.name) fam.styles.push({ id: d.id, name: d.name, custom: true, ...(d.about ? { about: d.about } : {}) });
+  }
+  indexStyles();
+}

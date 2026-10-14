@@ -3,6 +3,7 @@
    A log stores the drink (kind + drinkId, plus its title at the time), how much (ml) and how strong (abv), so standard
    drinks stay right even if the drink list changes later. */
 import { INGREDIENT_INDEX } from "./catalog/ingredients.js";
+import { resolveId } from "./catalog.js";
 import { ML_PER_OZ, standardDrinks } from "./units.js";
 
 /* ---------- Sizes ---------- */
@@ -98,11 +99,12 @@ export function tagsFor(item) {
 /* ---------- Recent drinks and places ---------- */
 const mine = (logs, uid) => logs.filter(l => l.uid === uid).sort((a, b) => b.at - a.at);
 
-/* Your most recent logs, one per drink, newest first: the "Another one" list. */
+/* Your most recent logs, one per drink (a merged duplicate counts as the drink kept), newest first: the
+   "Another one" list. */
 export function recentDrinks(logs, uid, n = 6) {
   const seen = new Set(), out = [];
   for (const l of mine(logs, uid)) {
-    const key = `${l.kind}:${l.drinkId}`;
+    const key = `${l.kind}:${resolveId(l.kind, l.drinkId)}`;
     if (seen.has(key)) continue;
     seen.add(key); out.push(l);
     if (out.length >= n) break;
@@ -112,20 +114,30 @@ export function recentDrinks(logs, uid, n = 6) {
 
 /* How many times you've logged a drink, and your average rating of it. */
 export function drinkHistory(logs, uid, kind, drinkId) {
-  const list = logs.filter(l => l.uid === uid && l.kind === kind && l.drinkId === drinkId);
+  const want = resolveId(kind, drinkId);
+  const list = logs.filter(l => l.uid === uid && l.kind === kind && resolveId(l.kind, l.drinkId) === want);
   const rated = list.filter(l => l.rating);
   return { count: list.length, avg: rated.length ? Math.round(rated.reduce((t, l) => t + l.rating, 0) / rated.length * 10) / 10 : null,
     last: list.reduce((t, l) => Math.max(t, l.at), 0) || null };
 }
 
-/* Places in picking order: the ones you log at most, then the group's favourites, then A to Z. */
+/* A place an admin merged into another ("Keg" into "The Keg") gives the one kept. */
+export function resolvePlace(places, id) {
+  let p = places.find(x => x.id === id);
+  for (let hops = 0; p && p.mergedInto && hops < 5; hops++) p = places.find(x => x.id === p.mergedInto) || p;
+  return p || null;
+}
+
+/* Places in picking order: the ones you log at most, then the group's favourites, then A to Z. Merged ones are left
+   out, and their logs count for the place kept. */
 export function placesByUse(places, logs, uid) {
   const yours = new Map(), all = new Map();
   for (const l of logs) if (l.placeId) {
-    all.set(l.placeId, (all.get(l.placeId) || 0) + 1);
-    if (l.uid === uid) yours.set(l.placeId, (yours.get(l.placeId) || 0) + 1);
+    const id = (resolvePlace(places, l.placeId) || { id: l.placeId }).id;
+    all.set(id, (all.get(id) || 0) + 1);
+    if (l.uid === uid) yours.set(id, (yours.get(id) || 0) + 1);
   }
-  return [...places].sort((a, b) => (yours.get(b.id) || 0) - (yours.get(a.id) || 0)
+  return places.filter(p => !p.mergedInto).sort((a, b) => (yours.get(b.id) || 0) - (yours.get(a.id) || 0)
     || (all.get(b.id) || 0) - (all.get(a.id) || 0) || a.name.localeCompare(b.name));
 }
 
@@ -140,5 +152,5 @@ export const cleanPlaceName = s => String(s || "").trim().replace(/\s+/g, " ").s
 /* An existing place with the same name (ignoring case and spaces), so "the keg" doesn't become a second "The Keg". */
 export const findPlace = (places, name) => {
   const n = cleanPlaceName(name).toLowerCase();
-  return places.find(p => p.name.toLowerCase() === n) || null;
+  return places.find(p => !p.mergedInto && p.name.toLowerCase() === n) || null;
 };

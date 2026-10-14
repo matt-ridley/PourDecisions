@@ -1,7 +1,8 @@
 /* Home: your recent drinks (with "Another one"), anything that didn't reach the group, and the group. The feed of
    everyone's drinks comes in a later release. */
 import { el, fill, avatar } from "./ui.js";
-import { store, uid, retryLog, discardLog } from "./cloud.js";
+import { store, uid, isAdmin, retryLog, discardLog } from "./cloud.js";
+import { toCheck } from "./moderation.js";
 import { TAGLINE } from "./config.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { allItems } from "./catalog.js";
@@ -24,6 +25,9 @@ export function renderHome(main) {
         el("div", { class: "stat" }, el("b", { text: String(store.logs.length) }), el("span", { text: "drinks logged" })),
         el("div", { class: "stat" }, el("b", { text: String(allItems().length) }), el("span", { text: `in the list (${styles} styles)` })))),
     outboxCard(),
+    isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
+      el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
+      el("span", { class: "chip gold", text: String(toCheck().length) })) : null,
     el("section", { class: "card stack" },
       el("h3", { text: "Your recent drinks" }),
       mine.length

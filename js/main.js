@@ -5,6 +5,7 @@ import { cloud, store, subscribe, gate, syncStatus, initCloud, uid } from "./clo
 import { renderGate } from "./gate.js";
 import { renderProfile } from "./profile.js";
 import { renderAdmin } from "./admin.js";
+import { renderCatalogAdmin } from "./moderation.js";
 import { renderHome } from "./home.js";
 import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
 import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
@@ -17,14 +18,16 @@ const ROUTES = {
   l: { tab: null, live: true, render: renderLogDetail },
   edit: { tab: null, live: false, render: renderLogEdit },
   drinks: { tab: "drinks", live: false, render: renderDrinks },
-  cat: { tab: "drinks", sub: true, live: false, render: renderCategory },
-  style: { tab: "drinks", sub: true, live: false, render: renderStyle },
-  drink: { tab: "drinks", sub: true, live: false, render: renderDrink },
+  // Drink list pages redraw when admins fix or merge something (they have no boxes to type in).
+  cat: { tab: "drinks", sub: true, live: true, render: renderCategory },
+  style: { tab: "drinks", sub: true, live: true, render: renderStyle },
+  drink: { tab: "drinks", sub: true, live: true, render: renderDrink },
   recipe: { tab: "drinks", sub: true, live: false, render: renderRecipe },
   ing: { tab: "drinks", sub: true, live: false, render: renderIngredient },
   me: { tab: null, live: true, render: main => renderProfile(main) },
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
   admin: { tab: null, live: true, render: renderAdmin },
+  catalog: { tab: null, live: true, render: renderCatalogAdmin },
 };
 
 function parseRoute() {

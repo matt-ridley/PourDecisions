@@ -6,7 +6,7 @@ import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { ORIGINS } from "./catalog/drinks.js";
 import { sizesFor, defaultSize, itemAbv, logStd, cleanRating, tagsFor, TAG_INDEX, MAX_TAGS, recentDrinks, placesByUse,
-  lastPlace, findPlace, cleanPlaceName, SAME_NIGHT_MS } from "./logs.js";
+  lastPlace, findPlace, cleanPlaceName, resolvePlace, SAME_NIGHT_MS } from "./logs.js";
 import { getUnits, fmtVolume, standardDrinks, ozToMl } from "./units.js";
 import { shrinkPhoto } from "./photo.js";
 
@@ -15,7 +15,11 @@ let query = "";
 
 const itemOf = log => itemById(log.kind, log.drinkId);
 const iconOf = log => { const i = itemOf(log); return i ? i.category.icon : "🍹"; };
-const placeName = id => (store.places.find(p => p.id === id) || {}).name || "";
+// Merged drinks and places show as the one kept; an admin's fix to a drink's name shows on old logs too.
+const placeOf = id => id ? resolvePlace(store.places, id) : null;
+const placeName = id => (placeOf(id) || {}).name || "";
+const placeIdNow = id => (placeOf(id) || { id }).id || null;
+const titleOf = log => (itemOf(log) || log).title;
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 
 /* ---------- Stars ---------- */
@@ -50,16 +54,18 @@ export function logRow(log, { who = false, another = false } = {}) {
     .filter(Boolean).join(" · ");
   return el("li", { class: "log-row" },
     el("a", { class: "item-row grow", href: `#/l/${log.id}` }, thumbBox(log),
-      el("span", { class: "grow" }, el("b", { text: log.title }), el("span", { class: "muted small", text: meta }))),
-    another ? el("button", { class: "btn small", type: "button", text: "Another", "aria-label": `Another ${log.title}`, onclick: () => anotherOne(log) }) : null);
+      el("span", { class: "grow" }, el("b", { text: titleOf(log) }), el("span", { class: "muted small", text: meta }))),
+    another ? el("button", { class: "btn small", type: "button", text: "Another", "aria-label": `Another ${titleOf(log)}`, onclick: () => anotherOne(log) }) : null);
 }
 
 /* Logs the same drink again, now: same size, and the same place if it's the same night. */
 export function anotherOne(log) {
   const sameNight = Date.now() - log.at < SAME_NIGHT_MS;
-  const id = saveLog({ kind: log.kind, drinkId: log.drinkId, title: log.title, style: log.style, size: log.size, ml: log.ml, abv: log.abv,
-    at: Date.now(), placeId: sameNight ? log.placeId : lastPlace(store.logs, uid()) });
-  toast(`Another ${log.title} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
+  const item = itemOf(log); // a merged or fixed drink logs as the drink it is now
+  const id = saveLog({ kind: log.kind, drinkId: item ? item.id : log.drinkId, title: item ? item.title : log.title,
+    style: item ? item.style.id : log.style, size: log.size, ml: log.ml, abv: item && log.kind === "drink" ? item.data.abv : log.abv,
+    at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())) });
+  toast(`Another ${titleOf(log)} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
 }
 
 /* ---------- #/log: what are you drinking? ---------- */
@@ -112,7 +118,7 @@ export function renderLogForm(main, item, editing = null) {
   const s = {
     size: editing ? editing.size : last && sizes.some(z => z.key === last.size) ? last.size : defaultSize(item),
     ml: editing ? editing.ml : null, rating: editing ? editing.rating || null : null, tags: editing ? [...(editing.tags || [])] : [],
-    placeId: editing ? editing.placeId || null : lastPlace(store.logs, uid()),
+    placeId: placeIdNow(editing ? editing.placeId : lastPlace(store.logs, uid())),
     at: editing ? editing.at : null, // null = now
     notes: editing ? editing.notes || "" : "",
     pics: undefined, // undefined = unchanged, null = no photo, { photo, thumb } = new photo
@@ -338,7 +344,7 @@ export function renderLogDetail(main, id) {
     el("section", { class: "card log-head" },
       el("span", { class: "item-icon", text: iconOf(log) }),
       el("div", { class: "grow" },
-        item ? el("a", { href: `#/${log.kind === "cocktail" ? "recipe" : "drink"}/${log.drinkId}` }, el("h2", { text: log.title })) : el("h2", { text: log.title }),
+        item ? el("a", { href: `#/${log.kind === "cocktail" ? "recipe" : "drink"}/${item.id}` }, el("h2", { text: item.title })) : el("h2", { text: log.title }),
         log.rating ? el("p", { class: "rating-line", text: `${starText(log.rating)} / 5` }) : null)),
     el("a", { class: "member-row card", href: mineLog ? "#/me" : `#/u/${log.uid}` }, avatar(m),
       el("div", { class: "grow" }, el("div", { class: "name", text: m.displayName }), el("div", { class: "muted small", text: fmtAgo(log.at) }))),
