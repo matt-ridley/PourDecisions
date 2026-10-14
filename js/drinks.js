@@ -1,10 +1,12 @@
 /* The Drinks tab: search the catalog, browse a category's families and styles, and open a drink, a cocktail recipe
    or a recipe ingredient. */
-import { el, fill, icon } from "./ui.js";
+import { el, fill, icon, fmtDay } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { search, browse, countIn, styleCount, itemById, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount } from "./units.js";
+import { store, uid } from "./cloud.js";
+import { drinkHistory } from "./logs.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
@@ -98,8 +100,8 @@ export function renderDrink(main, id) {
       el("h2", { text: i.title }),
       el("p", { class: "muted", text: i.style.name })),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
-    useItIn(d),
-    el("p", { class: "hint center", text: "Logging, ratings and reviews are coming next." }));
+    logThis(i),
+    useItIn(d));
 }
 
 /* The cocktails a drink can go in, from the recipe ingredients it counts as. Long lists start folded. */
@@ -135,6 +137,7 @@ export function renderRecipe(main, id) {
     el("section", { class: "card stack" },
       el("h3", { text: "Method" }),
       el("ol", { class: "steps" }, ...r.steps.map(s => el("li", { text: s })))),
+    logThis(i),
     el("p", { class: "hint center", text: "This is the default recipe. Your group's own recipes and twists are coming later." }));
 }
 
@@ -190,4 +193,13 @@ export function renderIngredient(main, id) {
     el("section", { class: "card stack" },
       el("h3", { text: `Used in ${cocktails.length} cocktail${cocktails.length === 1 ? "" : "s"}` }),
       el("ul", { class: "item-list" }, ...cocktails.map(itemRow))));
+}
+
+/* "Log this" plus how often you've had it. */
+function logThis(i) {
+  const h = drinkHistory(store.logs, uid(), i.kind, i.id);
+  return el("section", { class: "card stack" },
+    h.count ? el("p", { class: "muted", text: [`You've had it ${h.count === 1 ? "once" : `${h.count} times`}`,
+      h.avg ? `your average ★ ${h.avg}` : "", `last ${fmtDay(h.last)}`].filter(Boolean).join(" · ") }) : null,
+    el("a", { class: "btn primary block", href: `#/log/${i.kind}/${i.id}`, text: h.count ? "Log another" : "Log this" }));
 }

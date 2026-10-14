@@ -23,13 +23,24 @@ function toItem(x, kind) {
 }
 
 export const ITEMS = [...DRINKS.map(x => toItem(x, "drink")), ...COCKTAILS.map(x => toItem(x, "cocktail"))];
-export const itemById = (kind, id) => ITEMS.find(i => i.kind === kind && i.id === id) || null;
+
+/* Drinks members added (from Firestore). They're "drink" items like the built-in ones, marked `member`, with
+   Firestore ids, which never look like the built-in slugs. Set by cloud.js whenever the list changes. */
+let memberItems = [], allList = ITEMS;
+export function setMemberDrinks(list) {
+  memberItems = list.filter(d => styleOf(d.style)).map(d => ({ ...toItem(d, "drink"), member: true }));
+  allList = [...ITEMS, ...memberItems];
+}
+export const allItems = () => allList;
+export const memberDrinks = () => memberItems;
+
+export const itemById = (kind, id) => allList.find(i => i.kind === kind && i.id === id) || null;
 
 const byTitle = (a, b) => a.title.localeCompare(b.title);
 
 /* Every word typed must appear somewhere (title, brand, style, category, origin or, for cocktails, an ingredient).
    Titles that start with what was typed come first. */
-export function search(query, { category = null, items = ITEMS } = {}) {
+export function search(query, { category = null, items = allList } = {}) {
   const q = normalize(query), words = q.split(" ").filter(Boolean);
   const pool = category ? items.filter(i => i.category && i.category.id === category) : items;
   if (!words.length) return [...pool].sort(byTitle);
@@ -39,14 +50,14 @@ export function search(query, { category = null, items = ITEMS } = {}) {
 }
 
 /* A category's families and styles, each with the catalog items in it (empty styles included). */
-export function browse(categoryId, items = ITEMS) {
+export function browse(categoryId, items = allList) {
   const cat = CATEGORIES.find(c => c.id === categoryId);
   if (!cat) return null;
   return { ...cat, families: cat.families.map(f => ({ ...f, styles: f.styles.map(s => ({
     ...s, items: items.filter(i => i.style && i.style.id === s.id).sort(byTitle) })) })) };
 }
 
-export const countIn = (categoryId, items = ITEMS) => items.filter(i => i.category && i.category.id === categoryId).length;
+export const countIn = (categoryId, items = allList) => items.filter(i => i.category && i.category.id === categoryId).length;
 export const styleCount = categoryId => (CATEGORIES.find(c => c.id === categoryId) || { families: [] })
   .families.reduce((n, f) => n + f.styles.length, 0);
 
@@ -67,11 +78,11 @@ export function countsAs(drink, g) {
 export const ingredientsOf = drink => INGREDIENTS.filter(g => countsAs(drink, g)).map(g => g.id);
 
 /* Catalog drinks that count as an ingredient, and the cocktails that use it (as any of its choices). */
-export const drinksFor = (id, items = ITEMS) => {
+export const drinksFor = (id, items = allList) => {
   const g = ingredientById(id);
   return g ? items.filter(i => i.kind === "drink" && countsAs(i.data, g)).sort(byTitle) : [];
 };
-export const cocktailsUsing = (ids, items = ITEMS) => {
+export const cocktailsUsing = (ids, items = allList) => {
   const want = new Set([].concat(ids));
   return items.filter(i => i.kind === "cocktail" && i.data.ingredients.some(x => x.ing.some(id => want.has(id)))).sort(byTitle);
 };

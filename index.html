@@ -33,14 +33,12 @@
     box.querySelector("button").onclick = function () { location.reload(); };
     var info = box.querySelector("pre");
     var lines = ["Online: " + navigator.onLine, "Worker: " + !!(navigator.serviceWorker && navigator.serviceWorker.controller), "Page: " + location.href].concat(errs.length ? errs : ["No errors caught"]);
-    info.textContent = lines.join("
-");
+    info.textContent = lines.join("\n");
     document.body.appendChild(box);
     // Which saved files the phone has (the app opens with no signal from these).
     if (window.caches) caches.keys().then(function (ks) {
       return Promise.all(ks.map(function (k) { return caches.open(k).then(function (c) { return c.keys(); }).then(function (r) { return k + ": " + r.length + " files"; }); }));
-    }).then(function (ls) { info.textContent += "
-Saved: " + (ls.join(", ") || "none"); }, function () {});
+    }).then(function (ls) { info.textContent += "\nSaved: " + (ls.join(", ") || "none"); }, function () {});
   }, 8000);
 })();
 </script>

@@ -32,3 +32,10 @@ test("the start-up safety net runs before the stylesheets", () => {
   const net = html.indexOf("didn't start"), css = html.indexOf('rel="stylesheet"');
   assert.ok(net > 0 && net < css, "the safety-net script must come before the stylesheets");
 });
+
+test("the inline scripts in index.html parse (the start-up safety net must be able to run)", async () => {
+  const { Script } = await import("node:vm");
+  const scripts = [...read("index.html").matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length >= 1);
+  for (const s of scripts) assert.doesNotThrow(() => new Script(s), s.slice(0, 80));
+});
