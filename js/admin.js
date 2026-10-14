@@ -2,6 +2,7 @@
 import { el, field, avatar, fmtDay, openSheet, closeSheet, toast, copyText, confirmButton, fill } from "./ui.js";
 import { store, uid, isAdmin, isOwner, setGroupName, setInviteCode, setSuspended, removeMember, setAdmin, randomCode, cleanCode } from "./cloud.js";
 import { APP_NAME } from "./config.js";
+import { toCheck } from "./moderation.js";
 
 const publicUrl = () => location.origin + location.pathname; // without ?emulator or anything else
 
@@ -40,7 +41,12 @@ export function renderAdmin(main) {
           el("div", { class: "muted small", text: [owner ? "Owner" : admin ? "Admin" : "Member", `joined ${fmtDay(m.joinedAt || 0)}`, m.suspended ? "paused" : ""].filter(Boolean).join(" · ") })),
         owner || m.id === uid() ? null : el("button", { class: "btn small", type: "button", text: "Manage", onclick: () => memberSheet(m.id) }));
     })));
-  fill(main, el("h2", { class: "page-title", text: "Group admin" }), invite, group, list);
+  const n = toCheck().length;
+  const catalog = el("a", { class: "card admin-link", href: "#/catalog" },
+    el("div", { class: "grow" }, el("h3", { text: "Drink list" }),
+      el("p", { class: "muted small", text: "Check new drinks, fix details, merge duplicates, styles and places." })),
+    n ? el("span", { class: "chip gold", text: `${n} to check` }) : null);
+  fill(main, el("h2", { class: "page-title", text: "Group admin" }), catalog, invite, group, list);
 }
 
 function codeSheet(current) {

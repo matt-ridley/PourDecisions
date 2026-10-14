@@ -4,8 +4,9 @@
 import { el, fill, icon, fmtDay } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
-import { ABOUT_CATEGORY, ABOUT_FAMILY, ABOUT_STYLE } from "./catalog/about.js";
-import { search, browse, countIn, styleCount, itemById, allItems, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
+import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
+import { adminDrinkTools } from "./moderation.js";
+import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount } from "./units.js";
 import { store, uid } from "./cloud.js";
 import { drinkHistory } from "./logs.js";
@@ -130,7 +131,7 @@ export function renderStyle(main, id) {
   trail[trail.length - 1] = [s.style.name];
   fill(main,
     crumbs(...trail),
-    pageHead(s.category.icon, s.style.name, ABOUT_STYLE[id]),
+    pageHead(s.category.icon, s.style.name, aboutStyle(id)),
     items.length ? el("ul", { class: "item-list card" }, ...items.map(i => itemRow(i, { style: false })))
       : el("section", { class: "card stack center" },
           el("p", { class: "muted", text: "Nothing in the list in this style yet." }),
@@ -158,16 +159,22 @@ export function renderDrink(main, id) {
       el("p", { class: "muted", text: i.style.name })),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
     logThis(i),
-    useItIn(d));
+    useItIn(d),
+    adminDrinkTools(i));
 }
 
+const foldOpen = new Map();
 /* The cocktails a drink can go in, from the recipe ingredients it counts as. Long lists start folded. */
 function useItIn(d) {
   const ings = ingredientsOf(d);
   const list = ings.length ? cocktailsUsing(ings) : [];
   if (!list.length) return null;
   const names = ings.map(id => ingredientById(id).name).join(", ");
-  return el("details", { class: "card fold", open: list.length <= 8 ? "" : null },
+  // The page redraws when group data changes, so remember whether this was opened.
+  const open = foldOpen.has(d.id) ? foldOpen.get(d.id) : list.length <= 8;
+  const box = el("details", { class: "card fold", open: open ? "" : null });
+  box.addEventListener("toggle", () => foldOpen.set(d.id, box.open));
+  return fill(box,
     el("summary", {}, el("b", { text: `Use it in ${list.length} cocktail${list.length === 1 ? "" : "s"}` })),
     el("p", { class: "muted small", text: `Counts as: ${names}.` }),
     el("ul", { class: "item-list" }, ...list.map(itemRow)));

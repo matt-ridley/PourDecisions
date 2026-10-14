@@ -126,26 +126,63 @@ service cloud.firestore {
         && request.resource.data.by == me()
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
         && request.resource.data.at is int;
-      // Tidying up (renaming, removing duplicates) is for admins.
-      allow update: if isAdmin() && changed().hasOnly(["name"])
-        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60;
+      // Tidying up is for admins: renaming, and merging a duplicate into the place to keep (mergedInto).
+      allow update: if isAdmin() && changed().hasOnly(["name", "mergedInto"])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+        && optText(request.resource.data, "mergedInto", 40);
       allow delete: if isAdmin();
     }
 
     function memberDrinkOk(d) {
-      return d.keys().hasOnly(["brand", "name", "variant", "style", "abv", "origin", "by", "at"])
+      return d.keys().hasOnly(["brand", "name", "variant", "style", "abv", "origin", "by", "at", "checked", "ing", "mergedInto"])
         && d.brand is string && d.brand.size() > 0 && d.brand.size() <= 60
         && d.name is string && d.name.size() <= 80
         && optText(d, "variant", 40) && optText(d, "origin", 10)
         && d.style is string && d.style.size() > 0 && d.style.size() <= 40
         && d.abv is number && d.abv >= 0 && d.abv <= 80
-        && d.at is int;
+        && d.at is int
+        && (!("checked" in d) || d.checked is bool)
+        && (!("ing" in d) || (d.ing is list && d.ing.size() <= 10))
+        && optText(d, "mergedInto", 80);
     }
     match /drinks/{id} {
       allow read: if isMember();
-      allow create: if isMember() && memberDrinkOk(request.resource.data) && request.resource.data.by == me();
+      // Members add drinks; the moderation fields (checked, ing, mergedInto) are for admins.
+      allow create: if isMember() && memberDrinkOk(request.resource.data) && request.resource.data.by == me()
+        && !request.resource.data.keys().hasAny(["checked", "ing", "mergedInto"]);
       // Fixing details is for admins (catalogue moderation); who added it never changes.
       allow update: if isAdmin() && memberDrinkOk(request.resource.data) && !changed().hasAny(["by", "at"]);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Catalogue moderation ----------
+    // Corrections to built-in drinks (doc id = the built-in drink's id), laid over the list by the app. Only the
+    // fields that differ are stored. mergedInto points a duplicate at the drink to keep.
+    match /fixes/{id} {
+      allow read: if isMember();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(["brand", "name", "variant", "style", "abv", "approx", "origin", "town", "ing", "mergedInto", "by", "at"])
+        && request.resource.data.by == me() && request.resource.data.at is int
+        && optText(request.resource.data, "brand", 60) && optText(request.resource.data, "name", 80)
+        && optText(request.resource.data, "variant", 40) && optText(request.resource.data, "style", 40)
+        && optText(request.resource.data, "origin", 10) && optText(request.resource.data, "town", 60)
+        && optText(request.resource.data, "mergedInto", 80)
+        && (!("abv" in request.resource.data) || (request.resource.data.abv is number && request.resource.data.abv >= 0 && request.resource.data.abv <= 80))
+        && (!("approx" in request.resource.data) || request.resource.data.approx is bool)
+        && (!("ing" in request.resource.data) || (request.resource.data.ing is list && request.resource.data.ing.size() <= 10));
+      allow delete: if isAdmin();
+    }
+
+    // Admins' styles: a built-in style's id renames it or rewrites its description; any other id is a new style
+    // under an existing family ("cat/fam").
+    match /styles/{id} {
+      allow read: if isMember();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(["name", "about", "family", "by", "at"])
+        && request.resource.data.by == me() && request.resource.data.at is int
+        && (!("name" in request.resource.data) || cleanName(request.resource.data.name))
+        && optText(request.resource.data, "about", 200) && optText(request.resource.data, "family", 60)
+        && id.size() <= 40;
       allow delete: if isAdmin();
     }
   }
