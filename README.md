@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.8.0 (beta)
+**Current version:** 0.9.0 (beta)
 
 ## Features
 
@@ -56,12 +56,17 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
    - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
    - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
 2. ✅ **Ratings and reviews** (0.8.0).
-3. **The feed.** What everyone's pouring. Admins can delete any comment.
-4. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+3. **Cocktail variants.** Make a cocktail by following its recipe, pick the bottles you actually used, change the amounts, add or leave out ingredients, and name it if you like. Each different version becomes a variant under the original cocktail, which shows how many variants the group has made. Making the same thing again (same bottles, same amounts) counts toward the same variant instead of adding a copy. Variants are rated by the group, and each one shows who has made it.
+   - ✅ **Variants core** (0.9.0): what makes a variant, ids from what's in it, automatic names, makers, strength from the real bottles, security rules.
+   - **Make it** (0.9.1): follow the recipe with a bottle picker and amount stepper on each ingredient, add or remove ingredients, change the glass or garnish, an optional name, and batches (×2, ×4, a pitcher). **Bartender mode:** big text, a checkbox per step and the screen kept awake. **Make it for someone:** log it for another member, with you as the maker.
+   - **Variants in the catalogue** (0.9.2): the variant count on each cocktail, a Variants list on its page, and a page per variant showing what's different from the original. **Remix** someone's variant (it shows what it was remixed from). **Make it again** from Home.
+   - **Ratings, crown and stats** (0.9.3): rate variants (separate from the original's stars), top variants, a **House Pour** crown for the group's best-rated variant of each cocktail, **Compare** two variants side by side, a photo per variant, and mixologist stats on profiles (variants created, made by others, average rating).
+4. **The feed.** What everyone's pouring. Admins can delete any comment.
+5. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
 
 ### After the core: the bar, the fridge and the tab
 
-These milestones come after steps 1 to 4, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
+These milestones come after steps 1 to 5, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
 
 **A. Stock: the fridge and the bar**
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
@@ -106,9 +111,9 @@ Rules to follow from the start, so they never need fixing later:
 
 ### Backlog
 
-- Crowns (one holder at a time, e.g. Explorer, Peat Freak, Globetrotter) and badges.
+- Crowns (one holder at a time, e.g. Explorer, Peat Freak, Globetrotter) and badges. (The House Pour crown for cocktail variants comes earlier, in step 3.)
 - Recommendations ("you should try this"), wishlist and palate match.
-- The group's own cocktail book.
+- The group's own cocktail book: brand-new recipes, not variants of a built-in one.
 - Challenges: blind tastings, Style Bingo, Around the World, Cocktail of the Month, Sober October.
 - Year-end "Wrapped".
 - Group start date and a late-logging window, like Lunker League's (late entries count for your history but not the competition). Decide once there's something to compete on.
@@ -183,7 +188,8 @@ npm run deploy:rules
 
 - Accounts, profiles, logged drinks, shared places and drinks members add are stored in the group's Firebase project. Only members can read them.
 - Admins' fixes to built-in drinks (`fixes`, only the fields that differ) and their new or renamed styles (`styles`) are stored there too, and laid over the built-in list by the app.
-- Ratings are stored in `ratings`, one document per person per drink (id `uid_kind_drinkId`).
+- Ratings are stored in `ratings`, one document per person per drink (id `uid_kind_drinkId`). A cocktail variant is rated with kind `variant`.
+- Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
@@ -257,6 +263,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.9.0** (2026-Oct-14): Cocktail variants, the groundwork (nothing new on screen yet). New roadmap step 3: cocktail variants, in four parts. The new `js/variants.js` decides what counts as a variant (a bottle picked, an amount changed, an ingredient added or removed, or a different glass or garnish; picking "rye or bourbon" or leaving out an optional ingredient is still the recipe), gives each one an id made from what's in it, names unnamed ones from what changed ("Whisky Sour · Dillon's Rye Whisky, more fresh lemon juice"), and counts who has made each one. A cocktail's strength now uses the real bottles picked, so a full-proof bourbon counts as stronger. Security rules for variants, logs that point at a variant or were made for someone else, and rating a variant. **New `firestore.rules`: publish them before merging.**
 - **0.8.0** (2026-Oct-14): Ratings and reviews. One rating per person per drink, kept apart from logs, so a drink is rated once and changed whenever. Stars and flavours are gone from the log screen (logs keep their own notes). Rate later from **How was it?** on Home, a log's page or the drink's page, with stars, flavours and an optional review. Each drink's page shows the group's average, the most-picked flavours and everyone's reviews. New **Top rated** list under Drinks. Admins can take down a review's text. Ratings on older logs carry over. **New `firestore.rules`: publish them before merging.**
 - **0.7.0** (2026-Oct-13): Status light and System info. The Live/Offline pill is gone from the header, making room for an alerts icon later. Instead, a small ball on the glass shows the connection (green connected, pulsing green syncing, blue offline, red a sync problem), and stays on Back on inner pages. Tap the glass, or **System info** on your profile, for the connection in words, the app version with **Check for an update**, and this phone. No new security rules.
 - **0.6.1** (2026-Oct-13): A much bigger whisky and spirits list: about 580 more bottles (whisky 255 to 539, spirits 203 to 513). More Canadian whisky (Wiser's, Canadian Club, Lot No. 40, Forty Creek, Alberta and BC distilleries), many more Scotch single malts and blends, bourbon and rye, Irish, Japanese and world whisky. More gin, vodka and flavours, rum, tequila and mezcal, cognac and brandy, and liqueurs (including the McGuinness and Sour Puss range), amari and vermouths. Every new bottle counts toward the recipes that call for its style.

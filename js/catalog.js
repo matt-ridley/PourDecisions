@@ -26,6 +26,7 @@ function toItem(x, kind) {
 /* The built-in list as shipped, before any admin corrections. */
 export const ITEMS = [...DRINKS.map(x => toItem(x, "drink")), ...COCKTAILS.map(x => toItem(x, "cocktail"))];
 const BUILT_IN = new Map(DRINKS.map(d => [d.id, d]));
+const COCKTAIL_IDS = new Set(COCKTAILS.map(c => c.id));
 export const builtInDrink = id => BUILT_IN.get(id) || null;
 
 /* ---- The live list: built-in drinks with admins' corrections laid over them, plus drinks members added ----
@@ -38,8 +39,8 @@ export const builtInDrink = id => BUILT_IN.get(id) || null;
    A merged drink (mergedInto) is hidden from search, browse and counts, and looking it up gives the drink it was
    merged into, so logs of the duplicate show and count as the kept one. Nobody's logs are rewritten. */
 export const FIX_FIELDS = ["brand", "name", "variant", "style", "abv", "approx", "origin", "town", "ing"];
-let fixes = new Map(), memberDocs = [];
-let allList = ITEMS, visible = ITEMS, index = new Map();
+let fixes = new Map(), memberDocs = [], variantDocs = [];
+let allList = ITEMS, visible = ITEMS, index = new Map(), variantList = [];
 
 function rebuild() {
   const built = DRINKS.map(d => {
@@ -53,13 +54,22 @@ function rebuild() {
   const mine = memberDocs.filter(d => styleOf(d.style)).map(d => ({ ...toItem(d, "drink"), member: true, ...(d.mergedInto ? { mergedInto: d.mergedInto } : {}) }));
   allList = [...built, ...COCKTAILS.map(x => toItem(x, "cocktail")), ...mine];
   visible = allList.filter(i => !i.mergedInto);
-  index = new Map(allList.map(i => [`${i.kind}:${i.id}`, i]));
+  // Members' cocktail variants (see variants.js) can be looked up and merged like drinks, but they live under their
+  // cocktail: they're kept out of search, browsing and counts. Their titles come from variants.js.
+  variantList = variantDocs.filter(v => COCKTAIL_IDS.has(v.base))
+    .map(v => ({ kind: "variant", id: v.id, base: v.base, data: v, ...(v.mergedInto ? { mergedInto: v.mergedInto } : {}) }));
+  index = new Map([...allList, ...variantList].map(i => [`${i.kind}:${i.id}`, i]));
 }
 rebuild();
 
 export function setFixes(list) { fixes = new Map(list.map(f => [f.id, f])); rebuild(); }
 export function setMemberDrinks(list) { memberDocs = list; rebuild(); }
 export function setStyles(list) { applyStyleOverlay(list); rebuild(); }
+export function setVariants(list) { variantDocs = list; rebuild(); }
+
+/* A cocktail's variants, merged duplicates left out, oldest first. */
+export const variantsOf = baseId => variantList.filter(v => v.base === baseId && !v.mergedInto)
+  .sort((a, b) => (a.data.at || 0) - (b.data.at || 0));
 
 /* Everything people can find: merged duplicates left out. */
 export const allItems = () => visible;

@@ -3,7 +3,7 @@
    A log stores the drink (kind + drinkId, plus its title at the time), how much (ml) and how strong (abv), so standard
    drinks stay right even if the drink list changes later. */
 import { INGREDIENT_INDEX } from "./catalog/ingredients.js";
-import { resolveId } from "./catalog.js";
+import { resolveId, itemById } from "./catalog.js";
 import { ML_PER_OZ, standardDrinks } from "./units.js";
 
 /* ---------- Sizes ---------- */
@@ -43,7 +43,10 @@ export const defaultSize = item => DEFAULT[sizeSet(item)];
 /* ---------- Cocktails: how much and how strong ---------- */
 // Rough strength by ingredient kind, for standard drinks. Spirits 40%, liqueurs 25%, wine 13%, beer 5%.
 const KIND_ABV = { spirit: 40, liqueur: 25, wine: 13, beer: 5 };
+// A variant's row can name the bottle used: then its own strength counts.
 const ingAbv = x => {
+  const d = x.drinkId && itemById("drink", x.drinkId);
+  if (d) return d.data.abv || 0;
   const g = INGREDIENT_INDEX.get(x.ing[0]) || {};
   return x.ing[0] === "overproof-rum" ? 63 : KIND_ABV[g.kind] || 0;
 };
