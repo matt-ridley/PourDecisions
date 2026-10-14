@@ -8,10 +8,11 @@ import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
 import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
-import { store, uid, isAdmin, memberName, renameVariant } from "./cloud.js";
+import { store, uid, isAdmin, memberName, renameVariant, loadThumb } from "./cloud.js";
 import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
-import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME } from "./variants.js";
-import { ratingsCard, groupRatings } from "./ratepage.js";
+import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME,
+  rankVariants, asItem, compareRows } from "./variants.js";
+import { ratingsCard, groupRatings, starText } from "./ratepage.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
@@ -296,22 +297,25 @@ function logThis(i) {
 /* ---------- Cocktail variants ---------- */
 const times = n => n === 1 ? "once" : `${n} times`;
 
-/* The group's variants of a cocktail, most made first. */
+/* The group's variants of a cocktail: the House Pour first, then best rated, then most made. */
 function variantsCard(i) {
-  const list = madeVariants(i.id, store.logs);
+  const list = rankVariants(madeVariants(i.id, store.logs), groupRatings());
+  const house = list.find(x => x.house);
   return el("section", { class: "card stack" },
     el("h3", { text: list.length ? `${list.length} variant${list.length === 1 ? "" : "s"} by the group` : "Variants" }),
+    house ? el("p", { class: "note small" }, el("b", { text: "👑 House Pour: " }), `${variantTitle(i.data, house.item.data)}, the group's favourite version (${starText(house.avg)} from ${house.count} ratings).`) : null,
     list.length ? el("ul", { class: "item-list" }, ...list.map(x => variantRow(i.data, x)))
       : el("p", { class: "muted", text: "Nobody has made their own version yet. Tap Make it, pick your bottles or change an amount, and it shows up here." }));
 }
 
-function variantRow(recipe, { item, makes, makers }) {
+function variantRow(recipe, { item, makes, makers, avg, house }) {
   const by = item.data.by;
   const meta = [by ? `by ${by === uid() ? "you" : memberName(by)}` : "", `made ${times(makes)}`, makers > 1 ? `by ${makers} people` : ""]
     .filter(Boolean).join(" · ");
   return el("li", {}, el("a", { class: "item-row", href: `#/v/${item.id}` },
-    el("span", { class: "item-icon", text: "🍸" }),
+    el("span", { class: "item-icon", text: house ? "👑" : "🍸" }),
     el("span", { class: "grow" }, el("b", { text: variantTitle(recipe, item.data) }), el("span", { class: "muted small", text: meta })),
+    avg ? el("span", { class: "rating-line small", text: starText(avg) }) : null,
     el("span", { class: "chev", html: icon.chevron })));
 }
 
@@ -327,11 +331,14 @@ export function renderVariant(main, id) {
   const makers = makersOf(store.logs, item.id), made = makers.reduce((t, m) => t + m.count, 0);
   const from = lineage(item.id)[0], remixes = remixesOf(item.id);
   const who = u => u === uid() ? "you" : memberName(u);
+  const ranked = rankVariants(madeVariants(recipe.id, store.logs), groupRatings());
+  const house = (ranked.find(x => x.item.id === item.id) || {}).house;
   fill(main,
     crumbs(...styleTrail(recipe.style), [recipe.name, `#/recipe/${recipe.id}`], [v.name || "Variant"]),
     el("section", { class: "hero card" },
       el("span", { class: "hero-icon", text: "🍸" }),
       el("h2", { text: variantTitle(recipe, v) }),
+      house ? el("span", { class: "chip gold", text: "👑 House Pour" }) : null,
       el("p", { class: "muted" }, "A variant of ", el("a", { href: `#/recipe/${recipe.id}`, text: recipe.name })),
       from ? el("p", { class: "small" }, "Remixed from ", el("a", { href: `#/v/${from.id}`, text: variantTitle(recipe, from.data) })) : null,
       el("p", { class: "muted small", text: [v.by ? `First made by ${who(v.by)}` : "", v.at ? fmtDay(v.at) : ""].filter(Boolean).join(" · ") })),
@@ -347,6 +354,8 @@ export function renderVariant(main, id) {
       el("p", {}, el("b", { text: "Glass: " }), r.glass),
       el("p", {}, el("b", { text: "Garnish: " }), r.garnish || "None"),
       el("p", { class: "muted small", text: `Each: ${fmtVolume(ml, units)} at about ${abv}% = ${standardDrinks(ml, abv)} standard drinks` })),
+    ratingsCard(asItem(item)),
+    photosCard(item),
     el("section", { class: "card stack" },
       el("h3", { text: made ? `Made ${times(made)}` : "Not made yet" }),
       makers.length ? el("ul", { class: "member-list" }, ...makers.map(m => {
@@ -363,6 +372,7 @@ export function renderVariant(main, id) {
     el("section", { class: "card stack" },
       el("a", { class: "btn primary block", href: `#/make/${recipe.id}/${item.id}`, text: "🍸 Make this one" }),
       el("p", { class: "hint center", text: "Make it as it is, or change anything to make your own remix." }),
+      el("button", { class: "btn block", type: "button", text: "⚖️ Compare", onclick: () => compareSheet(recipe, item.id) }),
       v.by === uid() || isAdmin()
         ? el("button", { class: "btn block", type: "button", text: v.name ? "Rename" : "Give it a name", onclick: () => renameSheet(item, recipe) }) : null));
 }
@@ -382,4 +392,69 @@ function renameSheet(item, recipe) {
     form.addEventListener("submit", e => { e.preventDefault(); renameVariant(item.id, name.value); closeSheet(); toast("Saved."); });
     box.append(form);
   });
+}
+
+/* Photos people took of this variant (from their logs), small copies only; tap one for its log. */
+function photosCard(item) {
+  const logs = store.logs.filter(l => l.hasPhoto && l.variantId && (itemById("variant", l.variantId) || {}).id === item.id)
+    .sort((a, b) => b.at - a.at).slice(0, 6);
+  if (!logs.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: "Photos" }),
+    el("div", { class: "photo-grid" }, ...logs.map(l => {
+      const img = el("img", { alt: `${memberName(l.uid)}'s photo`, loading: "lazy" });
+      loadThumb(l.id).then(src => { if (src) img.src = src; else img.closest("a")?.remove(); });
+      return el("a", { href: `#/l/${l.id}` }, img);
+    })));
+}
+
+/* Pick what to compare this variant with: the recipe as written, or another of the group's variants. */
+function compareSheet(recipe, id) {
+  const others = rankVariants(madeVariants(recipe.id, store.logs), groupRatings()).filter(x => x.item.id !== id);
+  openSheet(box => box.append(el("div", { class: "stack" },
+    el("h2", { text: "Compare with" }),
+    el("ul", { class: "item-list" },
+      el("li", {}, el("a", { class: "item-row", href: `#/compare/${id}/${recipe.id}`, onclick: closeSheet },
+        el("span", { class: "item-icon", text: "📖" }), el("span", { class: "grow" }, el("b", { text: recipe.name }), el("span", { class: "muted small", text: "The recipe as written" })))),
+      ...others.map(x => el("li", {}, el("a", { class: "item-row", href: `#/compare/${id}/${x.item.id}`, onclick: closeSheet },
+        el("span", { class: "item-icon", text: x.house ? "👑" : "🍸" }), el("b", { class: "grow", text: variantTitle(recipe, x.item.data) }),
+        x.avg ? el("span", { class: "rating-line small", text: starText(x.avg) }) : null)))),
+    el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }))));
+}
+
+/* #/compare/<a>/<b>: two versions of a cocktail side by side. Each is a variant id, or the cocktail's id for the recipe
+   as written. Rows that differ are marked. */
+export function renderCompare(main, a, b) {
+  const side = id => {
+    const v = id && id.includes("~") ? itemById("variant", id) : null;
+    const base = itemById("cocktail", v ? v.base : id);
+    return base ? { v, base } : null;
+  };
+  const A = side(a), B = side(b);
+  if (!A || !B || A.base.id !== B.base.id) return fill(main, el("div", { class: "card" }, el("p", { text: "Those two can't be compared." })));
+  const recipe = A.base.data, units = getUnits(), ratings = groupRatings();
+  const info = x => {
+    const r = x.v ? variantRecipe(recipe, x.v.data) : recipe, ml = recipeVolume(r), abv = recipeAbv(r);
+    const rs = ratings.filter(t => x.v ? t.kind === "variant" && t.drinkId === x.v.id : t.kind === "cocktail" && t.drinkId === recipe.id);
+    const avg = rs.length ? Math.round(rs.reduce((t, q) => t + q.rating, 0) / rs.length * 10) / 10 : null;
+    const made = x.v ? makersOf(store.logs, x.v.id).reduce((t, m) => t + m.count, 0) : null;
+    return { title: x.v ? variantTitle(recipe, x.v.data) : `${recipe.name} (as written)`, href: x.v ? `#/v/${x.v.id}` : `#/recipe/${recipe.id}`,
+      glass: r.glass, garnish: r.garnish || "None", strength: `${abv}% · ${standardDrinks(ml, abv)} std`, avg, count: rs.length, made };
+  };
+  const ia = info(A), ib = info(B);
+  const cell = c => c ? el("span", {}, el("b", { text: c.oz != null ? fmtAmount(c.oz, units) : c.qty }), " ", c.name) : el("span", { class: "muted", text: "—" });
+  const line = (label, x, y, differs) => el("div", { class: `cmp-row${differs ? " differs" : ""}` },
+    el("span", { class: "cmp-label", text: label }), el("span", {}, x), el("span", {}, y));
+  fill(main,
+    crumbs(...styleTrail(recipe.style), [recipe.name, `#/recipe/${recipe.id}`], ["Compare"]),
+    el("h2", { class: "page-title", text: "Compare" }),
+    el("section", { class: "card cmp" },
+      el("div", { class: "cmp-row cmp-head" }, el("span"), el("a", { href: ia.href, text: ia.title }), el("a", { href: ib.href, text: ib.title })),
+      line("Rating", ia.avg ? `${starText(ia.avg)} (${ia.count})` : "Not rated", ib.avg ? `${starText(ib.avg)} (${ib.count})` : "Not rated"),
+      ia.made != null || ib.made != null ? line("Made", ia.made != null ? times(ia.made) : "—", ib.made != null ? times(ib.made) : "—") : null,
+      line("Strength", ia.strength, ib.strength, ia.strength !== ib.strength),
+      ...compareRows(recipe, A.v && A.v.data, B.v && B.v.data).map(r => line(r.label, cell(r.a), cell(r.b), r.differs)),
+      line("Glass", ia.glass, ib.glass, ia.glass !== ib.glass),
+      line("Garnish", ia.garnish, ib.garnish, ia.garnish !== ib.garnish)),
+    el("p", { class: "hint center", text: "Highlighted rows are different." }));
 }

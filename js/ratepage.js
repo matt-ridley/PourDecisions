@@ -6,6 +6,7 @@ import { itemById } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { tagsFor, TAG_INDEX, MAX_TAGS, cleanRating } from "./logs.js";
 import { allRatings, ratingOf, drinkSummary, topRated, toRate } from "./ratings.js";
+import { asItem, rateKey } from "./variants.js";
 
 /* Everyone's ratings, older log ratings included. Worked out again only when ratings or logs change (each listener
    update brings new arrays). */
@@ -15,8 +16,8 @@ export function groupRatings() {
   return memo.list;
 }
 export const myRatingOf = (kind, drinkId) => ratingOf(groupRatings(), uid(), kind, drinkId);
-/* The drinker's rating of a logged drink (one per drink, not per log). */
-export const ratingOfLog = log => ratingOf(groupRatings(), log.uid, log.kind, log.drinkId);
+/* The drinker's rating of a logged drink (one per drink, not per log). A cocktail variant's log shows the variant's. */
+export const ratingOfLog = log => ratingOf(groupRatings(), log.uid, ...rateKey(log));
 
 /* ---------- Stars ---------- */
 /* Read-only "★ 4.5". */
@@ -38,7 +39,9 @@ export function starPicker(value, onChange, { required = false, label = true } =
 }
 
 const tagLabel = t => (TAG_INDEX.get(t) || { label: t }).label;
-const itemLink = i => `#/${i.kind === "cocktail" ? "recipe" : "drink"}/${i.id}`;
+const itemLink = i => i.kind === "variant" ? `#/v/${i.id}` : `#/${i.kind === "cocktail" ? "recipe" : "drink"}/${i.id}`;
+/* Any rated thing as an item: a drink, a cocktail, or a cocktail variant. */
+const anyItem = (kind, id) => kind === "variant" ? asItem(id) : itemById(kind, id);
 
 /* ---------- The rating sheet ---------- */
 /* Stars, flavours and a short review for one drink. `stars` pre-fills the stars (a tap on Home). */
@@ -91,7 +94,7 @@ export function rateButton(item, cls = "btn block") {
 /* Drinks you logged today and haven't rated, with stars to tap right there. A tap opens the sheet with those stars,
    for flavours and a review (or just Save). */
 export function rateCard() {
-  const list = toRate(groupRatings(), store.logs, uid()).map(l => itemById(l.kind, l.drinkId)).filter(Boolean).slice(0, 3);
+  const list = toRate(groupRatings(), store.logs, uid()).map(l => anyItem(...rateKey(l))).filter(Boolean).slice(0, 3);
   if (!list.length) return null;
   return el("section", { class: "card stack" },
     el("h3", { text: "How was it?" }),
@@ -130,7 +133,7 @@ function reviewRow(r) {
 let topCat = "all";
 export function renderTop(main) {
   const list = groupRatings();
-  const catOf = (kind, id) => { const i = itemById(kind, id); return i ? i.category.id : null; };
+  const catOf = (kind, id) => { const i = anyItem(kind, id); return i ? i.category.id : null; };
   const cats = CATEGORIES.filter(c => list.some(r => catOf(r.kind, r.drinkId) === c.id));
   if (topCat !== "all" && !cats.some(c => c.id === topCat)) topCat = "all";
   const top = topRated(list, (k, id) => catOf(k, id) && (topCat === "all" || catOf(k, id) === topCat)).slice(0, 50);
@@ -142,12 +145,12 @@ export function renderTop(main) {
         "aria-pressed": String(topCat === id), onclick: () => { topCat = id; renderTop(main); } }, label))) : null,
     top.length
       ? el("ol", { class: "item-list card top-list" }, ...top.map((d, n) => {
-          const i = itemById(d.kind, d.drinkId);
+          const i = anyItem(d.kind, d.drinkId);
           return el("li", {}, el("a", { class: "item-row", href: itemLink(i) },
             el("span", { class: "top-rank", text: String(n + 1) }),
             el("span", { class: "item-icon", text: i.category.icon }),
             el("span", { class: "grow" }, el("b", { text: i.title }),
-              el("span", { class: "muted small", text: `${i.kind === "cocktail" ? "Cocktail" : i.style.name} · ${d.count} rating${d.count === 1 ? "" : "s"}` })),
+              el("span", { class: "muted small", text: `${i.kind === "variant" ? `Variant of ${itemById("cocktail", i.base).title}` : i.kind === "cocktail" ? "Cocktail" : i.style.name} · ${d.count} rating${d.count === 1 ? "" : "s"}` })),
             el("span", { class: "rating-line", text: starText(d.avg) })));
         }))
       : el("section", { class: "card empty" }, el("span", { class: "empty-art", text: "⭐" }),

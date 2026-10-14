@@ -95,7 +95,7 @@ export const TAG_INDEX = new Map(TAGS.map(t => [t.id, t]));
 export const MAX_TAGS = 5;
 
 export function tagsFor(item) {
-  const cat = item.kind === "cocktail" ? (item.data.style === "mocktail" ? "na" : "cocktail") : item.category && item.category.id;
+  const cat = item.kind === "cocktail" || item.kind === "variant" ? (item.data.style === "mocktail" ? "na" : "cocktail") : item.category && item.category.id;
   return TAGS.filter(t => t.cats.includes(cat));
 }
 

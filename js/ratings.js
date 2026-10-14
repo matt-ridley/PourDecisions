@@ -70,10 +70,12 @@ export function topRated(list, keep = () => true) {
 export function toRate(list, logs, uid, now = Date.now(), hours = 24) {
   const seen = new Set(), out = [];
   for (const l of logs.filter(x => x.uid === uid && x.at <= now && now - x.at < hours * 3600000).sort((a, b) => b.at - a.at)) {
-    const k = key(uid, l.kind, l.drinkId);
+    // A cocktail variant is rated as the variant, not the cocktail it came from.
+    const [kind, id] = l.variantId ? ["variant", l.variantId] : [l.kind, l.drinkId];
+    const k = key(uid, kind, id);
     if (seen.has(k)) continue;
     seen.add(k);
-    if (!ratingOf(list, uid, l.kind, l.drinkId)) out.push(l);
+    if (!ratingOf(list, uid, kind, id)) out.push(l);
   }
   return out;
 }

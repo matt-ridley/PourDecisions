@@ -5,6 +5,8 @@ import { VERSION, APP_NAME } from "./config.js";
 import { THEMES, getTheme, setTheme } from "./theme.js";
 import { getUnits, setUnits } from "./units.js";
 import { logRow } from "./logpage.js";
+import { mixologistStats } from "./variants.js";
+import { groupRatings, starText } from "./ratepage.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
   ...options.map(([k, text]) => el("button", { type: "button", "aria-pressed": String(current === k), text, onclick: () => pick(k) })));
@@ -29,6 +31,7 @@ export function renderProfile(main, id) {
       el("h3", { text: `Recent drinks${theirs.length ? ` (${theirs.length} logged)` : ""}` }),
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l)))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
+    mixologistCard(m.id),
     el("section", { class: "card stack" },
       el("h3", { text: "Variety stats" }),
       el("p", { class: "muted", text: "Distinct drinks, styles and countries tried will show here in a later release." }))];
@@ -93,4 +96,17 @@ function confirmSignOut() {
     el("div", { class: "row" },
       el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }),
       el("button", { class: "btn danger", type: "button", text: "Sign out", onclick: () => { closeSheet(); signOut(); } })))));
+}
+
+/* Cocktails made, variants created, how often friends made them, how they're rated, and House Pours held. */
+function mixologistCard(id) {
+  const s = mixologistStats(id, store.logs, groupRatings());
+  if (!s.made && !s.created) return null;
+  const stat = (n, label) => el("div", { class: "stat" }, el("b", { text: String(n) }), el("span", { text: label }));
+  return el("section", { class: "card stack" },
+    el("h3", { text: "🍸 Mixologist" }),
+    el("div", { class: "mix-stats" },
+      stat(s.made, "cocktails made"), stat(s.created, `variant${s.created === 1 ? "" : "s"} created`),
+      stat(s.byOthers, "made by friends"), stat(s.avg ? starText(s.avg) : "–", s.ratings ? `from ${s.ratings} rating${s.ratings === 1 ? "" : "s"}` : "no ratings yet"),
+      s.houses ? stat(`👑 ${s.houses}`, `House Pour${s.houses === 1 ? "" : "s"}`) : null));
 }
