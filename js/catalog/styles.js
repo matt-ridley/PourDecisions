@@ -11,8 +11,8 @@ export const CATEGORIES = [
       ["helles", "Helles"], ["dunkel", "Dunkel"], ["marzen", "Märzen / Oktoberfest"], ["vienna", "Vienna Lager"],
       ["bock", "Bock"], ["maibock", "Maibock"], ["doppelbock", "Doppelbock"], ["eisbock", "Eisbock"],
       ["schwarzbier", "Schwarzbier"], ["am-lager", "American Lager"], ["am-light", "Light Lager"],
-      ["mex-lager", "Mexican Lager"], ["rice-lager", "Rice Lager"], ["strong-lager", "Strong / Malt Liquor"],
-      ["ice-lager", "Ice Lager"],
+      ["intl-lager", "International Pale Lager"], ["mex-lager", "Mexican Lager"], ["rice-lager", "Rice Lager"], ["strong-lager", "Strong / Malt Liquor"],
+      ["ice-lager", "Ice Lager"], ["ipl", "India Pale Lager"],
     ]),
     fam("pale-ipa", "Pale Ale & IPA", [
       ["am-pale", "American Pale Ale"], ["eng-bitter", "English Bitter"], ["esb", "ESB"],
@@ -120,10 +120,10 @@ export const CATEGORIES = [
       ["cab-sauv", "Cabernet Sauvignon"], ["cab-franc", "Cabernet Franc"], ["merlot", "Merlot"], ["pinot-noir", "Pinot Noir"],
       ["malbec", "Malbec"], ["shiraz", "Shiraz / Syrah"], ["zinfandel", "Zinfandel"], ["tempranillo", "Tempranillo"],
       ["sangiovese", "Sangiovese / Chianti"], ["gamay", "Gamay"], ["baco-noir", "Baco Noir"], ["grenache", "Grenache"],
-      ["nebbiolo", "Nebbiolo"], ["valpolicella", "Valpolicella / Amarone"], ["red-blend", "Red Blend"],
+      ["nebbiolo", "Nebbiolo"], ["valpolicella", "Valpolicella / Amarone"], ["appassimento", "Appassimento"], ["red-blend", "Red Blend"],
     ]),
     fam("white", "White", [
-      ["chardonnay", "Chardonnay"], ["sauv-blanc", "Sauvignon Blanc"], ["pinot-grigio", "Pinot Grigio / Gris"],
+      ["chardonnay", "Chardonnay"], ["sauv-blanc", "Sauvignon Blanc"], ["pinot-grigio", "Pinot Grigio / Gris"], ["pinot-blanc", "Pinot Blanc"],
       ["riesling", "Riesling"], ["gewurz", "Gewürztraminer"], ["vidal", "Vidal"], ["chenin", "Chenin Blanc"],
       ["moscato", "Moscato"], ["viognier", "Viognier"], ["gruner", "Grüner Veltliner"], ["white-blend", "White Blend"],
     ]),

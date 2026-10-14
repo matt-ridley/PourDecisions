@@ -21,7 +21,6 @@ export function renderHome(main) {
     el("section", { class: "card stack" },
       el("h3", { text: "Coming up" }),
       el("ul", { class: "todo" },
-        el("li", {}, el("b", { text: "The full drink list. " }), "About 2,000 beers, whiskies, spirits, wines, coolers and cocktails, Ontario first."),
         el("li", {}, el("b", { text: "Logging a drink. " }), "Pick it, rate it, done. Works with no signal."),
         el("li", {}, el("b", { text: "The feed. " }), "See what everyone's pouring."),
         el("li", {}, el("b", { text: "Variety stats. " }), "Distinct drinks, styles and countries on your profile.")),

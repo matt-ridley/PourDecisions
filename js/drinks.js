@@ -6,6 +6,7 @@ import { getUnits, setUnits, fmtAmount } from "./units.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
+const MAX_RESULTS = 60;
 
 /* #/drinks: search box and category tiles, or results while typing. */
 export function renderDrinks(main) {
@@ -17,8 +18,9 @@ export function renderDrinks(main) {
     if (!query.trim()) return fill(results, categoryGrid());
     const hits = search(query);
     fill(results, hits.length
-      ? el("ul", { class: "item-list card" }, ...hits.slice(0, 60).map(itemRow))
-      : el("p", { class: "muted center", text: "Nothing in the list matches that yet. Soon you'll be able to add it." }));
+      ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(itemRow))
+      : el("p", { class: "muted center", text: "Nothing in the list matches that yet. Soon you'll be able to add it." }),
+      hits.length > MAX_RESULTS ? el("p", { class: "hint center", text: `Showing ${MAX_RESULTS} of ${hits.length.toLocaleString()}. Type more to narrow it down.` }) : null);
   };
   box.addEventListener("input", draw);
   draw();
@@ -55,15 +57,24 @@ export function renderCategory(main, id) {
   if (!cat) return fill(main, el("div", { class: "card" }, el("p", { text: "That category isn't in the list." })));
   fill(main,
     el("h2", { class: "page-title" }, `${cat.icon} ${cat.name}`),
-    el("p", { class: "muted", text: `${styleCount(id)} styles. Tap a style to see what's in it. The full drink list is on its way.` }),
+    el("p", { class: "muted", text: `${styleCount(id)} styles. Tap a style to see what's in it.` }),
     ...cat.families.map(f => {
       const n = f.styles.reduce((t, s) => t + s.items.length, 0);
       return el("details", { class: "family card", open: n > 0 ? "" : null },
         el("summary", {}, el("b", { text: f.name }), el("span", { class: "muted small", text: `${f.styles.length} styles${n ? ` · ${n} drinks` : ""}` })),
-        el("ul", { class: "style-list" }, ...f.styles.map(s => el("li", {},
-          el("div", { class: "style-name" }, el("span", { text: s.name }), s.items.length ? el("span", { class: "chip", text: String(s.items.length) }) : null),
-          s.items.length ? el("ul", { class: "item-list" }, ...s.items.map(itemRow)) : null))));
+        el("ul", { class: "style-list" }, ...f.styles.map(styleRow)));
     }));
+}
+
+/* A style in a category: tap to open its drinks. They're only drawn when opened, so a long list stays quick. */
+function styleRow(s) {
+  const name = el("span", { class: "style-name" }, el("span", { text: s.name }), s.items.length ? el("span", { class: "chip", text: String(s.items.length) }) : null);
+  if (!s.items.length) return el("li", {}, name);
+  const box = el("details", { class: "style" }, el("summary", {}, name));
+  box.addEventListener("toggle", () => {
+    if (box.open && box.children.length === 1) box.append(el("ul", { class: "item-list" }, ...s.items.map(itemRow)));
+  });
+  return el("li", {}, box);
 }
 
 /* #/drink/<id> */
@@ -76,7 +87,7 @@ export function renderDrink(main, id) {
     d.variant ? ["Flavour", d.variant] : null,
     ["Style", `${i.style.name} (${i.family.name})`],
     ["Category", i.category.name],
-    d.origin ? ["From", originName(d.origin)] : null,
+    d.origin ? ["From", [d.town, originName(d.origin)].filter(Boolean).join(", ")] : null,
     ["Alcohol", `${abvText(d)}${d.approx ? " (approx., varies by batch or market)" : ""}`],
   ].filter(Boolean);
   fill(main,

@@ -13,7 +13,8 @@ const APP_FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/main.js", "js/config.js", "js/ui.js", "js/cloud.js", "js/gate.js", "js/profile.js", "js/admin.js", "js/theme.js",
   "js/units.js", "js/home.js", "js/drinks.js", "js/catalog.js",
-  "js/catalog/styles.js", "js/catalog/drinks.js", "js/catalog/cocktails.js",
+  "js/catalog/styles.js", "js/catalog/drinks.js", "js/catalog/cocktails.js", "js/catalog/make.js",
+  "js/catalog/beer.js", "js/catalog/whisky.js", "js/catalog/spirits.js", "js/catalog/wine.js", "js/catalog/more.js", "js/catalog/na.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
 ];
 const SDK_FILES = ["app", "auth", "firestore"].map(m => `${SDK}firebase-${m}.js`);

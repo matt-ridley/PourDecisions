@@ -3,18 +3,10 @@
 import { CATEGORIES, STYLE_INDEX } from "./catalog/styles.js";
 import { DRINKS, ORIGINS } from "./catalog/drinks.js";
 import { COCKTAILS } from "./catalog/cocktails.js";
+import { normalize, drinkTitle } from "./catalog/make.js";
 
-/* "Jägermeister" -> "jagermeister": lower case, no accents, punctuation as spaces. */
-export function normalize(s) {
-  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-/* "Crown Royal" + "" + "Peach" -> "Crown Royal Peach". A name that already starts with the brand isn't doubled. */
-export function drinkTitle(d) {
-  const base = !d.name ? d.brand : normalize(d.name).startsWith(normalize(d.brand)) ? d.name : `${d.brand} ${d.name}`;
-  return d.variant ? `${base} ${d.variant}` : base;
-}
+// The title and search-text rules live with the catalog helpers, so the catalog files can use them too.
+export { normalize, drinkTitle };
 
 export const styleOf = id => STYLE_INDEX.get(id) || null;
 export const originName = code => ORIGINS[code] || "";
@@ -24,7 +16,7 @@ function toItem(x, kind) {
   const s = styleOf(x.style);
   const title = kind === "cocktail" ? x.name : drinkTitle(x);
   return { kind, id: x.id, title, data: x, style: s && s.style, family: s && s.family, category: s && s.category,
-    haystack: normalize([title, x.brand, x.variant, s && s.style.name, s && s.family.name, s && s.category.name, originName(x.origin),
+    haystack: normalize([title, x.brand, x.variant, s && s.style.name, s && s.family.name, s && s.category.name, originName(x.origin), x.town,
       kind === "cocktail" ? x.ingredients.map(i => i.item).join(" ") : ""].join(" ")) };
 }
 
