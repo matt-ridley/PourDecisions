@@ -18,8 +18,9 @@
      ingredients      [{ slot, ing, oz | qty, drinkId?, optional? }]: slot is the recipe's row (none for an added
                       ingredient), ing the ingredient ids (just the one picked, for "rye or bourbon"), drinkId the bottle
    Once saved, only the name changes (an admin can also merge duplicates), so a rating always means the same drink. */
-import { itemById, ingredientById, variantsOf } from "./catalog.js";
+import { itemById, ingredientById, variantsOf, drinksFor, resolveId } from "./catalog.js";
 import { ML_PER_OZ } from "./units.js";
+import { recipeVolume, recipeAbv } from "./logs.js";
 
 export const MAX_ROWS = 20;
 export const MAX_NAME = 40;
@@ -149,6 +150,7 @@ function describe(recipe, v, c) {
   const name = x ? lowerItem(x.label ? x.label : x.ing.map(id => ingredientById(id)).filter(Boolean).map(lower).join(" or ")) : "";
   switch (c.type) {
     case "bottle": return rowName(recipe, c.row);
+    case "choice": return c.row.ing.map(id => ingredientById(id)).filter(Boolean).map(lower).join(" or ");
     case "more": return `more ${name}`;
     case "less": return `less ${name}`;
     case "qty": return c.row.qty ? `${cleanQty(c.row.qty)} ${name}` : `${name} in oz`;
@@ -161,12 +163,18 @@ function describe(recipe, v, c) {
 }
 const lowerItem = s => s.charAt(0).toLowerCase() + s.slice(1);
 
+/* What changed, in words, in recipe order: ["Dillon's Rye Whisky", "more fresh lemon juice"]. A picked choice ("rye
+   or bourbon") is only listed when nothing else changed. */
+export function changeWords(recipe, v) {
+  const all = changes(recipe, v);
+  const main = all.filter(c => c.type !== "choice");
+  return (main.length ? main : all).map(c => describe(recipe, v, c)).filter(Boolean);
+}
+
 /* A name for a variant nobody named: "Whisky Sour · Dillon's Rye Whisky, more lemon juice". At most two changes are
    spelled out; the rest are counted. Picking a choice ("rye or bourbon") isn't named unless nothing else changed. */
 export function autoName(recipe, v) {
-  const all = changes(recipe, v);
-  const main = all.filter(c => c.type !== "choice");
-  const parts = (main.length ? main : all).map(c => describe(recipe, v, c)).filter(Boolean);
+  const parts = changeWords(recipe, v);
   if (!parts.length) return recipe.name;
   const more = parts.length > 2 ? `, +${parts.length - 2} more` : "";
   return `${recipe.name} · ${parts.slice(0, 2).join(", ")}${more}`;
@@ -192,3 +200,58 @@ export function makersOf(logs, id) {
 
 /* How many variants the group has made of a cocktail (merged duplicates left out): the count on its catalogue row. */
 export const variantCount = baseId => variantsOf(baseId).length;
+
+/* ---------- The Make it screen ---------- */
+
+/* One tap of − or + on an amount: ¼ oz in oz, 5 ml in ml (stored in oz). Never below one step: remove the row instead. */
+export function stepAmount(oz, dir, units) {
+  if (units === "ml") {
+    const ml = Math.max(5, Math.round(oz * ML_PER_OZ / 5) * 5 + dir * 5);
+    return Math.round(ml / ML_PER_OZ * 100) / 100;
+  }
+  return Math.max(0.25, Math.round(oz * 4) / 4 + dir * 0.25);
+}
+
+/* A new row for an ingredient added to the recipe: dashes for bitters, a count for fruit, eggs and the pantry, else ½ oz.
+   With a bottle (drinkId), it counts as the first ingredient the bottle is, if any. */
+export function addedRow(ingId, drinkId = null) {
+  const g = ingredientById(ingId);
+  const amount = !g ? { oz: 0.5 } : g.kind === "bitters" ? { qty: "2 dashes" }
+    : ["fresh", "dairy", "pantry"].includes(g.kind) ? { qty: "1" } : { oz: 0.5 };
+  return { ing: g ? [g.id] : [], ...amount, ...(drinkId ? { drinkId } : {}) };
+}
+
+/* The bottles to offer for a row, in picking order: ones you've used in cocktails lately, then drinks you've logged
+   lately, then the rest A to Z. Each comes with the ingredient it counts as (for "rye or bourbon").
+   [{ item, ing }] */
+export function bottleChoices(row, { logs = [], variants = [], uid = null } = {}) {
+  const seen = new Map();
+  for (const id of row.ing) for (const item of drinksFor(id)) if (!seen.has(item.id)) seen.set(item.id, { item, ing: id });
+  const rank = new Map();
+  const mine = logs.filter(l => l.uid === uid || l.madeBy === uid).sort((a, b) => b.at - a.at);
+  let n = 0;
+  for (const l of mine) {
+    const v = l.variantId && variants.find(x => x.id === l.variantId);
+    for (const r of (v && v.ingredients) || []) if (r.drinkId && !rank.has(r.drinkId)) rank.set(r.drinkId, n++);
+  }
+  for (const l of mine) if (l.kind === "drink" && !rank.has(l.drinkId)) rank.set(l.drinkId, 1000 + n++);
+  const at = c => rank.has(c.item.id) ? rank.get(c.item.id) : Infinity;
+  return [...seen.values()].sort((a, b) => at(a) - at(b) || a.item.title.localeCompare(b.item.title));
+}
+
+/* How many servings to show amounts for: the number picked, or else one per person drinking. */
+export const servingsFor = (picked, drinkers) => picked || Math.max(1, drinkers.length);
+
+/* The logs to save for one Make it: one serving for each person drinking, all at the same moment and place. Yours is
+   just yours; for anyone else, you're the maker (madeBy). `variant` is the saved variant or null (the recipe as written).
+   Returns log fields for cloud.saveLog. */
+export function makeLogs({ recipe, variant, drinkers, me, at, placeId = null }) {
+  const r = variant ? variantRecipe(recipe, variant) : recipe;
+  const base = { kind: "cocktail", drinkId: recipe.id, title: variant ? variantTitle(recipe, variant) : recipe.name, style: recipe.style,
+    size: "one", ml: recipeVolume(r), abv: recipeAbv(r), at, placeId,
+    ...(variant ? { variantId: resolveId("variant", variant.id) } : {}) };
+  return [...new Set(drinkers)].map(uid => ({ ...base, uid, ...(uid !== me ? { madeBy: me } : {}) }));
+}
+
+/* The document to save for a new variant: what buildVariant gave, without its id, plus who and when. */
+export const variantDoc = (v, by, at) => { const { id, ...rest } = v; return { ...rest, by, at }; };

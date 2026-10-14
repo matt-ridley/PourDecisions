@@ -215,8 +215,7 @@ export function renderRecipe(main, id) {
       el("h3", { text: "Method" }),
       el("ol", { class: "steps" }, ...r.steps.map(s => el("li", { text: s })))),
     ratingsCard(i),
-    logThis(i),
-    el("p", { class: "hint center", text: "This is the default recipe. Your group's own recipes and twists are coming later." }));
+    makeThis(i));
 }
 
 /* An ingredient line's name, linked to its ingredient page. With choices, each choice gets its own link. */
@@ -271,6 +270,16 @@ export function renderIngredient(main, id) {
     el("section", { class: "card stack" },
       el("h3", { text: `Used in ${cocktails.length} cocktail${cocktails.length === 1 ? "" : "s"}` }),
       el("ul", { class: "item-list" }, ...cocktails.map(itemRow))));
+}
+
+/* A cocktail: Make it (your bottles and amounts), or log it as written, plus how often you've had it. */
+function makeThis(i) {
+  const h = drinkHistory(store.logs, uid(), i.kind, i.id);
+  return el("section", { class: "card stack" },
+    h.count ? el("p", { class: "muted", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,
+    el("a", { class: "btn primary block", href: `#/make/${i.id}`, text: "🍸 Make it" }),
+    el("p", { class: "hint center", text: "Follow the recipe, pick the bottles you're using and change the amounts. Anything you change is saved as your own variant." }),
+    el("a", { class: "btn block", href: `#/log/${i.kind}/${i.id}`, text: "Just log it as written" }));
 }
 
 /* "Log this" plus how often you've had it. */

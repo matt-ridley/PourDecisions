@@ -11,6 +11,7 @@ import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
 import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
 import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
+import { renderMake } from "./makepage.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -19,6 +20,7 @@ const ROUTES = {
   log: { tab: "log", live: false, render: renderLog },
   l: { tab: null, live: true, render: renderLogDetail },
   edit: { tab: null, live: false, render: renderLogEdit },
+  make: { tab: null, live: false, render: renderMake }, // not live: a friend's new log mustn't reset what you're making
   drinks: { tab: "drinks", live: false, render: renderDrinks },
   // Drink list pages redraw when admins fix or merge something (they have no boxes to type in).
   cat: { tab: "drinks", sub: true, live: true, render: renderCategory },

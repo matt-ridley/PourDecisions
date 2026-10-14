@@ -6,7 +6,8 @@ import { setVariants, variantsOf, itemById, resolveId, allItems, search } from "
 import { recipeAbv, recipeVolume } from "../js/logs.js";
 import { ML_PER_OZ } from "../js/units.js";
 import { startRows, scaleRows, buildVariant, changes, isVariant, variantId, variantRecipe, autoName, variantTitle,
-  makersOf, variantCount, cleanVariantName } from "../js/variants.js";
+  makersOf, variantCount, cleanVariantName, changeWords, stepAmount, addedRow, bottleChoices, servingsFor, makeLogs,
+  variantDoc } from "../js/variants.js";
 
 afterEach(() => { setVariants([]); });
 
@@ -152,4 +153,90 @@ test("makers come from the logs: whoever made it, merged duplicates counted for 
     log("u3", a.id, now - H, { madeBy: "u2" }), log("u3", undefined, now), log("u4", "whisky-sour~other", now)];
   assert.deepEqual(makersOf(logs, a.id), [{ uid: "u2", count: 2, last: now - H }, { uid: "u1", count: 2, last: now - 4 * H }]);
   assert.deepEqual(makersOf(logs, dup.id), makersOf(logs, a.id), "asking about the duplicate gives the same");
+});
+
+/* ---------- The Make it screen ---------- */
+
+test("− and + step by ¼ oz, or by 5 ml, never below one step", () => {
+  assert.equal(stepAmount(2, 1, "oz"), 2.25);
+  assert.equal(stepAmount(0.75, -1, "oz"), 0.5);
+  assert.equal(stepAmount(0.25, -1, "oz"), 0.25);
+  assert.equal(stepAmount(1.69, 1, "oz"), 2, "an amount from ml snaps to the quarter");
+  const ml = oz => Math.round(oz * ML_PER_OZ);
+  assert.equal(ml(stepAmount(1.5, 1, "ml")), 50, "45 ml + 5");
+  assert.equal(ml(stepAmount(2, -1, "ml")), 55, "60 ml − 5");
+  assert.equal(ml(stepAmount(0.17, -1, "ml")), 5);
+  const v = buildVariant(sour, rowsWith(sour, { 0: { oz: stepAmount(2, -1, "ml") } }));
+  assert.ok(v, "a 5 ml step is a variant");
+  assert.equal(buildVariant(sour, rowsWith(sour, { 0: { oz: stepAmount(stepAmount(2, -1, "ml"), 1, "ml") } })), null, "and back again is the recipe");
+});
+
+test("an added ingredient starts at a sensible amount", () => {
+  assert.deepEqual(addedRow("angostura"), { ing: ["angostura"], qty: "2 dashes" });
+  assert.deepEqual(addedRow("egg-white"), { ing: ["egg-white"], qty: "1" });
+  assert.deepEqual(addedRow("maple-syrup"), { ing: ["maple-syrup"], oz: 0.5 });
+  assert.deepEqual(addedRow("rye", "dillons-rye-whisky"), { ing: ["rye"], oz: 0.5, drinkId: "dillons-rye-whisky" });
+  assert.deepEqual(addedRow(undefined, "some-member-drink"), { ing: [], oz: 0.5, drinkId: "some-member-drink" });
+});
+
+test("bottle choices: every bottle that counts, yours from cocktails first, then drinks you've logged, then A to Z", () => {
+  const rye = startRows(nySour)[0];
+  const plain = bottleChoices(rye);
+  assert.ok(plain.length > 20);
+  assert.ok(plain.some(c => c.item.id === "dillons-rye-whisky" && c.ing === "rye"));
+  assert.ok(plain.some(c => c.ing === "bourbon"), "both choices offered");
+  assert.deepEqual(plain.map(c => c.item.title), [...plain.map(c => c.item.title)].sort((a, b) => a.localeCompare(b)));
+  const v = buildVariant(nySour, rowsWith(nySour, { 0: { drinkId: "crown-royal-deluxe", ing: ["rye"] } }));
+  const logs = [
+    { uid: "me", kind: "drink", drinkId: "dillons-rye-whisky", at: now - 2 * H },
+    { uid: "you", kind: "drink", drinkId: "1792-small-batch", at: now },
+    { uid: "you", madeBy: "me", kind: "cocktail", drinkId: "new-york-sour", variantId: v.id, at: now - 5 * H },
+  ];
+  const mine = bottleChoices(rye, { logs, variants: [v], uid: "me" });
+  assert.deepEqual(mine.slice(0, 2).map(c => c.item.id), ["crown-royal-deluxe", "dillons-rye-whisky"]);
+  assert.notEqual(mine[2].item.id, "1792-small-batch", "someone else's drinks don't count");
+});
+
+test("servings: one each unless a batch size is picked", () => {
+  assert.equal(servingsFor(0, ["me"]), 1);
+  assert.equal(servingsFor(0, ["me", "a", "b"]), 3);
+  assert.equal(servingsFor(0, []), 1);
+  assert.equal(servingsFor(8, ["me", "a"]), 8);
+});
+
+test("making it logs one serving for each person drinking; you're the maker of theirs", () => {
+  const v = buildVariant(sour, rowsWith(sour, { 0: { drinkId: "1792-full-proof" } }), { name: "Proof Sour" });
+  const logs = makeLogs({ recipe: sour, variant: v, drinkers: ["me", "a", "a"], me: "me", at: now, placeId: "p1" });
+  assert.equal(logs.length, 2, "once per person");
+  const [mine, theirs] = logs;
+  assert.equal(mine.uid, "me");
+  assert.ok(!("madeBy" in mine));
+  assert.equal(theirs.uid, "a");
+  assert.equal(theirs.madeBy, "me");
+  for (const l of logs) {
+    assert.equal(l.kind, "cocktail"); assert.equal(l.drinkId, "whisky-sour"); assert.equal(l.variantId, v.id);
+    assert.equal(l.title, "Proof Sour"); assert.equal(l.size, "one"); assert.equal(l.at, now); assert.equal(l.placeId, "p1");
+    assert.equal(l.ml, recipeVolume(variantRecipe(sour, v)));
+    assert.ok(l.abv > recipeAbv(sour), "stronger with a full-proof bourbon");
+  }
+  const plain = makeLogs({ recipe: sour, variant: null, drinkers: ["me"], me: "me", at: now });
+  assert.equal(plain[0].title, "Whisky Sour");
+  assert.ok(!("variantId" in plain[0]));
+  assert.equal(plain[0].abv, recipeAbv(sour));
+});
+
+test("a log of a merged variant points at the one kept", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS })), dup = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 3: null }));
+  setVariants([{ ...a, by: "u1", at: now }, { ...dup, by: "u2", at: now, mergedInto: a.id }]);
+  assert.equal(makeLogs({ recipe: sour, variant: dup, drinkers: ["me"], me: "me", at: now })[0].variantId, a.id);
+});
+
+test("the saved document has no id, plus who and when; changes read as words", () => {
+  const v = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 1: { oz: 1 } }), { name: "Mine" });
+  const d = variantDoc(v, "me", now);
+  assert.ok(!("id" in d));
+  assert.deepEqual(Object.keys(d).sort(), ["base", "by", "at", "ingredients", "name"].sort());
+  assert.deepEqual(changeWords(sour, v), ["Dillon's Rye Whisky", "more fresh lemon juice"]);
+  assert.deepEqual(changeWords(nySour, { ingredients: rowsWith(nySour, { 0: { ing: ["bourbon"] } }) }), ["bourbon"],
+    "a picked choice alone is still worded");
 });
