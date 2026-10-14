@@ -34,3 +34,14 @@ export const maker = (brand, origin, town = "", defaults = {}) => (name, style, 
 export const flavours = (make, name, style, abv, variants, extra = {}) => variants.map(v => make(name, style, abv, { ...extra, variant: v }));
 
 export const APPROX = { approx: true };
+
+/* Cocktail recipes. One ingredient is an amount in oz, or a quantity that isn't poured ("2 dashes").
+   `ing` is an ingredient id from ingredients.js, or a list of ids when any of them will do ("rye or bourbon").
+   extra: { optional: true, label } (label is shown instead of the ingredient names, e.g. "Rim of celery salt") */
+export const oz = (n, ing, extra = {}) => ({ oz: n, ing: [].concat(ing), ...extra });
+export const qty = (q, ing, extra = {}) => ({ qty: q, ing: [].concat(ing), ...extra });
+
+/* One recipe. The id comes from the name ("Moscow Mule" -> "moscow-mule") and is permanent once shipped.
+   extra: { note, id } */
+export const cocktail = (name, style, glass, method, ingredients, garnish, steps, extra = {}) =>
+  ({ id: slug(name), name, style, glass, method, ingredients, garnish, steps, ...extra });

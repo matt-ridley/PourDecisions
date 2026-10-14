@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.2.1 (beta)
+**Current version:** 0.3.0 (beta)
 
 ## Features
 
@@ -19,7 +19,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
   - **Drinks:** about 1,000 brands and products, Ontario first (about 260 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for beer (350) and whisky (255). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
   - **Search:** matches names, brands, styles, categories, places (`guelph`, `county`) and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
-  - **Cocktail recipes:** every cocktail has a default recipe with ingredients (in oz or ml), garnish, glass and method.
+  - **Cocktail recipes:** 210 default recipes (201 cocktails plus 9 mocktails), each with ingredients (in oz or ml), garnish, glass and method. Classics, tiki, frozen drinks, shots and shooters, with Canada well covered: seven Caesars, Rye and Ginger, the Paralyzer, Caribou, the Toronto, Moose Milk and Spanish Coffee.
+  - **Ingredients:** tap an ingredient in a recipe to see which drinks in the list count as it (any Canadian rye counts as "Rye") and the other cocktails that use it. Each drink's page lists the cocktails you can use it in.
   - The list sticks to drinks known to be real, so it doesn't have every craft beer. Logging (next) lets members add what's missing, and admins fix details.
 - **Works offline.** After the first sign-in the app opens with no signal. The drink list is built in, so it's always there. With a weak signal it waits a few seconds, then opens from the copy saved on the phone. If it ever fails to start, it says so with a Reload button and details to screenshot, not a blank screen.
 
@@ -27,29 +28,28 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
 
-1. **Cocktail recipes.** 150 to 200 default recipes with Caesar variants (the drink list itself shipped in 0.2.0). On hold for now.
-   - **Ingredients with ids.** Each recipe ingredient points at an ingredient id (`rye-whisky`, `bourbon`, `sweet-vermouth`, `clamato`, `simple-syrup`) instead of plain text like "Rye or bourbon", and the drink list says which styles and bottles count as each ingredient (any rye counts as rye; "rye or bourbon" takes either). **What can I make** (Milestone D) depends on this, so it's done when the recipes are written, not added later.
-2. **Logging a drink.** Pick it from the list (or add a new one), size, rating and notes. Works with no signal. Any member can add a drink to the shared list. Only admins can add styles.
+1. **Logging a drink.** Pick it from the list (or add a new one), size, rating and notes. Works with no signal. Any member can add a drink to the shared list. Only admins can add styles.
    - **Optional photo.** The small photo is stored in its own document from day one, not inside the log, so opening the app doesn't download every photo. Lunker League had to move its small photos out later. The full photo loads only when a drink is opened.
    - **Outbox.** Every log this phone sends (with its photo) is also kept on the phone until the group has it. If the server refuses one (for example a paused account), the app says so and offers to try again. A drink is never lost without a word.
    - **Admins can delete any log.**
-3. **Catalogue moderation (admins).** Keeps the shared drink list clean as members add to it.
+2. **Catalogue moderation (admins).** Keeps the shared drink list clean as members add to it.
    - **New drinks to check:** drinks added by members, newest first, with a count on Group admin. Admins mark them checked, fix them or merge them.
    - **Fix details:** admins can edit any drink a member added (name, brand, style, where it's from, ABV, flavour). For built-in drinks a fix is saved as a correction that the app lays over the built-in list, so a wrong ABV can be fixed without a new app version.
    - **Merge duplicates:** pick the one to keep. The duplicate is hidden from search and points at the one kept, and logs of the duplicate show and count as the kept drink. Nobody's logs are rewritten, so a merge works offline and can be undone.
    - **Styles:** only admins add styles (under an existing family) or rename them.
-4. **Status light, System info and admin tools.**
+   - **Ingredients:** admins can say which recipe ingredient a member's drink counts as (a new dry vermouth counts as "Dry vermouth"), so it shows up in recipes and, later, in what you can make.
+3. **Status light, System info and admin tools.**
    - **Status light:** a glass icon at the top shows the connection: green = connected, pulsing = syncing, blue = offline, red = a sync problem. Tap it for System info.
    - **System info:** connection state and since when, when the group last synced, drinks and changes still waiting to send, the outbox, the app version with **Check for an update**, whether the app is installed and ready offline, and space used on the phone (and whether the phone protects it).
    - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
    - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
-5. **Ratings and reviews.** Star ratings, tasting notes and flavour tags. Admins can delete any review.
-6. **The feed.** What everyone's pouring. Admins can delete any comment.
-7. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+4. **Ratings and reviews.** Star ratings, tasting notes and flavour tags. Admins can delete any review.
+5. **The feed.** What everyone's pouring. Admins can delete any comment.
+6. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
 
 ### After the core: the bar, the fridge and the tab
 
-These milestones come after steps 1 to 7, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
+These milestones come after steps 1 to 6, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
 
 **A. Stock: the fridge and the bar**
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
@@ -223,9 +223,10 @@ node tools/make-icons.mjs
 - [`js/catalog/styles.js`](js/catalog/styles.js): categories, families and styles. Style ids are unique across the whole tree.
 - [`js/catalog/drinks.js`](js/catalog/drinks.js): joins the drink lists and holds the places (`ORIGINS`). The lists are one file per category: [`beer.js`](js/catalog/beer.js), [`whisky.js`](js/catalog/whisky.js), [`spirits.js`](js/catalog/spirits.js), [`wine.js`](js/catalog/wine.js), [`more.js`](js/catalog/more.js) (cider, mead, sake, seltzers) and [`na.js`](js/catalog/na.js). `brand` + `name` + `variant` make the title; `abv` is as sold in Canada, with `approx: true` when it varies.
 - [`js/catalog/make.js`](js/catalog/make.js): helpers for writing the lists. `maker(brand, origin, town)` declares a maker once, then one short line per product. Ids come from the title (`Dillon's Rye Whisky` is `dillons-rye-whisky`) and are permanent once shipped: if a title changes, pass the old id as `id`.
-- [`js/catalog/cocktails.js`](js/catalog/cocktails.js): default cocktail recipes, amounts in oz.
+- [`js/catalog/ingredients.js`](js/catalog/ingredients.js): what recipes are made of. Each ingredient has an id, a name and a kind (spirit, liqueur, mixer, juice, syrup, bitters, fresh, dairy, pantry). For bottles it says what counts: whole categories (`cats`), `families`, `styles` or specific `drinks`, with `not` to leave styles out. Canadian blended counts as rye, as Canadians use the word. `pantry` items (water, salt, sugar) are assumed to be on hand.
+- [`js/catalog/cocktails.js`](js/catalog/cocktails.js): joins the recipe files and adds each ingredient's display name. The recipes are one file per group: [`recipes-stirred.js`](js/catalog/recipes-stirred.js), [`recipes-sours.js`](js/catalog/recipes-sours.js), [`recipes-long.js`](js/catalog/recipes-long.js) (highballs, mules, Caesars, Collinses, mojitos), [`recipes-party.js`](js/catalog/recipes-party.js) (spritzes, sparkling, tiki, frozen) and [`recipes-sweet.js`](js/catalog/recipes-sweet.js) (creamy, coffee, hot, shots, mocktails). Amounts are in oz with `oz(1.5, "vodka")`, or `qty("2 dashes", "angostura")` for things that aren't poured. A list of ids means any will do (`oz(2, ["rye", "bourbon"])`), and `{ optional: true }` marks what a drink works without. Ids come from the name and are permanent once shipped.
 
-`npm test` checks every drink points at a real style, ids are unique tidy slugs, ABVs are sensible, Ontario comes first and every recipe is complete.
+`npm test` checks every drink points at a real style, ids are unique tidy slugs, ABVs are sensible, Ontario comes first, every recipe is complete, every recipe ingredient exists (and every ingredient is used), and bottles count as the right ingredients.
 
 ## Versioning
 
@@ -239,6 +240,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.3.0** (2026-Oct-13): Cocktail recipes: 210 (201 cocktails and 9 mocktails, up from 12), from Old Fashioneds and Negronis to tiki, frozen drinks, shots and layered shooters, with seven Caesars and Canadian favourites (Rye and Ginger, Paralyzer, Caribou, Toronto, Moose Milk, Spanish Coffee, B-52). Recipes are now made of ingredients that know which drinks count as them, ready for "what can I make". Tap an ingredient for its page (the drinks that count and the cocktails that use it), and each drink's page lists the cocktails it goes in.
 - **0.2.1** (2026-Oct-13): Roadmap: after the core steps, four milestones for the bar, the fridge and the tab. A: stock (households sharing a fridge and bar that everyone can see, reloads, bottle levels, killed bottles, coolers). B: the Tab (every drink counts as 1, person to person, paid back in drinks only). C: Drink Nights (Nightcap ends a night with no end time, group rounds, bring list, recap, morning-after recap). D: the bartender (what can I make, planning what to bring, bar pages, Bar Menu orders, LCBO run list). Cocktail recipes get ingredient ids. New Possible ideas list.
 - **0.2.0** (2026-Oct-13): The drink list: about 1,000 drinks, Ontario first (about 260 Ontario entries), deepest for beer and whisky, with flavours as their own entries. Ontario makers show their town, and towns are searchable. Four new styles: International Pale Lager, India Pale Lager, Appassimento and Pinot Blanc. Browsing a category opens one style at a time, so long lists stay quick, and search says when there are more results than it shows. Cocktail recipes are still the 12-recipe sample.
 - **0.1.3** (2026-Oct-13): Offline safety, from what Lunker League learned. The fonts no longer hold up the page (with no signal they could leave it blank), and they're saved when the app installs. Once a page opens from the saved copy, its other files load from saved copies straight away. Saved files are matched by their exact address, and app files are saved all or none. New start-up safety net: "Pour Decisions didn't start" with Reload and details, instead of a blank screen.
