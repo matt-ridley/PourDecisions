@@ -101,7 +101,7 @@ test("normalize drops accents and punctuation", () => {
 });
 
 test("search matches every word, ignores accents and puts title starts first", () => {
-  assert.deepEqual(search("jager").map(i => i.id), ["jagerbomb", "jagermeister"]);
+  assert.deepEqual(search("jager").map(i => i.id), ["jagerbomb", "jagermeister", "jagermeister-cold-brew-coffee", "jagermeister-manifest"]);
   assert.ok(search("crown peach").some(i => i.id === "crown-royal-peach"));
   assert.ok(!search("crown peach").some(i => i.id === "crown-royal-deluxe"));
   assert.equal(search("molson")[0].id, "molson-canadian");
@@ -136,7 +136,7 @@ test("drink ids are tidy slugs made from the title", () => {
 
 test("the full list is deep where the group drinks most, Ontario first", () => {
   const n = id => DRINKS.filter(d => STYLE_INDEX.get(d.style).category.id === id).length;
-  assert.ok(n("beer") >= 300 && n("whisky") >= 200, `beer ${n("beer")}, whisky ${n("whisky")}`);
+  assert.ok(n("beer") >= 300 && n("whisky") >= 500 && n("spirits") >= 450, `beer ${n("beer")}, whisky ${n("whisky")}, spirits ${n("spirits")}`);
   assert.ok(DRINKS.filter(d => d.origin === "CA-ON").length >= 250);
   // Within beer and wine, the Ontario entries come before the imports.
   for (const cat of ["beer", "wine"]) {
