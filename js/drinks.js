@@ -1,9 +1,11 @@
-/* The Drinks tab: search the catalog, browse a category's families and styles, and open a drink, a cocktail recipe
-   or a recipe ingredient. */
+/* The Drinks tab: search the catalog, or drill down Category > Family > Style > drink, each page with a short
+   description and breadcrumbs back up. Also a cocktail recipe and a recipe ingredient's page.
+   A level with only one choice is skipped: Rosé goes straight to its drinks, Non-alcoholic straight to its styles. */
 import { el, fill, icon, fmtDay } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
-import { search, browse, countIn, styleCount, itemById, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
+import { ABOUT_CATEGORY, ABOUT_FAMILY, ABOUT_STYLE } from "./catalog/about.js";
+import { search, browse, countIn, styleCount, itemById, allItems, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount } from "./units.js";
 import { store, uid } from "./cloud.js";
 import { drinkHistory } from "./logs.js";
@@ -41,12 +43,12 @@ function categoryGrid() {
     el("span", { class: "muted small", text: `${styleCount(c.id)} styles · ${countIn(c.id)} drinks` }))));
 }
 
-/* A drink or cocktail in a list. */
-function itemRow(i) {
-  const d = i.data;
+/* A drink or cocktail in a list. On a style's own page the style isn't repeated on every row. */
+function itemRow(i, { style = true } = {}) {
+  const d = i.data, st = style ? i.style.name : "";
   const meta = i.kind === "cocktail"
-    ? [i.style.name, d.method].join(" · ")
-    : [i.style.name, d.origin ? originName(d.origin) : "", abvText(d)].filter(Boolean).join(" · ");
+    ? [st, d.method, d.glass].filter(Boolean).join(" · ")
+    : [st, d.origin ? originName(d.origin) : "", abvText(d)].filter(Boolean).join(" · ");
   return el("li", {}, el("a", { class: "item-row", href: `#/${i.kind === "cocktail" ? "recipe" : "drink"}/${i.id}` },
     el("span", { class: "item-icon", text: i.category.icon }),
     el("span", { class: "grow" }, el("b", { text: i.title }), el("span", { class: "muted small", text: meta })),
@@ -55,30 +57,84 @@ function itemRow(i) {
 
 const abvText = d => `${d.approx ? "~" : ""}${d.abv}%`;
 
-/* #/cat/<id>: every family and style in the category, with the drinks in each. */
-export function renderCategory(main, id) {
-  const cat = browse(id);
-  if (!cat) return fill(main, el("div", { class: "card" }, el("p", { text: "That category isn't in the list." })));
-  fill(main,
-    el("h2", { class: "page-title" }, `${cat.icon} ${cat.name}`),
-    el("p", { class: "muted", text: `${styleCount(id)} styles. Tap a style to see what's in it.` }),
-    ...cat.families.map(f => {
-      const n = f.styles.reduce((t, s) => t + s.items.length, 0);
-      return el("details", { class: "family card", open: n > 0 ? "" : null },
-        el("summary", {}, el("b", { text: f.name }), el("span", { class: "muted small", text: `${f.styles.length} styles${n ? ` · ${n} drinks` : ""}` })),
-        el("ul", { class: "style-list" }, ...f.styles.map(styleRow)));
-    }));
+/* ---------- Drilling down ---------- */
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const familyOf = (cat, id) => cat.families.find(f => f.id === id) || null;
+const soloFamily = cat => cat.families.length === 1; // the category page lists its styles itself
+const famHref = (cat, f) => f.styles.length === 1 ? `#/style/${f.styles[0].id}` : `#/cat/${cat.id}/${f.id}`;
+
+/* Drinks › Whisky › Scotch › Islay Single Malt, each a link, then the current page (not a link). */
+function crumbs(...parts) {
+  const all = [["Drinks", "#/drinks"], ...parts];
+  return el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {}, ...all.map(([text, href], k) =>
+    el("li", {}, k === all.length - 1 && !href ? el("span", { "aria-current": "page", text }) : el("a", { href, text })))));
 }
 
-/* A style in a category: tap to open its drinks. They're only drawn when opened, so a long list stays quick. */
-function styleRow(s) {
-  const name = el("span", { class: "style-name" }, el("span", { text: s.name }), s.items.length ? el("span", { class: "chip", text: String(s.items.length) }) : null);
-  if (!s.items.length) return el("li", {}, name);
-  const box = el("details", { class: "style" }, el("summary", {}, name));
-  box.addEventListener("toggle", () => {
-    if (box.open && box.children.length === 1) box.append(el("ul", { class: "item-list" }, ...s.items.map(itemRow)));
-  });
-  return el("li", {}, box);
+/* The trail down to a style: category, then its family when that's a page of its own. */
+function styleTrail(styleId) {
+  const s = styleOf(styleId);
+  if (!s) return [];
+  const cat = CATEGORIES.find(c => c.id === s.category.id);
+  const parts = [[cat.name, `#/cat/${cat.id}`]];
+  if (!soloFamily(cat) && s.family.styles.length > 1) parts.push([s.family.name, `#/cat/${cat.id}/${s.family.id}`]);
+  parts.push([s.style.name, `#/style/${styleId}`]);
+  return parts;
+}
+
+const pageHead = (emoji, title, about) => el("section", { class: "level-head" },
+  el("h2", { class: "page-title" }, emoji ? `${emoji} ${title}` : title),
+  about ? el("p", { class: "muted", text: about }) : null);
+
+/* A row that drills down one level: name, a count line, and a chevron. Empty ones are shown, but quieter. */
+function levelRow(href, name, meta, empty = false) {
+  return el("li", {}, el("a", { class: `item-row${empty ? " empty-row" : ""}`, href },
+    el("span", { class: "grow" }, el("b", { text: name }), el("span", { class: "muted small", text: meta })),
+    el("span", { class: "chev", html: icon.chevron })));
+}
+
+const styleRows = (styles, items) => el("ul", { class: "item-list card" }, ...styles.map(st => {
+  const n = items.filter(i => i.style && i.style.id === st.id).length;
+  return levelRow(`#/style/${st.id}`, st.name, n ? plural(n, "drink") : "None in the list yet", !n);
+}));
+
+/* #/cat/<cat> (its families) and #/cat/<cat>/<family> (its styles). */
+export function renderCategory(main, id, famId) {
+  const cat = browse(id);
+  if (!cat) return fill(main, el("div", { class: "card" }, el("p", { text: "That category isn't in the list." })));
+  const items = allItems().filter(i => i.category && i.category.id === id);
+  if (famId) {
+    const f = familyOf(cat, famId);
+    if (!f) return fill(main, crumbs([cat.name, `#/cat/${id}`]), el("div", { class: "card" }, el("p", { text: "That isn't in the list." })));
+    return fill(main,
+      crumbs([cat.name, `#/cat/${id}`], [f.name]),
+      pageHead(cat.icon, f.name, ABOUT_FAMILY[`${id}/${f.id}`]),
+      styleRows(f.styles, items));
+  }
+  fill(main,
+    crumbs([cat.name]),
+    pageHead(cat.icon, cat.name, ABOUT_CATEGORY[id]),
+    soloFamily(cat) ? styleRows(cat.families[0].styles, items)
+      : el("ul", { class: "item-list card" }, ...cat.families.map(f => {
+          const n = items.filter(i => i.family && i.family.id === f.id).length;
+          const meta = [f.styles.length > 1 ? plural(f.styles.length, "style") : "", n ? plural(n, "drink") : "None in the list yet"].filter(Boolean).join(" · ");
+          return levelRow(famHref(cat, f), f.name, meta, !n);
+        })));
+}
+
+/* #/style/<id>: one style and everything in the list in it. */
+export function renderStyle(main, id) {
+  const s = styleOf(id);
+  if (!s) return fill(main, crumbs(), el("div", { class: "card" }, el("p", { text: "That style isn't in the list." })));
+  const items = allItems().filter(i => i.style && i.style.id === id).sort((a, b) => a.title.localeCompare(b.title));
+  const trail = styleTrail(id);
+  trail[trail.length - 1] = [s.style.name];
+  fill(main,
+    crumbs(...trail),
+    pageHead(s.category.icon, s.style.name, ABOUT_STYLE[id]),
+    items.length ? el("ul", { class: "item-list card" }, ...items.map(i => itemRow(i, { style: false })))
+      : el("section", { class: "card stack center" },
+          el("p", { class: "muted", text: "Nothing in the list in this style yet." }),
+          s.category.id === "cocktail" ? null : el("a", { class: "btn block", href: "#/log", text: "Log one and add it" })));
 }
 
 /* #/drink/<id> */
@@ -95,6 +151,7 @@ export function renderDrink(main, id) {
     ["Alcohol", `${abvText(d)}${d.approx ? " (approx., varies by batch or market)" : ""}`],
   ].filter(Boolean);
   fill(main,
+    crumbs(...styleTrail(d.style), [i.title]),
     el("section", { class: "hero card" },
       el("span", { class: "hero-icon", text: i.category.icon }),
       el("h2", { text: i.title }),
@@ -124,6 +181,7 @@ export function renderRecipe(main, id) {
   const unitsSeg = el("div", { class: "seg small", role: "group", "aria-label": "Units" }, ...[["oz", "oz"], ["ml", "ml"]].map(([k, label]) =>
     el("button", { type: "button", "aria-pressed": String(units === k), text: label, onclick: () => { setUnits(k); renderRecipe(main, id); } })));
   fill(main,
+    crumbs(...styleTrail(r.style), [r.name]),
     el("section", { class: "hero card" },
       el("span", { class: "hero-icon", text: "🍹" }),
       el("h2", { text: r.name }),

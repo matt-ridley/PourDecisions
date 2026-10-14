@@ -149,3 +149,16 @@ test("towns are searchable", () => {
   assert.ok(search("guelph").some(i => i.id === "sleeman-cream-ale"));
   assert.ok(search("county pinot").some(i => i.id === "norman-hardie-county-pinot-noir"));
 });
+
+test("every category, family and style has a short description, and nothing else does", async () => {
+  const { ABOUT_CATEGORY, ABOUT_FAMILY, ABOUT_STYLE } = await import("../js/catalog/about.js");
+  const ok = (t, what) => assert.ok(typeof t === "string" && t.length >= 15 && t.length <= 200, `${what}: ${t && t.length} chars`);
+  const fams = [], styles = [];
+  for (const c of CATEGORIES) {
+    ok(ABOUT_CATEGORY[c.id], c.id);
+    for (const f of c.families) { fams.push(`${c.id}/${f.id}`); ok(ABOUT_FAMILY[`${c.id}/${f.id}`], `${c.id}/${f.id}`); for (const s of f.styles) { styles.push(s.id); ok(ABOUT_STYLE[s.id], s.id); } }
+  }
+  assert.deepEqual(Object.keys(ABOUT_CATEGORY).sort(), CATEGORIES.map(c => c.id).sort());
+  assert.deepEqual(Object.keys(ABOUT_FAMILY).sort(), fams.sort());
+  assert.deepEqual(Object.keys(ABOUT_STYLE).sort(), styles.sort());
+});
