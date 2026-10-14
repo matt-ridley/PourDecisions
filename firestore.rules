@@ -70,10 +70,11 @@ service cloud.firestore {
 
     // ---------- Drink logs ----------
     // Times are phone-clock epoch ms. A log can't be dated in the future (10 minutes of clock slack), or before 2020.
+    // uid is who drank it. madeBy is who made it, when someone made a cocktail for someone else: they log it for them.
+    // variantId points at the cocktail variant made (variants below); drinkId stays the original cocktail.
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto"])
-        && d.uid == me()
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy"])
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -88,16 +89,22 @@ service cloud.firestore {
         && optText(d, "notes", 500)
         && (!("tags" in d) || (d.tags is list && d.tags.size() <= 5))
         && optText(d, "placeId", 40)
+        && (!("variantId" in d) || (d.kind == "cocktail" && d.variantId is string && d.variantId.size() > 0 && d.variantId.size() <= 120))
         && (!("editedAt" in d) || d.editedAt is int);
     }
 
     match /logs/{id} {
       allow read: if isMember();
-      allow create: if isMember() && logOk(request.resource.data) && !("editedAt" in request.resource.data);
+      // Your own drink, or one you made for another member (madeBy is you).
+      allow create: if isMember() && logOk(request.resource.data) && !("editedAt" in request.resource.data)
+        && (("madeBy" in request.resource.data)
+            ? request.resource.data.madeBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid))
+            : request.resource.data.uid == me());
+      // The drinker edits it; who drank it and who made it never change.
       allow update: if isMember() && resource.data.uid == me() && logOk(request.resource.data)
-        && !changed().hasAny(["uid", "createdAt"]);
-      // Your own, or anyone's for an admin.
-      allow delete: if isMember() && (resource.data.uid == me() || isAdmin());
+        && !changed().hasAny(["uid", "createdAt", "madeBy"]);
+      // Your own, one you made for someone, or anyone's for an admin.
+      allow delete: if isMember() && (resource.data.uid == me() || resource.data.get("madeBy", "") == me() || isAdmin());
     }
 
     // ---------- Ratings: one per person per drink (doc id = uid_kind_drinkId) ----------
@@ -106,8 +113,8 @@ service cloud.firestore {
     function ratingOk(id, d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "rating", "tags", "review", "at"])
         && d.uid == me()
-        && d.kind in ["drink", "cocktail"]
-        && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
+        && d.kind in ["drink", "cocktail", "variant"]
+        && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= (d.kind == "variant" ? 120 : 80)
         && id == me() + "_" + d.kind + "_" + d.drinkId
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
         && d.rating is number && d.rating >= 0.5 && d.rating <= 5 && math.floor(d.rating * 2) == d.rating * 2
@@ -177,6 +184,29 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(["checked", "ing", "mergedInto"]);
       // Fixing details is for admins (catalogue moderation); who added it never changes.
       allow update: if isAdmin() && memberDrinkOk(request.resource.data) && !changed().hasAny(["by", "at"]);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Cocktail variants: members' own takes on a recipe (see js/variants.js) ----------
+    // The id is the original cocktail's id, "~", then a hash of what's in it, so the same drink made twice is one variant.
+    // Saved once: after that the maker can rename it, and admins can rename it or merge a duplicate (mergedInto).
+    function variantOk(id, d) {
+      return d.keys().hasOnly(["base", "from", "name", "by", "at", "glass", "garnish", "ingredients", "mergedInto"])
+        && d.base is string && d.base.size() > 0 && d.base.size() <= 80
+        && id.size() <= 120 && id.matches("[a-z0-9-]+~[a-z0-9]+") && id.split("~")[0] == d.base
+        && (!("name" in d) || cleanName(d.name))
+        && d.by is string && d.at is int
+        && optText(d, "from", 120) && optText(d, "glass", 40) && optText(d, "garnish", 80)
+        && d.ingredients is list && d.ingredients.size() > 0 && d.ingredients.size() <= 20
+        && optText(d, "mergedInto", 120);
+    }
+    match /variants/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && variantOk(id, request.resource.data) && request.resource.data.by == me()
+        && !("mergedInto" in request.resource.data);
+      allow update: if isMember() && variantOk(id, request.resource.data) && (
+        (resource.data.by == me() && changed().hasOnly(["name"]))
+        || (isAdmin() && changed().hasOnly(["name", "mergedInto"])));
       allow delete: if isAdmin();
     }
 
