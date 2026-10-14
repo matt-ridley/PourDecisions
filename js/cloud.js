@@ -3,6 +3,9 @@
    Firestore's persistent cache keeps a copy on the phone, so the app opens and accepts changes with no signal;
    queued writes are sent when the phone is back online. Times are stored as epoch milliseconds from the phone clock. */
 import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
+import { setMemberDrinks } from "./catalog.js";
+import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
+import { dataBytes } from "./photo.js";
 
 /* Add ?emulator to a localhost address to use the local Firebase emulator (npm run emulators) instead of the real project. */
 export const USE_EMULATOR = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emulator");
@@ -20,6 +23,10 @@ export const store = {
   me: undefined,          // this user's member doc; null = not a member
   members: new Map(),     // uid -> member
   invite: undefined,      // current invite code (admins only)
+  logs: [],               // every drink logged in the group
+  places: [],             // the group's shared places
+  drinks: [],             // drinks members added to the list
+  outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
 const subs = new Set();
@@ -100,7 +107,7 @@ function refreshMemberListeners() {
   cloud.memberUnsubs.forEach(u => u());
   cloud.memberUnsubs = [];
   for (const k of Object.keys(cloud.meta)) if (k !== "group" && k !== "me") delete cloud.meta[k];
-  store.members = new Map(); store.invite = undefined;
+  store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -108,6 +115,15 @@ function refreshMemberListeners() {
     store.members = new Map(snap.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
     emit();
   }, syncError));
+  const list = (name, fn) => cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, name), OPTS, snap => {
+    seen(name, snap);
+    fn(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    emit();
+  }, syncError));
+  list("logs", l => { store.logs = l; });
+  list("places", l => { store.places = l; });
+  list("drinks", l => { store.drinks = l; setMemberDrinks(l); });
+  flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
     store.invite = snap.exists() ? snap.data().code : null;
@@ -121,6 +137,7 @@ function stopListeners() {
   cloud.unsubs = []; cloud.memberUnsubs = []; memberKey = "";
   cloud.meta = {};
   store.group = undefined; store.me = undefined; store.members = new Map(); store.invite = undefined;
+  store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
 }
 
 function syncError(e) {
@@ -230,4 +247,154 @@ const CODE_WORDS = ["PILSNER", "STOUT", "PORTER", "LAGER", "IPA", "RYE", "BOURBO
 export function randomCode() {
   const n = crypto.getRandomValues(new Uint32Array(2));
   return `${CODE_WORDS[n[0] % CODE_WORDS.length]}-${1000 + (n[1] % 9000)}`;
+}
+
+/* ---------- Logging drinks ---------- */
+const newId = name => cloud.api.doc(cloud.api.collection(cloud.db, name)).id;
+const clip = (v, n) => String(v || "").trim().slice(0, n);
+const OPTIONAL = ["rating", "notes", "tags", "placeId"];
+
+/* The fields a log may have. Empty optional fields are left out rather than saved blank. */
+function cleanLog(f) {
+  const log = { kind: f.kind, drinkId: f.drinkId, title: clip(f.title, 120), style: clip(f.style, 40), size: clip(f.size, 20),
+    ml: Math.round(f.ml), abv: Math.round(Number(f.abv) * 10) / 10, at: Math.round(f.at) };
+  if (f.rating) log.rating = f.rating;
+  const notes = clip(f.notes, 500);
+  if (notes) log.notes = notes;
+  if (f.tags && f.tags.length) log.tags = f.tags.slice(0, 5);
+  if (f.placeId) log.placeId = f.placeId;
+  return log;
+}
+const pic = (src, at) => ({ uid: uid(), src, at, bytes: dataBytes(src) });
+
+async function refreshOutbox() { store.outbox = await outboxAll(); emit(); }
+
+/* Sends one outbox entry. When the group has it, it leaves the outbox; a refusal marks it failed so the app can say so. */
+function sendEntry(e) {
+  const b = cloud.api.writeBatch(cloud.db);
+  b.set(ref("logs", e.id), e.log);
+  if (e.thumb) {
+    b.set(ref("thumbs", e.id), pic(e.thumb, e.log.at));
+    b.set(ref("photos", e.id), pic(e.photo, e.log.at));
+  }
+  return b.commit().then(async () => { await outboxDelete(e.id); refreshOutbox(); }, async err => {
+    console.warn("Log refused", err);
+    await outboxPut({ ...e, state: "failed", error: err.code || String(err) });
+    refreshOutbox();
+  });
+}
+
+/* A new log. Saved to the outbox first, then sent; works offline (Firestore sends it when there's signal).
+   pics: { photo, thumb } data URLs, or null. Returns the new log's id straight away. */
+export function saveLog(fields, pics = null) {
+  const id = newId("logs"), now = Date.now();
+  const log = { ...cleanLog(fields), uid: uid(), createdAt: now, hasPhoto: !!pics };
+  const entry = { id, log, thumb: pics && pics.thumb, photo: pics && pics.photo, state: "sending", savedAt: now };
+  outboxPut(entry).then(refreshOutbox).then(() => sendEntry(entry));
+  return id;
+}
+
+/* Changes to a log. pics: undefined = leave the photo, null = remove it, { photo, thumb } = replace it. */
+export async function updateLog(id, fields, pics) {
+  const old = store.logs.find(l => l.id === id);
+  if (!old) return;
+  const log = cleanLog({ ...old, ...fields });
+  const upd = { ...log, editedAt: Date.now() };
+  // Optional fields that were cleared are deleted, not left with their old values.
+  for (const k of OPTIONAL) if (!(k in log) && k in old) upd[k] = cloud.api.deleteField();
+  if (pics !== undefined) upd.hasPhoto = !!pics;
+  const b = cloud.api.writeBatch(cloud.db);
+  b.update(ref("logs", id), upd);
+  if (pics) { b.set(ref("thumbs", id), pic(pics.thumb, log.at)); b.set(ref("photos", id), pic(pics.photo, log.at)); }
+  else if (pics === null && old.hasPhoto) { b.delete(ref("thumbs", id)); b.delete(ref("photos", id)); }
+  if (pics !== undefined) { thumbCache.delete(id); photoCache.delete(id); }
+  // Still waiting in the outbox? Keep its copy up to date, so a resend can't bring back the old version.
+  const waiting = await outboxGet(id);
+  if (waiting) {
+    const merged = { ...waiting.log, ...log, hasPhoto: pics === undefined ? waiting.log.hasPhoto : !!pics };
+    for (const k of OPTIONAL) if (!(k in log)) delete merged[k];
+    await outboxPut({ ...waiting, log: merged, ...(pics !== undefined ? { thumb: pics && pics.thumb, photo: pics && pics.photo } : {}) });
+  }
+  write(b.commit());
+}
+
+/* Deletes a log and its photos: your own, or anyone's for an admin. */
+export async function deleteLog(id) {
+  const old = store.logs.find(l => l.id === id);
+  const b = cloud.api.writeBatch(cloud.db);
+  b.delete(ref("logs", id));
+  if (!old || old.hasPhoto) { b.delete(ref("thumbs", id)); b.delete(ref("photos", id)); }
+  await outboxDelete(id);
+  refreshOutbox();
+  write(b.commit());
+}
+
+/* On start-up and when signal returns: anything still in the outbox is checked against the server and sent again
+   if the group doesn't have it. Sending the same log twice just saves it again under the same id. */
+let flushing = false;
+export async function flushOutbox() {
+  if (flushing || !cloud.api || !uid()) return;
+  flushing = true;
+  try {
+    const entries = await outboxAll();
+    store.outbox = entries; emit();
+    for (const e of entries) {
+      if (e.state === "failed" || e.log.uid !== uid()) continue;
+      try {
+        const snap = await cloud.api.getDocFromServer(ref("logs", e.id));
+        if (snap.exists()) { await outboxDelete(e.id); continue; }
+      } catch { continue; } // no signal: Firestore still has it queued; check again later
+      sendEntry(e);
+    }
+    refreshOutbox();
+  } finally { flushing = false; }
+}
+window.addEventListener("online", () => setTimeout(flushOutbox, 2000));
+
+export async function retryLog(id) {
+  const e = await outboxGet(id);
+  if (!e) return;
+  const entry = { ...e, state: "sending", error: null };
+  await outboxPut(entry);
+  refreshOutbox();
+  sendEntry(entry);
+}
+export async function discardLog(id) { await outboxDelete(id); refreshOutbox(); }
+
+/* ---------- Photos: loaded only when shown ---------- */
+const thumbCache = new Map(), photoCache = new Map();
+function loadPic(name, cache, id) {
+  if (!cache.has(id)) cache.set(id, (async () => {
+    const waiting = await outboxGet(id); // not sent yet: show the copy on this phone
+    if (waiting && waiting.thumb) return name === "thumbs" ? waiting.thumb : waiting.photo;
+    const snap = await cloud.api.getDoc(ref(name, id));
+    return snap.exists() ? snap.data().src : null;
+  })().catch(() => { cache.delete(id); return null; }));
+  return cache.get(id);
+}
+export const loadThumb = id => loadPic("thumbs", thumbCache, id);
+export const loadPhoto = id => loadPic("photos", photoCache, id);
+
+/* ---------- Places and member drinks ---------- */
+/* A shared place. Returns its id straight away (works offline). */
+export function addPlace(name) {
+  const id = newId("places");
+  const p = { name: clip(name, 60), by: uid(), at: Date.now() };
+  write(cloud.api.setDoc(ref("places", id), p));
+  store.places = [...store.places, { id, ...p }];
+  return id;
+}
+
+/* A drink a member adds to the shared list. Admins check new drinks later (catalogue moderation). */
+export function addDrink(f) {
+  const id = newId("drinks");
+  const d = { brand: clip(f.brand, 60), name: clip(f.name, 80), style: f.style, abv: Math.round(Number(f.abv) * 10) / 10, by: uid(), at: Date.now() };
+  const variant = clip(f.variant, 40), origin = clip(f.origin, 10);
+  if (variant) d.variant = variant;
+  if (origin) d.origin = origin;
+  write(cloud.api.setDoc(ref("drinks", id), d));
+  // Show it in the list straight away, before the listener catches up.
+  store.drinks = [...store.drinks, { id, ...d }];
+  setMemberDrinks(store.drinks);
+  return id;
 }

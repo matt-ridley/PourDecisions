@@ -4,6 +4,7 @@ import { store, uid, isAdmin, updateMe, signOut, syncStatus } from "./cloud.js";
 import { VERSION, APP_NAME } from "./config.js";
 import { THEMES, getTheme, setTheme } from "./theme.js";
 import { getUnits, setUnits } from "./units.js";
+import { logRow } from "./logpage.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
   ...options.map(([k, text]) => el("button", { type: "button", "aria-pressed": String(current === k), text, onclick: () => pick(k) })));
@@ -22,10 +23,15 @@ export function renderProfile(main, id) {
       el("p", { class: "muted small", text: `Joined ${fmtDay(m.joinedAt || Date.now())}` }),
       store.group && (store.group.admins || []).includes(m.id) ? el("span", { class: "chip gold", text: store.group.ownerUid === m.id ? "Group owner" : "Admin" }) : null));
 
+  const theirs = store.logs.filter(l => l.uid === m.id).sort((a, b) => b.at - a.at);
   const parts = [head,
     el("section", { class: "card stack" },
+      el("h3", { text: `Recent drinks${theirs.length ? ` (${theirs.length} logged)` : ""}` }),
+      theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l)))
+        : el("p", { class: "muted", text: "Nothing logged yet." })),
+    el("section", { class: "card stack" },
       el("h3", { text: "Variety stats" }),
-      el("p", { class: "muted", text: "Distinct drinks, styles and countries tried will show here once logging arrives." }))];
+      el("p", { class: "muted", text: "Distinct drinks, styles and countries tried will show here in a later release." }))];
 
   if (mine) {
     parts.push(el("section", { class: "card stack" },

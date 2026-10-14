@@ -5,7 +5,8 @@ import { cloud, store, subscribe, gate, syncStatus, initCloud, uid } from "./clo
 import { renderGate } from "./gate.js";
 import { renderProfile } from "./profile.js";
 import { renderAdmin } from "./admin.js";
-import { renderHome, renderLog } from "./home.js";
+import { renderHome } from "./home.js";
+import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
 import { renderDrinks, renderCategory, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
 import { applyTheme } from "./theme.js";
 
@@ -13,6 +14,8 @@ import { applyTheme } from "./theme.js";
 const ROUTES = {
   home: { tab: "home", live: true, render: renderHome },
   log: { tab: "log", live: false, render: renderLog },
+  l: { tab: null, live: true, render: renderLogDetail },
+  edit: { tab: null, live: false, render: renderLogEdit },
   drinks: { tab: "drinks", live: false, render: renderDrinks },
   cat: { tab: "drinks", sub: true, live: false, render: renderCategory },
   drink: { tab: "drinks", sub: true, live: false, render: renderDrink },
