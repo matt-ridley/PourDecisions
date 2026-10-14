@@ -198,8 +198,53 @@ export function makersOf(logs, id) {
   return [...by.values()].sort((a, b) => b.count - a.count || b.last - a.last);
 }
 
-/* How many variants the group has made of a cocktail (merged duplicates left out): the count on its catalogue row. */
-export const variantCount = baseId => variantsOf(baseId).length;
+const keptId = id => (itemById("variant", id) || { id }).id;
+
+/* A cocktail's variants that someone has actually made (logged at least once, so an undone make doesn't count), most
+   made first: [{ item, makes, makers, last }]. makers = how many people made it. Merged duplicates count as the kept one. */
+export function madeVariants(baseId, logs) {
+  const by = new Map();
+  for (const l of logs) {
+    const v = l.variantId && itemById("variant", l.variantId);
+    if (!v || v.base !== baseId) continue;
+    const id = v.id, m = by.get(id) || { makes: 0, who: new Set(), last: 0 };
+    m.makes++; m.who.add(l.madeBy || l.uid); m.last = Math.max(m.last, l.at);
+    by.set(id, m);
+  }
+  return variantsOf(baseId).filter(v => by.has(v.id))
+    .map(v => { const m = by.get(v.id); return { item: v, makes: m.makes, makers: m.who.size, last: m.last }; })
+    .sort((a, b) => b.makes - a.makes || b.last - a.last);
+}
+
+/* How many variants the group has made of a cocktail: the count on its catalogue row. */
+export const variantCount = (baseId, logs) => madeVariants(baseId, logs).length;
+
+/* What a variant was remixed from, nearest first (up to 5 back): [item]. */
+export function lineage(id) {
+  const out = [];
+  let v = itemById("variant", id);
+  for (let hops = 0; v && v.data.from && hops < 5; hops++) {
+    v = itemById("variant", v.data.from);
+    if (!v || out.includes(v)) break;
+    out.push(v);
+  }
+  return out;
+}
+
+/* Variants remixed from this one (merged ones left out), oldest first. */
+export const remixesOf = id => variantsOf((itemById("variant", id) || {}).base).filter(v => v.data.from && keptId(v.data.from) === keptId(id));
+
+/* Make it again: your latest variants (made for yourself or someone else), one each, newest first: [{ item, log }]. */
+export function recentVariants(logs, uid, n = 3) {
+  const seen = new Set(), out = [];
+  for (const l of [...logs].filter(l => l.variantId && (l.madeBy || l.uid) === uid).sort((a, b) => b.at - a.at)) {
+    const item = itemById("variant", l.variantId);
+    if (!item || seen.has(item.id)) continue;
+    seen.add(item.id); out.push({ item, log: l });
+    if (out.length >= n) break;
+  }
+  return out;
+}
 
 /* ---------- The Make it screen ---------- */
 

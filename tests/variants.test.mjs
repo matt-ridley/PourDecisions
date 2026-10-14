@@ -6,7 +6,7 @@ import { setVariants, variantsOf, itemById, resolveId, allItems, search } from "
 import { recipeAbv, recipeVolume } from "../js/logs.js";
 import { ML_PER_OZ } from "../js/units.js";
 import { startRows, scaleRows, buildVariant, changes, isVariant, variantId, variantRecipe, autoName, variantTitle,
-  makersOf, variantCount, cleanVariantName, changeWords, stepAmount, addedRow, bottleChoices, servingsFor, makeLogs,
+  makersOf, variantCount, madeVariants, lineage, remixesOf, recentVariants, cleanVariantName, changeWords, stepAmount, addedRow, bottleChoices, servingsFor, makeLogs,
   variantDoc } from "../js/variants.js";
 
 afterEach(() => { setVariants([]); });
@@ -136,8 +136,10 @@ test("variants sit under their cocktail: looked up and merged like drinks, but n
   setVariants([{ ...a, by: "u1", at: now - 3 * H }, { ...b, by: "u2", at: now - 2 * H }, { ...dup, by: "u3", at: now - H, mergedInto: a.id },
     { id: "gone~123", base: "not-a-cocktail", ingredients: [], by: "u1", at: now }]);
   assert.deepEqual(variantsOf("whisky-sour").map(v => v.id), [a.id, b.id], "oldest first, merged left out");
-  assert.equal(variantCount("whisky-sour"), 2);
-  assert.equal(variantCount("manhattan"), 0);
+  const made = [{ uid: "u1", kind: "cocktail", drinkId: "whisky-sour", variantId: a.id, at: now }, { uid: "u2", kind: "cocktail", drinkId: "whisky-sour", variantId: b.id, at: now }];
+  assert.equal(variantCount("whisky-sour", made), 2);
+  assert.equal(variantCount("whisky-sour", made.slice(1)), 1, "only variants someone has logged count");
+  assert.equal(variantCount("manhattan", made), 0);
   assert.equal(itemById("variant", dup.id).id, a.id, "a merged duplicate gives the one kept");
   assert.equal(resolveId("variant", dup.id), a.id);
   assert.equal(itemById("variant", "gone~123"), null, "a variant of an unknown cocktail is ignored");
@@ -239,4 +241,44 @@ test("the saved document has no id, plus who and when; changes read as words", (
   assert.deepEqual(changeWords(sour, v), ["Dillon's Rye Whisky", "more fresh lemon juice"]);
   assert.deepEqual(changeWords(nySour, { ingredients: rowsWith(nySour, { 0: { ing: ["bourbon"] } }) }), ["bourbon"],
     "a picked choice alone is still worded");
+});
+
+/* ---------- In the catalogue ---------- */
+
+const mkLog = (uid, v, at, extra = {}) => ({ uid, kind: "cocktail", drinkId: v.base, variantId: v.id, at, ...extra });
+
+test("made variants: only ones logged, most made first, a merged duplicate's makes counted for the one kept", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS })), b = buildVariant(sour, rowsWith(sour, { 1: { oz: 1 } }));
+  const dup = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 3: null })), unmade = buildVariant(sour, rowsWith(sour, { 2: null }));
+  const m = buildVariant(manhattan, rowsWith(manhattan, { 2: { qty: "4 dashes" } }));
+  setVariants([a, b, dup, unmade, m].map(v => ({ ...v, by: "u1", at: now - 9 * H, ...(v === dup ? { mergedInto: a.id } : {}) })));
+  const logs = [mkLog("u1", a, now - 5 * H), mkLog("u2", dup, now - 4 * H), mkLog("u3", a, now - 3 * H, { madeBy: "u2" }),
+    mkLog("u1", b, now - H), mkLog("u1", m, now)];
+  const list = madeVariants("whisky-sour", logs);
+  assert.deepEqual(list.map(x => [x.item.id, x.makes, x.makers]), [[a.id, 3, 1 + 1], [b.id, 1, 1]]);
+  assert.equal(list[0].last, now - 3 * H);
+});
+
+test("lineage follows what each variant was remixed from; remixes list the ones made from it", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS }));
+  const b = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 1: { oz: 1 } }), { from: a.id });
+  const c = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 1: { oz: 1 }, 2: { oz: 0.5 } }), { from: b.id });
+  const d = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 2: { oz: 1 } }), { from: a.id });
+  setVariants([a, b, c, d].map((v, k) => ({ ...v, by: "u1", at: now + k })));
+  assert.deepEqual(lineage(c.id).map(v => v.id), [b.id, a.id]);
+  assert.deepEqual(lineage(a.id), []);
+  assert.deepEqual(remixesOf(a.id).map(v => v.id), [b.id, d.id]);
+  assert.deepEqual(remixesOf(c.id), []);
+  setVariants([{ ...a, by: "u1", at: now, from: b.id }, { ...b, by: "u1", at: now }]);
+  assert.equal(lineage(a.id).length <= 5, true, "a loop can't run forever");
+});
+
+test("make it again: your latest variants, one each, including ones you made for friends", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS })), b = buildVariant(manhattan, rowsWith(manhattan, { 2: { qty: "4 dashes" } }));
+  setVariants([a, b].map(v => ({ ...v, by: "me", at: now - 9 * H })));
+  const logs = [mkLog("me", a, now - 5 * H), mkLog("me", a, now - 2 * H), mkLog("you", b, now - H, { madeBy: "me" }),
+    mkLog("you", a, now), { uid: "me", kind: "cocktail", drinkId: "negroni", at: now }];
+  assert.deepEqual(recentVariants(logs, "me").map(x => [x.item.id, x.log.at]), [[b.id, now - H], [a.id, now - 2 * H]]);
+  assert.deepEqual(recentVariants(logs, "me", 1).map(x => x.item.id), [b.id]);
+  assert.deepEqual(recentVariants(logs, "you").map(x => x.item.id), [a.id], "made for you by someone else isn't yours to make again");
 });

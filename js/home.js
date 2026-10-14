@@ -1,13 +1,15 @@
 /* Home: your recent drinks (with "Another one"), anything that didn't reach the group, and the group. The feed of
    everyone's drinks comes in a later release. */
-import { el, fill, avatar } from "./ui.js";
-import { store, uid, isAdmin, retryLog, discardLog } from "./cloud.js";
+import { el, fill, avatar, toast } from "./ui.js";
+import { store, uid, isAdmin, retryLog, discardLog, saveLog, deleteLog } from "./cloud.js";
 import { toCheck } from "./moderation.js";
 import { TAGLINE } from "./config.js";
 import { CATEGORIES } from "./catalog/styles.js";
-import { allItems } from "./catalog.js";
+import { allItems, itemById } from "./catalog.js";
 import { logRow } from "./logpage.js";
 import { rateCard } from "./ratepage.js";
+import { recentVariants, variantTitle, makeLogs } from "./variants.js";
+import { lastPlace, resolvePlace } from "./logs.js";
 
 const RECENT = 6;
 
@@ -27,6 +29,7 @@ export function renderHome(main) {
         el("div", { class: "stat" }, el("b", { text: String(allItems().length) }), el("span", { text: `in the list (${styles} styles)` })))),
     outboxCard(),
     rateCard(),
+    againCard(),
     isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
       el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
       el("span", { class: "chip gold", text: String(toCheck().length) })) : null,
@@ -51,7 +54,7 @@ export function renderHome(main) {
 
 /* Logs this phone hasn't got to the group: waiting for signal, or refused by the server (with Try again). */
 function outboxCard() {
-  const mine = store.outbox.filter(e => e.log.uid === uid());
+  const mine = store.outbox.filter(e => (e.log.madeBy || e.log.uid) === uid());
   const failed = mine.filter(e => e.state === "failed"), waiting = mine.length - failed.length;
   if (!failed.length && !waiting) return null;
   return el("section", { class: `card stack ${failed.length ? "problem" : ""}` },
@@ -70,3 +73,26 @@ const REASONS = {
   "resource-exhausted": "The group is over its free daily limit. Try again tomorrow.",
 };
 const reason = code => REASONS[code] || `Reason: ${code || "unknown"}`;
+
+/* Make it again: your latest cocktail variants, logged again in one tap (same bottles, same amounts), with Undo. */
+function againCard() {
+  const list = recentVariants(store.logs, uid());
+  if (!list.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: "Make it again" }),
+    el("ul", { class: "item-list" }, ...list.map(({ item }) => {
+      const base = itemById("cocktail", item.base);
+      if (!base) return null;
+      const title = variantTitle(base.data, item.data);
+      return el("li", { class: "log-row" },
+        el("a", { class: "item-row grow", href: `#/v/${item.id}` }, el("span", { class: "log-thumb icon", text: "🍸" }),
+          el("span", { class: "grow" }, el("b", { text: title }), el("span", { class: "muted small", text: base.title }))),
+        el("button", { class: "btn small", type: "button", text: "Again", "aria-label": `Make ${title} again`, onclick: () => {
+          const p = lastPlace(store.logs, uid());
+          const [f] = makeLogs({ recipe: base.data, variant: { ...item.data, id: item.id }, drinkers: [uid()], me: uid(), at: Date.now(),
+            placeId: p ? (resolvePlace(store.places, p) || { id: p }).id : null });
+          const id = saveLog(f);
+          toast(`Another ${title} logged 🍹`, { label: "Undo", run: () => deleteLog(id) });
+        } }));
+    })));
+}

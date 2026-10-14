@@ -8,7 +8,7 @@ import { renderAdmin } from "./admin.js";
 import { renderCatalogAdmin } from "./moderation.js";
 import { renderHome } from "./home.js";
 import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
-import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
+import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient, renderVariant } from "./drinks.js";
 import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
 import { renderMake } from "./makepage.js";
@@ -28,6 +28,7 @@ const ROUTES = {
   drink: { tab: "drinks", sub: true, live: true, render: renderDrink },
   recipe: { tab: "drinks", sub: true, live: true, render: renderRecipe }, // live for its ratings
   ing: { tab: "drinks", sub: true, live: false, render: renderIngredient },
+  v: { tab: "drinks", sub: true, live: true, render: renderVariant }, // a cocktail variant
   top: { tab: "drinks", sub: true, live: true, render: renderTop },
   me: { tab: null, live: true, render: main => renderProfile(main) },
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
