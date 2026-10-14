@@ -5,6 +5,7 @@ import { CATEGORIES, STYLE_INDEX } from "../js/catalog/styles.js";
 import { DRINKS, ORIGINS } from "../js/catalog/drinks.js";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { drinkTitle, normalize, search, browse, ITEMS, itemById } from "../js/catalog.js";
+import { slug } from "../js/catalog/make.js";
 
 test("style ids are unique across the whole tree", () => {
   const ids = CATEGORIES.flatMap(c => c.families.flatMap(f => f.styles.map(s => s.id)));
@@ -56,10 +57,10 @@ test("search matches every word, ignores accents and puts title starts first", (
   assert.deepEqual(search("jager").map(i => i.id), ["jagermeister"]);
   assert.ok(search("crown peach").some(i => i.id === "crown-royal-peach"));
   assert.ok(!search("crown peach").some(i => i.id === "crown-royal-deluxe"));
-  assert.deepEqual(search("molson").map(i => i.id), ["molson-canadian"]);
-  assert.equal(search("lot")[0].id, "lot-40-rye"); // "Lot No. 40" starts with it
+  assert.equal(search("molson")[0].id, "molson-canadian");
+  assert.equal(search("lot")[0].id, "lot-no-40-canadian-rye"); // "Lot No. 40" starts with it
   // Styles and origins are searchable too.
-  assert.ok(search("islay").some(i => i.id === "lagavulin-16"));
+  assert.ok(search("islay").some(i => i.id === "lagavulin-16-year"));
   assert.ok(search("ontario lager").some(i => i.id === "labatt-blue"));
   // Cocktails by ingredient.
   assert.ok(search("clamato").some(i => i.id === "caesar"));
@@ -68,13 +69,36 @@ test("search matches every word, ignores accents and puts title starts first", (
 test("search can be limited to one category", () => {
   const r = search("", { category: "whisky" });
   assert.ok(r.length > 0 && r.every(i => i.category.id === "whisky"));
-  assert.ok(!search("dillon", { category: "whisky" }).some(i => i.id === "dillons-gin-22"));
+  assert.ok(!search("dillon", { category: "whisky" }).some(i => i.id === "dillons-unfiltered-gin-22"));
 });
 
 test("browse lists every family and style of a category with its items", () => {
   const b = browse("whisky");
   const rye = b.families.find(f => f.id === "canadian").styles.find(s => s.id === "cdn-rye");
-  assert.deepEqual(rye.items.map(i => i.id).sort(), ["dillons-rye", "lot-40-rye"]);
+  for (const id of ["dillons-rye-whisky", "lot-no-40-canadian-rye"]) assert.ok(rye.items.some(i => i.id === id), id);
+  assert.ok(rye.items.every(i => i.style.id === "cdn-rye"));
   assert.equal(browse("nope"), null);
   assert.equal(itemById("cocktail", "caesar").title, "Caesar");
+});
+
+test("drink ids are tidy slugs made from the title", () => {
+  for (const d of DRINKS) assert.match(d.id, /^[a-z0-9]+(-[a-z0-9]+)*$/, d.id);
+  assert.equal(slug("Dillon's Unfiltered Gin 22"), "dillons-unfiltered-gin-22");
+  assert.equal(slug("Kahlúa Coffee Liqueur"), "kahlua-coffee-liqueur");
+});
+
+test("the full list is deep where the group drinks most, Ontario first", () => {
+  const n = id => DRINKS.filter(d => STYLE_INDEX.get(d.style).category.id === id).length;
+  assert.ok(n("beer") >= 300 && n("whisky") >= 200, `beer ${n("beer")}, whisky ${n("whisky")}`);
+  assert.ok(DRINKS.filter(d => d.origin === "CA-ON").length >= 250);
+  // Within beer and wine, the Ontario entries come before the imports.
+  for (const cat of ["beer", "wine"]) {
+    const list = DRINKS.filter(d => STYLE_INDEX.get(d.style).category.id === cat);
+    assert.equal(list[0].origin, "CA-ON", `${cat} starts with Ontario`);
+  }
+});
+
+test("towns are searchable", () => {
+  assert.ok(search("guelph").some(i => i.id === "sleeman-cream-ale"));
+  assert.ok(search("county pinot").some(i => i.id === "norman-hardie-county-pinot-noir"));
 });

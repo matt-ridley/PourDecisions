@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.1.3 (beta)
+**Current version:** 0.2.0 (beta)
 
 ## Features
 
@@ -16,18 +16,18 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
 - **Ounces or millilitres.** Pick oz or ml on your profile (saved per phone). Used for cocktail recipes now and drink sizes later.
 - **The drink list.** Search or browse by category:
-  - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles).
-  - **Drinks:** brands and products, with flavours as their own entries (Crown Royal Peach, Bud Light Lime). Each shows its style, where it's from and its alcohol %. "~" means approximate, because it varies by market or batch.
-  - **Search:** matches names, brands, styles, categories, places and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
+  - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
+  - **Drinks:** about 1,000 brands and products, Ontario first (about 260 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for beer (350) and whisky (255). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
+  - **Search:** matches names, brands, styles, categories, places (`guelph`, `county`) and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
   - **Cocktail recipes:** every cocktail has a default recipe with ingredients (in oz or ml), garnish, glass and method.
-  - Right now the list is a **sample** of each category. The full list (about 2,000 entries, Ontario first) is next.
+  - The list sticks to drinks known to be real, so it doesn't have every craft beer. Logging (next) lets members add what's missing, and admins fix details.
 - **Works offline.** After the first sign-in the app opens with no signal. The drink list is built in, so it's always there. With a weak signal it waits a few seconds, then opens from the copy saved on the phone. If it ever fails to start, it says so with a Reload button and details to screenshot, not a blank screen.
 
 ## Roadmap
 
 The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
 
-1. **The full drink list.** About 2,000 entries: Ontario craft first, then national brands and imports. Flavours as separate entries, plus 150 to 200 cocktail recipes with Caesar variants.
+1. **Cocktail recipes.** 150 to 200 default recipes with Caesar variants (the drink list itself shipped in 0.2.0). On hold for now.
 2. **Logging a drink.** Pick it from the list (or add a new one), size, rating and notes. Works with no signal. Any member can add a drink to the shared list. Only admins can add styles.
    - **Optional photo.** The small photo is stored in its own document from day one, not inside the log, so opening the app doesn't download every photo. Lunker League had to move its small photos out later. The full photo loads only when a drink is opened.
    - **Outbox.** Every log this phone sends (with its photo) is also kept on the phone until the group has it. If the server refuses one (for example a paused account), the app says so and offers to try again. A drink is never lost without a word.
@@ -171,10 +171,11 @@ node tools/make-icons.mjs
 ## The drink list files
 
 - [`js/catalog/styles.js`](js/catalog/styles.js): categories, families and styles. Style ids are unique across the whole tree.
-- [`js/catalog/drinks.js`](js/catalog/drinks.js): brands and products. `brand` + `name` + `variant` make the title; `abv` is as sold in Canada, with `approx: true` when it varies.
+- [`js/catalog/drinks.js`](js/catalog/drinks.js): joins the drink lists and holds the places (`ORIGINS`). The lists are one file per category: [`beer.js`](js/catalog/beer.js), [`whisky.js`](js/catalog/whisky.js), [`spirits.js`](js/catalog/spirits.js), [`wine.js`](js/catalog/wine.js), [`more.js`](js/catalog/more.js) (cider, mead, sake, seltzers) and [`na.js`](js/catalog/na.js). `brand` + `name` + `variant` make the title; `abv` is as sold in Canada, with `approx: true` when it varies.
+- [`js/catalog/make.js`](js/catalog/make.js): helpers for writing the lists. `maker(brand, origin, town)` declares a maker once, then one short line per product. Ids come from the title (`Dillon's Rye Whisky` is `dillons-rye-whisky`) and are permanent once shipped: if a title changes, pass the old id as `id`.
 - [`js/catalog/cocktails.js`](js/catalog/cocktails.js): default cocktail recipes, amounts in oz.
 
-`npm test` checks every drink points at a real style, ids are unique, ABVs are sensible and every recipe is complete.
+`npm test` checks every drink points at a real style, ids are unique tidy slugs, ABVs are sensible, Ontario comes first and every recipe is complete.
 
 ## Versioning
 
@@ -188,6 +189,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.2.0** (2026-Oct-13): The drink list: about 1,000 drinks, Ontario first (about 260 Ontario entries), deepest for beer and whisky, with flavours as their own entries. Ontario makers show their town, and towns are searchable. Four new styles: International Pale Lager, India Pale Lager, Appassimento and Pinot Blanc. Browsing a category opens one style at a time, so long lists stay quick, and search says when there are more results than it shows. Cocktail recipes are still the 12-recipe sample.
 - **0.1.3** (2026-Oct-13): Offline safety, from what Lunker League learned. The fonts no longer hold up the page (with no signal they could leave it blank), and they're saved when the app installs. Once a page opens from the saved copy, its other files load from saved copies straight away. Saved files are matched by their exact address, and app files are saved all or none. New start-up safety net: "Pour Decisions didn't start" with Reload and details, instead of a blank screen.
 - **0.1.2** (2026-Oct-13): Roadmap: offline safety next, then catalogue moderation, a status light with System info, storage and free-plan meters, email invites and admin moderation, carried over from Lunker League.
 - **0.1.1** (2026-Oct-13): Connected to the group's Firebase project (`pourdecisions-910bf`).
