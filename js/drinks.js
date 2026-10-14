@@ -10,6 +10,7 @@ import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, or
 import { getUnits, setUnits, fmtAmount } from "./units.js";
 import { store, uid } from "./cloud.js";
 import { drinkHistory } from "./logs.js";
+import { ratingsCard, groupRatings } from "./ratepage.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
@@ -22,7 +23,7 @@ export function renderDrinks(main) {
   const results = el("div", { class: "stack" });
   const draw = () => {
     query = box.value;
-    if (!query.trim()) return fill(results, categoryGrid());
+    if (!query.trim()) return fill(results, topLink(), categoryGrid());
     const hits = search(query);
     fill(results, hits.length
       ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(itemRow))
@@ -35,6 +36,16 @@ export function renderDrinks(main) {
     el("h2", { class: "page-title", text: "Drinks" }),
     el("label", { class: "search" }, el("span", { html: icon.search }), box),
     results);
+}
+
+/* The group's top-rated list, once anything is rated. */
+function topLink() {
+  const n = new Set(groupRatings().map(r => `${r.kind}|${r.drinkId}`)).size;
+  if (!n) return null;
+  return el("a", { class: "card admin-link", href: "#/top" },
+    el("span", { class: "item-icon", text: "🏆" }),
+    el("div", { class: "grow" }, el("b", { text: "Top rated" }), el("p", { class: "muted small", text: `The group's favourites · ${n} drink${n === 1 ? "" : "s"} rated` })),
+    el("span", { class: "chev", html: icon.chevron }));
 }
 
 function categoryGrid() {
@@ -158,6 +169,7 @@ export function renderDrink(main, id) {
       el("h2", { text: i.title }),
       el("p", { class: "muted", text: i.style.name })),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
+    ratingsCard(i),
     logThis(i),
     useItIn(d),
     adminDrinkTools(i));
@@ -202,6 +214,7 @@ export function renderRecipe(main, id) {
     el("section", { class: "card stack" },
       el("h3", { text: "Method" }),
       el("ol", { class: "steps" }, ...r.steps.map(s => el("li", { text: s })))),
+    ratingsCard(i),
     logThis(i),
     el("p", { class: "hint center", text: "This is the default recipe. Your group's own recipes and twists are coming later." }));
 }
@@ -264,7 +277,6 @@ export function renderIngredient(main, id) {
 function logThis(i) {
   const h = drinkHistory(store.logs, uid(), i.kind, i.id);
   return el("section", { class: "card stack" },
-    h.count ? el("p", { class: "muted", text: [`You've had it ${h.count === 1 ? "once" : `${h.count} times`}`,
-      h.avg ? `your average ★ ${h.avg}` : "", `last ${fmtDay(h.last)}`].filter(Boolean).join(" · ") }) : null,
+    h.count ? el("p", { class: "muted", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,
     el("a", { class: "btn primary block", href: `#/log/${i.kind}/${i.id}`, text: h.count ? "Log another" : "Log this" }));
 }

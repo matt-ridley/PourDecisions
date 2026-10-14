@@ -302,6 +302,17 @@ textarea { resize: vertical; min-height: 84px; }
 .star .half.right { right: 0; }
 .star-value { margin-left: 10px; font-weight: 700; color: var(--muted); }
 
+/* ---------- Ratings ---------- */
+.stack-tight { display: grid; gap: 4px; min-width: 0; }
+.rate-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.rate-list > li + li { border-top: 1px solid var(--line); padding-top: 12px; }
+.rate-title { display: flex; gap: 8px; align-items: center; text-decoration: none; }
+.review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.review { display: flex; gap: 12px; align-items: flex-start; }
+.review .avatar.sm { border-color: var(--surface); }
+.rating-line.small { font-size: 15px; }
+.top-rank { width: 22px; text-align: center; font: 700 17px/1 var(--f-display); color: var(--muted); flex: none; }
+
 .log-head { display: flex; align-items: center; gap: 12px; }
 .log-head h2 { font-size: 24px; }
 .log-head a { text-decoration: none; }

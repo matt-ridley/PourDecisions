@@ -7,6 +7,7 @@ import { TAGLINE } from "./config.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { allItems } from "./catalog.js";
 import { logRow } from "./logpage.js";
+import { rateCard } from "./ratepage.js";
 
 const RECENT = 6;
 
@@ -25,6 +26,7 @@ export function renderHome(main) {
         el("div", { class: "stat" }, el("b", { text: String(store.logs.length) }), el("span", { text: "drinks logged" })),
         el("div", { class: "stat" }, el("b", { text: String(allItems().length) }), el("span", { text: `in the list (${styles} styles)` })))),
     outboxCard(),
+    rateCard(),
     isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
       el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
       el("span", { class: "chip gold", text: String(toCheck().length) })) : null,

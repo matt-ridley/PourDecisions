@@ -1,12 +1,14 @@
-/* The Log tab: pick a drink, then size, rating, flavour, place, time, notes and an optional photo. Also a log's own
-   page (#/l/<id>), editing it, adding a drink to the shared list, and the "Another one" shortcut. */
+/* The Log tab: pick a drink, then size, place, time, notes and an optional photo. Rating comes later, once per drink
+   (see ratepage.js). Also a log's own page (#/l/<id>), editing it, adding a drink to the shared list, and the
+   "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto } from "./cloud.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { ORIGINS } from "./catalog/drinks.js";
-import { sizesFor, defaultSize, itemAbv, logStd, cleanRating, tagsFor, TAG_INDEX, MAX_TAGS, recentDrinks, placesByUse,
+import { sizesFor, defaultSize, itemAbv, logStd, recentDrinks, placesByUse,
   lastPlace, findPlace, cleanPlaceName, resolvePlace, SAME_NIGHT_MS } from "./logs.js";
+import { starText, ratingOfLog, rateButton } from "./ratepage.js";
 import { getUnits, fmtVolume, standardDrinks, ozToMl } from "./units.js";
 import { shrinkPhoto } from "./photo.js";
 
@@ -22,24 +24,6 @@ const placeIdNow = id => (placeOf(id) || { id }).id || null;
 const titleOf = log => (itemOf(log) || log).title;
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 
-/* ---------- Stars ---------- */
-/* Read-only "★ 4.5". */
-export const starText = r => r ? `★ ${r % 1 ? r.toFixed(1) : r}` : "";
-
-/* Five stars you can tap: the left half of a star gives a half. Tapping the current rating clears it. */
-function starPicker(value, onChange) {
-  const box = el("div", { class: "stars", role: "group", "aria-label": "Rating" });
-  const draw = () => fill(box, ...[1, 2, 3, 4, 5].map(n => {
-    const filled = value >= n ? 100 : value >= n - 0.5 ? 50 : 0;
-    return el("span", { class: "star", style: `--fill:${filled}%` },
-      ...[n - 0.5, n].map(v => el("button", { type: "button", class: v % 1 ? "half left" : "half right",
-        "aria-label": `${v} star${v === 1 ? "" : "s"}`, "aria-pressed": String(value === v),
-        onclick: () => { value = value === v ? null : v; draw(); onChange(value); } })));
-  }), el("span", { class: "star-value", text: value ? `${value} / 5` : "Not rated" }));
-  draw();
-  return box;
-}
-
 /* ---------- Thumbnails (loaded only when shown) ---------- */
 function thumbBox(log, cls = "log-thumb") {
   if (!log.hasPhoto) return el("span", { class: `${cls} icon`, text: iconOf(log) });
@@ -48,9 +32,10 @@ function thumbBox(log, cls = "log-thumb") {
   return img;
 }
 
-/* A log in a list: photo or icon, the drink, then size, time and rating. */
+/* A log in a list: photo or icon, the drink, then size, time, the drinker's rating of it and the place. */
 export function logRow(log, { who = false, another = false } = {}) {
-  const meta = [who ? memberName(log.uid) : "", fmtVolume(log.ml, getUnits()), fmtAgo(log.at), starText(log.rating), placeName(log.placeId) && `📍 ${placeName(log.placeId)}`]
+  const r = ratingOfLog(log);
+  const meta = [who ? memberName(log.uid) : "", fmtVolume(log.ml, getUnits()), fmtAgo(log.at), r && starText(r.rating), placeName(log.placeId) && `📍 ${placeName(log.placeId)}`]
     .filter(Boolean).join(" · ");
   return el("li", { class: "log-row" },
     el("a", { class: "item-row grow", href: `#/l/${log.id}` }, thumbBox(log),
@@ -117,7 +102,7 @@ export function renderLogForm(main, item, editing = null) {
   const last = !editing && recentDrinks(store.logs, uid(), 50).find(l => l.kind === item.kind && l.drinkId === item.id);
   const s = {
     size: editing ? editing.size : last && sizes.some(z => z.key === last.size) ? last.size : defaultSize(item),
-    ml: editing ? editing.ml : null, rating: editing ? editing.rating || null : null, tags: editing ? [...(editing.tags || [])] : [],
+    ml: editing ? editing.ml : null,
     placeId: placeIdNow(editing ? editing.placeId : lastPlace(store.logs, uid())),
     at: editing ? editing.at : null, // null = now
     notes: editing ? editing.notes || "" : "",
@@ -146,17 +131,6 @@ export function renderLogForm(main, item, editing = null) {
   });
   drawSizes(); drawStd();
 
-  // Flavour tags
-  const tagBox = el("div", { class: "chips", role: "group", "aria-label": "Flavour" });
-  const drawTags = () => fill(tagBox, ...tagsFor(item).map(t => el("button", { type: "button", class: "chip-btn tag", "aria-pressed": String(s.tags.includes(t.id)),
-    onclick: () => {
-      if (s.tags.includes(t.id)) s.tags = s.tags.filter(x => x !== t.id);
-      else if (s.tags.length < MAX_TAGS) s.tags.push(t.id);
-      else return toast(`Up to ${MAX_TAGS} flavours.`);
-      drawTags();
-    } }, t.label)));
-  drawTags();
-
   // Place
   const placeBox = el("div", { class: "chips", role: "group", "aria-label": "Where" });
   const drawPlaces = () => {
@@ -180,7 +154,7 @@ export function renderLogForm(main, item, editing = null) {
     onclick: () => { whenIn.max = toLocalInput(Date.now()); whenRow.hidden = false; nowBtn.setAttribute("aria-pressed", "false"); earlierBtn.setAttribute("aria-pressed", "true"); whenIn.focus(); } }, "Earlier…");
 
   // Notes
-  const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "How was it? (optional)", value: s.notes });
+  const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
 
   // Photo
   const photoIn = el("input", { type: "file", accept: "image/*", hidden: true });
@@ -203,8 +177,6 @@ export function renderLogForm(main, item, editing = null) {
   const save = el("button", { class: "btn primary block", type: "submit", text: editing ? "Save changes" : `Log it ${item.category.icon}` });
   const form = el("form", { class: "stack" },
     el("section", { class: "card stack" }, el("h3", { text: "How much?" }), sizeBox, otherRow, stdLine),
-    el("section", { class: "card stack" }, el("h3", { text: "Rating" }), starPicker(s.rating, v => { s.rating = v; })),
-    el("section", { class: "card stack" }, el("h3", { text: "Flavour" }), el("p", { class: "hint", text: `Pick up to ${MAX_TAGS} (optional).` }), tagBox),
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
     el("section", { class: "card stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
     el("section", { class: "card stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
@@ -221,7 +193,7 @@ export function renderLogForm(main, item, editing = null) {
     }
     const fields = { kind: editing ? editing.kind : item.kind, drinkId: editing ? editing.drinkId : item.id,
       title: editing ? editing.title : item.title, style: editing ? editing.style : item.style.id, size: s.size, ml: s.ml, abv,
-      rating: cleanRating(s.rating), tags: s.tags, placeId: s.placeId, notes: notesIn.value, at };
+      placeId: s.placeId, notes: notesIn.value, at };
     if (editing) {
       updateLog(editing.id, fields, s.pics);
       toast("Saved.");
@@ -332,7 +304,7 @@ export function renderLogDetail(main, id) {
   const m = store.members.get(log.uid) || { id: log.uid, displayName: memberName(log.uid) };
   const photo = log.hasPhoto ? el("div", { class: "log-photo" }, thumbBox(log, "log-photo-img")) : null;
   if (photo) loadPhoto(log.id).then(src => { if (src) { const img = photo.querySelector("img"); if (img) img.src = src; } });
-  const std = logStd(log);
+  const std = logStd(log), r = ratingOfLog(log);
   const facts = [
     ["How much", `${fmtVolume(log.ml, getUnits())} at ${log.abv}% (${stdText(std)})`],
     log.placeId ? ["Where", placeName(log.placeId) || "A place that was removed"] : null,
@@ -345,13 +317,13 @@ export function renderLogDetail(main, id) {
       el("span", { class: "item-icon", text: iconOf(log) }),
       el("div", { class: "grow" },
         item ? el("a", { href: `#/${log.kind === "cocktail" ? "recipe" : "drink"}/${item.id}` }, el("h2", { text: item.title })) : el("h2", { text: log.title }),
-        log.rating ? el("p", { class: "rating-line", text: `${starText(log.rating)} / 5` }) : null)),
+        r ? el("p", { class: "rating-line", text: `${starText(r.rating)} / 5` }) : null)),
     el("a", { class: "member-row card", href: mineLog ? "#/me" : `#/u/${log.uid}` }, avatar(m),
       el("div", { class: "grow" }, el("div", { class: "name", text: m.displayName }), el("div", { class: "muted small", text: fmtAgo(log.at) }))),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
-    log.tags && log.tags.length ? el("div", { class: "chips" }, ...log.tags.map(t => el("span", { class: "chip", text: (TAG_INDEX.get(t) || { label: t }).label }))) : null,
     log.notes ? el("p", { class: "card notes", text: log.notes }) : null,
     el("div", { class: "stack" },
+      mineLog && item ? rateButton(item) : null,
       mineLog ? el("button", { class: "btn primary block", type: "button", text: "Another one", onclick: () => { anotherOne(log); location.hash = "#/home"; } }) : null,
       mineLog ? el("a", { class: "btn block", href: `#/edit/${log.id}`, text: "Edit" }) : null,
       mineLog || isAdmin() ? confirmButton(mineLog ? "Delete this log" : "Delete this log (admin)", "Tap again to delete", () => {

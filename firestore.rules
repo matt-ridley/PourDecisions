@@ -100,6 +100,31 @@ service cloud.firestore {
       allow delete: if isMember() && (resource.data.uid == me() || isAdmin());
     }
 
+    // ---------- Ratings: one per person per drink (doc id = uid_kind_drinkId) ----------
+    // Stars are required; flavour tags and a review are optional. Logs from before 0.8.0 may still hold a rating and
+    // tags (allowed above so they stay editable); the app counts those until the drink is rated here.
+    function ratingOk(id, d) {
+      return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "rating", "tags", "review", "at"])
+        && d.uid == me()
+        && d.kind in ["drink", "cocktail"]
+        && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
+        && id == me() + "_" + d.kind + "_" + d.drinkId
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.rating is number && d.rating >= 0.5 && d.rating <= 5 && math.floor(d.rating * 2) == d.rating * 2
+        && (!("tags" in d) || (d.tags is list && d.tags.size() <= 5))
+        && optText(d, "review", 500)
+        && d.at is int;
+    }
+    match /ratings/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && ratingOk(id, request.resource.data);
+      allow update: if isMember() && (
+        (resource.data.uid == me() && ratingOk(id, request.resource.data))
+        // Admins can take down someone's review text (their stars and flavours stay).
+        || (isAdmin() && changed().hasOnly(["review"]) && !("review" in request.resource.data)));
+      allow delete: if isMember() && resource.data.uid == me();
+    }
+
     // A log's photos live in their own documents (same id as the log), so opening the app never downloads them all.
     function picOk(d, max) {
       return d.keys().hasOnly(["uid", "src", "at", "bytes"]) && d.uid == me()
