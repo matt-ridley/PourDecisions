@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.1.1 (beta)
+**Current version:** 0.1.2 (beta)
 
 ## Features
 
@@ -25,11 +25,43 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 ## Roadmap
 
-1. **The full drink list.** About 2,000 entries: Ontario craft first, then national brands and imports. Flavours as separate entries, plus 150 to 200 cocktail recipes with Caesar variants.
-2. **Logging a drink.** Pick it from the list (or add a new one), size, rating and notes. Works with no signal. Any member can add a drink to the shared list; admins merge duplicates and fix details. Only admins can add styles.
-3. **Ratings and reviews.** Star ratings, tasting notes and flavour tags.
-4. **The feed.** What everyone's pouring.
-5. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
+
+1. **Offline safety (0.1.3, next).** Fixes for problems that left Lunker League phones on a blank screen with no signal:
+   - The fonts load without holding up the page. With no signal the request can hang, and the screen stays blank until it gives up. The phone's own font shows until they arrive.
+   - The app saves the fonts and their font files when it installs, so even the first open with no signal looks right.
+   - Once a page has opened from the saved copy, the rest of its files come from saved copies straight away. They load in rounds, so a few seconds' wait for each round would add up.
+   - Saved files are matched by their exact address, and addresses with a query string (like an update check) are never saved. An old copy saved under one of those once replaced the real app file offline and stopped Lunker League from starting.
+   - App files are saved all or none, so a phone never ends up with a mix of old and new files that can't start.
+   - A start-up safety net: if the app hasn't drawn anything after 8 seconds, it shows "Pour Decisions didn't start" with a Reload button and details to screenshot, not a blank screen.
+2. **The full drink list.** About 2,000 entries: Ontario craft first, then national brands and imports. Flavours as separate entries, plus 150 to 200 cocktail recipes with Caesar variants.
+3. **Logging a drink.** Pick it from the list (or add a new one), size, rating and notes. Works with no signal. Any member can add a drink to the shared list. Only admins can add styles.
+   - **Optional photo.** The small photo is stored in its own document from day one, not inside the log, so opening the app doesn't download every photo. Lunker League had to move its small photos out later. The full photo loads only when a drink is opened.
+   - **Outbox.** Every log this phone sends (with its photo) is also kept on the phone until the group has it. If the server refuses one (for example a paused account), the app says so and offers to try again. A drink is never lost without a word.
+   - **Admins can delete any log.**
+4. **Catalogue moderation (admins).** Keeps the shared drink list clean as members add to it.
+   - **New drinks to check:** drinks added by members, newest first, with a count on Group admin. Admins mark them checked, fix them or merge them.
+   - **Fix details:** admins can edit any drink a member added (name, brand, style, where it's from, ABV, flavour). For built-in drinks a fix is saved as a correction that the app lays over the built-in list, so a wrong ABV can be fixed without a new app version.
+   - **Merge duplicates:** pick the one to keep. The duplicate is hidden from search and points at the one kept, and logs of the duplicate show and count as the kept drink. Nobody's logs are rewritten, so a merge works offline and can be undone.
+   - **Styles:** only admins add styles (under an existing family) or rename them.
+5. **Status light, System info and admin tools.**
+   - **Status light:** a glass icon at the top shows the connection: green = connected, pulsing = syncing, blue = offline, red = a sync problem. Tap it for System info.
+   - **System info:** connection state and since when, when the group last synced, drinks and changes still waiting to send, the outbox, the app version with **Check for an update**, whether the app is installed and ready offline, and space used on the phone (and whether the phone protects it).
+   - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
+   - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
+6. **Ratings and reviews.** Star ratings, tasting notes and flavour tags. Admins can delete any review.
+7. **The feed.** What everyone's pouring. Admins can delete any comment.
+8. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+
+### Carried over from Lunker League
+
+Rules to follow from the start, so they never need fixing later:
+
+- Never match saved app files while ignoring the query string, and never save an address that has one.
+- Photos (small and full) never go inside the documents every phone loads at start-up.
+- Listeners load only what a screen needs. Once loading the whole history costs too much, older years get packed into an archive.
+- A change that needs new security rules goes out with them: publish the rules before (or right when) merging, or phones show a sync problem.
+- Still open in Lunker League, so worth trying to solve here: in a dead zone, sign-in checks the account over the network at start-up and can show "Loading…" for up to 30 seconds.
 
 ### Backlog
 
@@ -38,6 +70,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - The group's own cocktail book.
 - Challenges: blind tastings, Style Bingo, Around the World, Cocktail of the Month, Sober October.
 - Year-end "Wrapped", a rounds ledger, home bar inventory.
+- Group start date and a late-logging window, like Lunker League's (late entries count for your history but not the competition). Decide once there's something to compete on.
+- An admin points editor with saved versions and a preview, once crowns, badges or challenges award points.
 
 ## Installing on a phone
 
@@ -161,6 +195,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.1.2** (2026-Oct-13): Roadmap: offline safety next, then catalogue moderation, a status light with System info, storage and free-plan meters, email invites and admin moderation, carried over from Lunker League.
 - **0.1.1** (2026-Oct-13): Connected to the group's Firebase project (`pourdecisions-910bf`).
 - **0.1.0** (2026-Oct-07): The foundation. Accounts with invite codes and a legal-age check, group owner and admins, profiles, Happy Hour and Last Call looks, oz or ml, works offline. The drink list: the full style tree (about 270 styles) with a sample of drinks in every category, search, and default cocktail recipes. New `firestore.rules`.
 
