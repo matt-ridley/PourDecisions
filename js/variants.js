@@ -18,7 +18,7 @@
      ingredients      [{ slot, ing, oz | qty, drinkId?, optional? }]: slot is the recipe's row (none for an added
                       ingredient), ing the ingredient ids (just the one picked, for "rye or bourbon"), drinkId the bottle
    Once saved, only the name changes (an admin can also merge duplicates), so a rating always means the same drink. */
-import { itemById, ingredientById, variantsOf, drinksFor, resolveId } from "./catalog.js";
+import { itemById, ingredientById, variantsOf, variantsBy, drinksFor, resolveId } from "./catalog.js";
 import { ML_PER_OZ } from "./units.js";
 import { recipeVolume, recipeAbv } from "./logs.js";
 
@@ -300,3 +300,73 @@ export function makeLogs({ recipe, variant, drinkers, me, at, placeId = null }) 
 
 /* The document to save for a new variant: what buildVariant gave, without its id, plus who and when. */
 export const variantDoc = (v, by, at) => { const { id, ...rest } = v; return { ...rest, by, at }; };
+
+/* ---------- Ratings, the House Pour, comparing and stats ---------- */
+
+/* A variant as a catalogue-style item, so the rating sheet, ratings card and Top rated work on it like on any drink:
+   its own title, the cocktail's category, family and style, and the recipe as data (for the flavour tags). */
+export function asItem(v) {
+  const item = typeof v === "string" ? itemById("variant", v) : v;
+  const base = item && itemById("cocktail", item.base);
+  if (!base) return null;
+  return { kind: "variant", id: item.id, base: base.id, title: variantTitle(base.data, item.data), category: base.category,
+    family: base.family, style: base.style, data: base.data, variant: item.data };
+}
+
+/* What a log should be rated as: its variant if it has one, otherwise the drink itself. [kind, id] */
+export const rateKey = log => log.variantId ? ["variant", resolveId("variant", log.variantId)] : [log.kind, log.drinkId];
+
+// The House Pour needs this many ratings, so nobody crowns their own variant alone.
+export const HOUSE_MIN = 2;
+
+/* A cocktail's made variants with the group's ratings, best first: the House Pour (if any), then by average rating
+   (rated before unrated), then most made. [{ item, makes, makers, last, avg, count, house }]
+   `made` is madeVariants(); `ratings` is everyone's ratings (ratings.allRatings). */
+export function rankVariants(made, ratings) {
+  const out = made.map(x => {
+    const rs = ratings.filter(r => r.kind === "variant" && r.drinkId === x.item.id);
+    const avg = rs.length ? Math.round(rs.reduce((t, r) => t + r.rating, 0) / rs.length * 10) / 10 : null;
+    return { ...x, avg, count: rs.length, house: false };
+  });
+  const best = out.filter(x => x.count >= HOUSE_MIN)
+    .sort((a, b) => b.avg - a.avg || b.count - a.count || (a.item.data.at || 0) - (b.item.data.at || 0))[0];
+  if (best) best.house = true;
+  return out.sort((a, b) => b.house - a.house || (b.avg ?? -1) - (a.avg ?? -1) || b.count - a.count || b.makes - a.makes || b.last - a.last);
+}
+
+/* The House Pour of a cocktail, or null. */
+export const housePour = (baseId, logs, ratings) => rankVariants(madeVariants(baseId, logs), ratings).find(x => x.house) || null;
+
+/* Two versions of a cocktail side by side, row by row: the recipe's rows in order, then added ingredients (matched by
+   bottle or ingredient). `a` and `b` are variant data, or null for the recipe as written.
+   [{ label, a: cell | null, b: cell | null, differs }], cell = { oz | qty, name } (null = not in it). */
+export function compareRows(recipe, a, b) {
+  const rowsOf = v => v ? v.ingredients : startRows(recipe);
+  const cell = r => r ? { ...(r.oz != null ? { oz: r.oz } : { qty: r.qty }), name: rowName(recipe, r) } : null;
+  const same = (x, y) => !x === !y && (!x || (amountKey(x) === amountKey(y) && (x.drinkId || "") === (y.drinkId || "") && x.ing.join() === y.ing.join()));
+  const out = recipe.ingredients.map((x, slot) => {
+    const ra = rowsOf(a).find(r => r.slot === slot), rb = rowsOf(b).find(r => r.slot === slot);
+    return { label: x.item.replace(/ \(optional\)$/, ""), a: cell(ra), b: cell(rb), differs: !same(ra, rb) };
+  });
+  const keyOf = r => r.drinkId ? `#${r.drinkId}` : r.ing.join("|");
+  const addedA = rowsOf(a).filter(r => r.slot == null), addedB = rowsOf(b).filter(r => r.slot == null);
+  for (const k of [...new Set([...addedA, ...addedB].map(keyOf))]) {
+    const ra = addedA.find(r => keyOf(r) === k), rb = addedB.find(r => keyOf(r) === k);
+    out.push({ label: rowName(recipe, ra || rb), a: cell(ra), b: cell(rb), differs: !same(ra, rb) });
+  }
+  return out;
+}
+
+/* A member's mixologist stats: cocktails they've made (for anyone), variants they created that someone has made,
+   how many times other people made those, the average rating those variants get, and the House Pours they hold. */
+export function mixologistStats(uid, logs, ratings) {
+  const made = logs.filter(l => l.kind === "cocktail" && (l.madeBy || l.uid) === uid).length;
+  const mine = new Set(variantsBy(uid).map(v => v.id));
+  const live = new Set(logs.filter(l => l.variantId).map(l => resolveId("variant", l.variantId)).filter(id => mine.has(id)));
+  const byOthers = logs.filter(l => l.variantId && mine.has(resolveId("variant", l.variantId)) && (l.madeBy || l.uid) !== uid).length;
+  const rs = ratings.filter(r => r.kind === "variant" && live.has(r.drinkId));
+  const bases = new Set([...live].map(id => itemById("variant", id).base));
+  const houses = [...bases].filter(b => { const h = housePour(b, logs, ratings); return h && mine.has(h.item.id); }).length;
+  return { made, created: live.size, byOthers, avg: rs.length ? Math.round(rs.reduce((t, r) => t + r.rating, 0) / rs.length * 10) / 10 : null,
+    ratings: rs.length, houses };
+}

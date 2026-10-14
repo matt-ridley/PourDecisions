@@ -67,6 +67,9 @@ export function setMemberDrinks(list) { memberDocs = list; rebuild(); }
 export function setStyles(list) { applyStyleOverlay(list); rebuild(); }
 export function setVariants(list) { variantDocs = list; rebuild(); }
 
+/* The variants a member made first, merged duplicates left out. */
+export const variantsBy = uid => variantList.filter(v => v.data.by === uid && !v.mergedInto);
+
 /* A cocktail's variants, merged duplicates left out, oldest first. */
 export const variantsOf = baseId => variantList.filter(v => v.base === baseId && !v.mergedInto)
   .sort((a, b) => (a.data.at || 0) - (b.data.at || 0));

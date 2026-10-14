@@ -393,3 +393,17 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 /* A variant's recipe: rows that differ from the original stand out. */
 .ingredients li.changed { background: var(--primary-soft); border-radius: 10px; padding: 4px 8px; margin: 0 -8px; }
 .facts dd a { color: var(--primary); font-weight: 700; }
+
+/* Variant photos, comparing two versions, and mixologist stats. */
+.photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; display: block; background: var(--surface-2); }
+.cmp { display: grid; padding: 8px 12px; }
+.cmp-row { display: grid; grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 9px 6px; border-top: 1px solid var(--line); font-size: 15px; align-items: baseline; }
+.cmp-row:first-child { border-top: 0; }
+.cmp-row.differs { background: var(--primary-soft); border-radius: 10px; border-top-color: transparent; }
+.cmp-label { font-weight: 800; color: var(--muted); font-size: 13px; }
+.cmp-head a { font: 700 16px/1.2 var(--f-display); color: var(--primary); text-decoration: none; }
+.cmp-row b { color: var(--primary); }
+.mix-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mix-stats .stat { background: var(--surface-2); }
+.mix-stats .stat span { color: var(--muted); }

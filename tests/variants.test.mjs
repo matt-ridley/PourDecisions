@@ -7,7 +7,9 @@ import { recipeAbv, recipeVolume } from "../js/logs.js";
 import { ML_PER_OZ } from "../js/units.js";
 import { startRows, scaleRows, buildVariant, changes, isVariant, variantId, variantRecipe, autoName, variantTitle,
   makersOf, variantCount, madeVariants, lineage, remixesOf, recentVariants, cleanVariantName, changeWords, stepAmount, addedRow, bottleChoices, servingsFor, makeLogs,
-  variantDoc } from "../js/variants.js";
+  variantDoc, asItem, rateKey, rankVariants, housePour, compareRows, mixologistStats } from "../js/variants.js";
+import { tagsFor } from "../js/logs.js";
+import { allRatings, toRate } from "../js/ratings.js";
 
 afterEach(() => { setVariants([]); });
 
@@ -281,4 +283,74 @@ test("make it again: your latest variants, one each, including ones you made for
   assert.deepEqual(recentVariants(logs, "me").map(x => [x.item.id, x.log.at]), [[b.id, now - H], [a.id, now - 2 * H]]);
   assert.deepEqual(recentVariants(logs, "me", 1).map(x => x.item.id), [b.id]);
   assert.deepEqual(recentVariants(logs, "you").map(x => x.item.id), [a.id], "made for you by someone else isn't yours to make again");
+});
+
+/* ---------- Ratings, the House Pour, comparing and stats ---------- */
+
+const rated = (uid, v, rating) => ({ uid, kind: "variant", drinkId: v.id, rating, tags: [], review: "", at: now });
+
+test("a variant rates like a drink: its own title, the cocktail's category, cocktail flavours", () => {
+  const v = buildVariant(sour, rowsWith(sour, { 0: DILLONS }), { name: "Basement Sour" });
+  setVariants([{ ...v, by: "me", at: now }]);
+  const i = asItem(v.id);
+  assert.equal(i.kind, "variant"); assert.equal(i.id, v.id); assert.equal(i.title, "Basement Sour");
+  assert.equal(i.category.id, "cocktail"); assert.equal(i.base, "whisky-sour");
+  assert.ok(tagsFor(i).some(t => t.id === "balanced"), "cocktail flavours");
+  assert.equal(asItem("whisky-sour~nope"), null);
+  assert.deepEqual(rateKey({ kind: "cocktail", drinkId: "whisky-sour", variantId: v.id }), ["variant", v.id]);
+  assert.deepEqual(rateKey({ kind: "cocktail", drinkId: "whisky-sour" }), ["cocktail", "whisky-sour"]);
+});
+
+test("How was it? asks about the variant you made, not the cocktail", () => {
+  const v = buildVariant(sour, rowsWith(sour, { 0: DILLONS }));
+  setVariants([{ ...v, by: "me", at: now }]);
+  const logs = [mkLog("me", v, now - H)];
+  assert.equal(toRate(allRatings([], logs), logs, "me", now).length, 1);
+  assert.equal(toRate(allRatings([{ ...rated("me", v, 4), id: "x" }], logs), logs, "me", now).length, 0, "rated the variant");
+  const cocktailRating = { uid: "me", kind: "cocktail", drinkId: "whisky-sour", rating: 4, at: now, id: "y" };
+  assert.equal(toRate(allRatings([cocktailRating], logs), logs, "me", now).length, 1, "rating the cocktail doesn't rate the variant");
+});
+
+test("the House Pour: best average with at least 2 ratings, then most ratings, then the oldest", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS })), b = buildVariant(sour, rowsWith(sour, { 1: { oz: 1 } }));
+  const c = buildVariant(sour, rowsWith(sour, { 2: null }));
+  setVariants([[a, 1], [b, 2], [c, 3]].map(([v, k]) => ({ ...v, by: "me", at: now + k })));
+  const logs = [mkLog("me", a, now), mkLog("me", a, now + 1), mkLog("me", b, now), mkLog("me", c, now)];
+  const made = madeVariants("whisky-sour", logs);
+  let list = rankVariants(made, [rated("u1", c, 5)]);
+  assert.ok(!list.some(x => x.house), "one 5-star rating isn't enough");
+  assert.equal(list[0].item.id, c.id, "but rated variants still come first");
+  list = rankVariants(made, [rated("u1", a, 4), rated("u2", a, 4), rated("u1", b, 5), rated("u2", b, 4), rated("u1", c, 5)]);
+  assert.deepEqual(list.map(x => [x.item.id, x.avg, x.count, x.house]), [[b.id, 4.5, 2, true], [c.id, 5, 1, false], [a.id, 4, 2, false]]);
+  list = rankVariants(made, [rated("u1", a, 4), rated("u2", a, 4), rated("u1", b, 4), rated("u2", b, 4)]);
+  assert.equal(list[0].item.id, a.id, "a tie goes to the older one");
+  assert.equal(housePour("whisky-sour", logs, [rated("u1", a, 4), rated("u2", a, 4)]).item.id, a.id);
+  assert.equal(housePour("whisky-sour", logs, []), null);
+});
+
+test("compare lines up the recipe's rows, then added ingredients, and marks what differs", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 1: { oz: 1 } }, [{ qty: "2 dashes", ing: ["angostura"] }]));
+  const b = buildVariant(sour, rowsWith(sour, { 0: DILLONS, 3: null }, [{ qty: "2 dashes", ing: ["angostura"] }, { oz: 0.5, ing: ["maple-syrup"] }]));
+  const rows = compareRows(sour, a, b);
+  assert.deepEqual(rows.map(r => [r.label, r.differs]), [["Whisky", false], ["Fresh lemon juice", true], ["Simple syrup", false],
+    ["Egg white", true], ["Angostura bitters", false], ["Maple syrup", true]]);
+  assert.equal(rows[0].a.name, "Dillon's Rye Whisky");
+  assert.equal(rows[1].a.oz, 1); assert.equal(rows[1].b.oz, 0.75);
+  assert.equal(rows[3].b, null, "left out of b");
+  assert.equal(rows[5].a, null, "only in b");
+  const vsOriginal = compareRows(sour, null, a);
+  assert.equal(vsOriginal[0].a.name, "Whisky"); assert.ok(vsOriginal[0].differs);
+  assert.ok(!vsOriginal[2].differs);
+});
+
+test("mixologist stats: made, created, made by others, rating received, House Pours", () => {
+  const a = buildVariant(sour, rowsWith(sour, { 0: DILLONS })), b = buildVariant(sour, rowsWith(sour, { 1: { oz: 1 } }));
+  const unmade = buildVariant(sour, rowsWith(sour, { 2: null })), theirs = buildVariant(manhattan, rowsWith(manhattan, { 2: { qty: "4 dashes" } }));
+  setVariants([{ ...a, by: "me", at: now }, { ...b, by: "me", at: now + 1 }, { ...unmade, by: "me", at: now }, { ...theirs, by: "you", at: now }]);
+  const logs = [mkLog("me", a, now), mkLog("you", a, now), mkLog("dave", a, now, { madeBy: "you" }), mkLog("dave", b, now, { madeBy: "me" }),
+    mkLog("me", theirs, now), { uid: "me", kind: "cocktail", drinkId: "negroni", at: now }, { uid: "me", kind: "drink", drinkId: "bud-light", at: now }];
+  const ratings = [rated("you", a, 5), rated("dave", a, 4), rated("me", b, 3), rated("me", theirs, 4)];
+  assert.deepEqual(mixologistStats("me", logs, ratings), { made: 4, created: 2, byOthers: 2, avg: 4, ratings: 3, houses: 1 });
+  assert.deepEqual(mixologistStats("you", logs, ratings), { made: 2, created: 1, byOthers: 1, avg: 4, ratings: 1, houses: 0 });
+  assert.deepEqual(mixologistStats("nobody", logs, ratings), { made: 0, created: 0, byOthers: 0, avg: null, ratings: 0, houses: 0 });
 });
