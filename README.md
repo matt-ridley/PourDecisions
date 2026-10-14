@@ -4,9 +4,9 @@
 
 A private drink-tracking app for a group of friends. Log what you drink, rate and review it, recommend drinks to each other, and compete on variety: the most different beers, whiskies, styles and countries, not the most drinks. It is a phone web app for Android and iPhone that you add to your home screen. It has no build step and no server to run.
 
-**Live app:** https://matt-ridley.github.io/PourDecisions/ (once the Firebase project is set up)
+**Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.1.0 (beta)
+**Current version:** 0.1.1 (beta)
 
 ## Features
 
@@ -60,11 +60,7 @@ The app uses a free Firebase project (Google) for accounts and to share data bet
 5. On Firestore's **Rules** tab: paste the whole of [`firestore.rules`](firestore.rules) and click **Publish**.
 6. Open **Settings** (the gear) **> General**, scroll to **Your apps** and click the web icon `</>`. Give it a nickname and leave Hosting unticked. Copy its `firebaseConfig` values into `FIREBASE_CONFIG` in [`js/config.js`](js/config.js).
    - These values are public by design. The rules are what keep the data private.
-7. Add a `.firebaserc` file with the project ID so `npm run deploy:rules` knows where to publish:
-
-   ```json
-   { "projects": { "default": "your-project-id" } }
-   ```
+7. Put the project ID in [`.firebaserc`](.firebaserc) so `npm run deploy:rules` knows where to publish.
 
 The free Spark plan is plenty for a group of friends.
 
@@ -165,6 +161,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.1.1** (2026-Oct-13): Connected to the group's Firebase project (`pourdecisions-910bf`).
 - **0.1.0** (2026-Oct-07): The foundation. Accounts with invite codes and a legal-age check, group owner and admins, profiles, Happy Hour and Last Call looks, oz or ml, works offline. The drink list: the full style tree (about 270 styles) with a sample of drinks in every category, search, and default cocktail recipes. New `firestore.rules`.
 
 ## Credits
