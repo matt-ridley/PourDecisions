@@ -389,3 +389,7 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
   padding: 12px var(--side) calc(env(safe-area-inset-bottom, 0px) + 12px); background: var(--bg); border-top: 1px solid var(--line);
 }
 .bt-foot .btn { flex: 1; }
+
+/* A variant's recipe: rows that differ from the original stand out. */
+.ingredients li.changed { background: var(--primary-soft); border-radius: 10px; padding: 4px 8px; margin: 0 -8px; }
+.facts dd a { color: var(--primary); font-weight: 700; }

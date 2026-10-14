@@ -9,6 +9,7 @@ import { ORIGINS } from "./catalog/drinks.js";
 import { sizesFor, defaultSize, itemAbv, logStd, recentDrinks, placesByUse,
   lastPlace, findPlace, cleanPlaceName, resolvePlace, SAME_NIGHT_MS } from "./logs.js";
 import { starText, ratingOfLog, rateButton } from "./ratepage.js";
+import { variantTitle } from "./variants.js";
 import { getUnits, fmtVolume, standardDrinks, ozToMl } from "./units.js";
 import { shrinkPhoto } from "./photo.js";
 
@@ -21,7 +22,11 @@ const iconOf = log => { const i = itemOf(log); return i ? i.category.icon : "ðŸ
 const placeOf = id => id ? resolvePlace(store.places, id) : null;
 const placeName = id => (placeOf(id) || {}).name || "";
 const placeIdNow = id => (placeOf(id) || { id }).id || null;
-const titleOf = log => (itemOf(log) || log).title;
+// A cocktail variant shows as its own name ("Basement Sour"), and follows a rename.
+const titleOf = log => {
+  const item = itemOf(log), v = log.variantId && itemById("variant", log.variantId);
+  return item && v ? variantTitle(item.data, v.data) : (item || log).title;
+};
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 
 /* ---------- Thumbnails (loaded only when shown) ---------- */
@@ -47,7 +52,7 @@ export function logRow(log, { who = false, another = false } = {}) {
 export function anotherOne(log) {
   const sameNight = Date.now() - log.at < SAME_NIGHT_MS;
   const item = itemOf(log); // a merged or fixed drink logs as the drink it is now
-  const id = saveLog({ kind: log.kind, drinkId: item ? item.id : log.drinkId, title: item ? item.title : log.title,
+  const id = saveLog({ kind: log.kind, drinkId: item ? item.id : log.drinkId, title: titleOf(log),
     style: item ? item.style.id : log.style, size: log.size, ml: log.ml, abv: item && log.kind === "drink" ? item.data.abv : log.abv,
     at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())), variantId: log.variantId });
   toast(`Another ${titleOf(log)} logged ðŸ»`, { label: "Undo", run: () => deleteLog(id) });
@@ -310,7 +315,10 @@ export function renderLogDetail(main, id) {
   const photo = log.hasPhoto ? el("div", { class: "log-photo" }, thumbBox(log, "log-photo-img")) : null;
   if (photo) loadPhoto(log.id).then(src => { if (src) { const img = photo.querySelector("img"); if (img) img.src = src; } });
   const std = logStd(log), r = ratingOfLog(log);
+  const variant = log.variantId && itemById("variant", log.variantId);
   const facts = [
+    variant && item ? ["Variant", el("a", { href: `#/v/${variant.id}`, text: variantTitle(item.data, variant.data) })] : null,
+    log.madeBy ? ["Made by", log.madeBy === uid() ? "You" : memberName(log.madeBy)] : null,
     ["How much", `${fmtVolume(log.ml, getUnits())} at ${log.abv}% (${stdText(std)})`],
     log.placeId ? ["Where", placeName(log.placeId) || "A place that was removed"] : null,
     ["When", fmtDate(log.at)],
@@ -325,7 +333,7 @@ export function renderLogDetail(main, id) {
         r ? el("p", { class: "rating-line", text: `${starText(r.rating)} / 5` }) : null)),
     el("a", { class: "member-row card", href: mineLog ? "#/me" : `#/u/${log.uid}` }, avatar(m),
       el("div", { class: "grow" }, el("div", { class: "name", text: m.displayName }), el("div", { class: "muted small", text: fmtAgo(log.at) }))),
-    el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
+    el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", {}, v)])),
     log.notes ? el("p", { class: "card notes", text: log.notes }) : null,
     el("div", { class: "stack" },
       mineLog && item ? rateButton(item) : null,

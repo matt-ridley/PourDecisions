@@ -1,15 +1,16 @@
 /* The Drinks tab: search the catalog, or drill down Category > Family > Style > drink, each page with a short
    description and breadcrumbs back up. Also a cocktail recipe and a recipe ingredient's page.
    A level with only one choice is skipped: Rosé goes straight to its drinks, Non-alcoholic straight to its styles. */
-import { el, fill, icon, fmtDay } from "./ui.js";
+import { el, fill, icon, fmtDay, fmtAgo, avatar, openSheet, closeSheet, toast } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
 import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
-import { getUnits, setUnits, fmtAmount } from "./units.js";
-import { store, uid } from "./cloud.js";
-import { drinkHistory } from "./logs.js";
+import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
+import { store, uid, isAdmin, memberName, renameVariant } from "./cloud.js";
+import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
+import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME } from "./variants.js";
 import { ratingsCard, groupRatings } from "./ratepage.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
@@ -58,8 +59,9 @@ function categoryGrid() {
 /* A drink or cocktail in a list. On a style's own page the style isn't repeated on every row. */
 function itemRow(i, { style = true } = {}) {
   const d = i.data, st = style ? i.style.name : "";
+  const nv = i.kind === "cocktail" ? variantCount(i.id, store.logs) : 0;
   const meta = i.kind === "cocktail"
-    ? [st, d.method, d.glass].filter(Boolean).join(" · ")
+    ? [st, d.method, d.glass, nv ? `${nv} variant${nv === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")
     : [st, d.origin ? originName(d.origin) : "", abvText(d)].filter(Boolean).join(" · ");
   return el("li", {}, el("a", { class: "item-row", href: `#/${i.kind === "cocktail" ? "recipe" : "drink"}/${i.id}` },
     el("span", { class: "item-icon", text: i.category.icon }),
@@ -214,6 +216,7 @@ export function renderRecipe(main, id) {
     el("section", { class: "card stack" },
       el("h3", { text: "Method" }),
       el("ol", { class: "steps" }, ...r.steps.map(s => el("li", { text: s })))),
+    variantsCard(i),
     ratingsCard(i),
     makeThis(i));
 }
@@ -288,4 +291,95 @@ function logThis(i) {
   return el("section", { class: "card stack" },
     h.count ? el("p", { class: "muted", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,
     el("a", { class: "btn primary block", href: `#/log/${i.kind}/${i.id}`, text: h.count ? "Log another" : "Log this" }));
+}
+
+/* ---------- Cocktail variants ---------- */
+const times = n => n === 1 ? "once" : `${n} times`;
+
+/* The group's variants of a cocktail, most made first. */
+function variantsCard(i) {
+  const list = madeVariants(i.id, store.logs);
+  return el("section", { class: "card stack" },
+    el("h3", { text: list.length ? `${list.length} variant${list.length === 1 ? "" : "s"} by the group` : "Variants" }),
+    list.length ? el("ul", { class: "item-list" }, ...list.map(x => variantRow(i.data, x)))
+      : el("p", { class: "muted", text: "Nobody has made their own version yet. Tap Make it, pick your bottles or change an amount, and it shows up here." }));
+}
+
+function variantRow(recipe, { item, makes, makers }) {
+  const by = item.data.by;
+  const meta = [by ? `by ${by === uid() ? "you" : memberName(by)}` : "", `made ${times(makes)}`, makers > 1 ? `by ${makers} people` : ""]
+    .filter(Boolean).join(" · ");
+  return el("li", {}, el("a", { class: "item-row", href: `#/v/${item.id}` },
+    el("span", { class: "item-icon", text: "🍸" }),
+    el("span", { class: "grow" }, el("b", { text: variantTitle(recipe, item.data) }), el("span", { class: "muted small", text: meta })),
+    el("span", { class: "chev", html: icon.chevron })));
+}
+
+/* #/v/<id>: one variant. Its recipe with the changes marked, who made it, what it was remixed from, and its remixes. */
+export function renderVariant(main, id) {
+  const item = itemById("variant", id), base = item && itemById("cocktail", item.base);
+  if (!item || !base) return fill(main, el("div", { class: "card" }, el("p", { text: "That variant isn't in the list." })));
+  const recipe = base.data, v = item.data, r = variantRecipe(recipe, v), units = getUnits();
+  const cs = changes(recipe, v);
+  const changedSlots = new Set(cs.filter(c => c.slot != null && c.type !== "removed" && !c.minor).map(c => c.slot));
+  const removed = cs.filter(c => c.type === "removed").map(c => recipe.ingredients[c.slot].item.replace(/ \(optional\)$/, ""));
+  const ml = recipeVolume(r), abv = recipeAbv(r);
+  const makers = makersOf(store.logs, item.id), made = makers.reduce((t, m) => t + m.count, 0);
+  const from = lineage(item.id)[0], remixes = remixesOf(item.id);
+  const who = u => u === uid() ? "you" : memberName(u);
+  fill(main,
+    crumbs(...styleTrail(recipe.style), [recipe.name, `#/recipe/${recipe.id}`], [v.name || "Variant"]),
+    el("section", { class: "hero card" },
+      el("span", { class: "hero-icon", text: "🍸" }),
+      el("h2", { text: variantTitle(recipe, v) }),
+      el("p", { class: "muted" }, "A variant of ", el("a", { href: `#/recipe/${recipe.id}`, text: recipe.name })),
+      from ? el("p", { class: "small" }, "Remixed from ", el("a", { href: `#/v/${from.id}`, text: variantTitle(recipe, from.data) })) : null,
+      el("p", { class: "muted small", text: [v.by ? `First made by ${who(v.by)}` : "", v.at ? fmtDay(v.at) : ""].filter(Boolean).join(" · ") })),
+    el("section", { class: "card stack" },
+      el("h3", { text: "What's different" }),
+      el("ul", { class: "changes" }, ...changeWords(recipe, v).map(w => el("li", { text: w })))),
+    el("section", { class: "card stack" },
+      el("h3", { text: "Ingredients" }),
+      el("ul", { class: "ingredients" }, ...r.ingredients.map(x => el("li", { class: x.slot == null || changedSlots.has(x.slot) ? "changed" : null },
+        el("b", { text: x.oz != null ? fmtAmount(x.oz, units) : x.qty }),
+        el("span", {}, x.drinkId ? el("a", { href: `#/drink/${x.drinkId}`, text: x.item }) : x.item, x.slot == null ? " (added)" : "")))),
+      removed.length ? el("p", { class: "muted small", text: `Left out: ${removed.join(", ")}` }) : null,
+      el("p", {}, el("b", { text: "Glass: " }), r.glass),
+      el("p", {}, el("b", { text: "Garnish: " }), r.garnish || "None"),
+      el("p", { class: "muted small", text: `Each: ${fmtVolume(ml, units)} at about ${abv}% = ${standardDrinks(ml, abv)} standard drinks` })),
+    el("section", { class: "card stack" },
+      el("h3", { text: made ? `Made ${times(made)}` : "Not made yet" }),
+      makers.length ? el("ul", { class: "member-list" }, ...makers.map(m => {
+        const mm = store.members.get(m.uid) || { id: m.uid, displayName: memberName(m.uid) };
+        return el("li", {}, el("a", { class: "member-row", href: m.uid === uid() ? "#/me" : `#/u/${m.uid}` }, avatar(mm),
+          el("div", { class: "grow" }, el("div", { class: "name", text: m.uid === uid() ? "You" : mm.displayName }),
+            el("div", { class: "muted small", text: `${times(m.count)} · last ${fmtAgo(m.last)}` }))));
+      })) : el("p", { class: "muted", text: "Be the first: tap Make this one." })),
+    remixes.length ? el("section", { class: "card stack" },
+      el("h3", { text: `Remixed ${times(remixes.length)}` }),
+      el("ul", { class: "item-list" }, ...remixes.map(x => el("li", {}, el("a", { class: "item-row", href: `#/v/${x.id}` },
+        el("span", { class: "item-icon", text: "🔀" }), el("b", { class: "grow", text: variantTitle(recipe, x.data) }),
+        el("span", { class: "chev", html: icon.chevron })))))) : null,
+    el("section", { class: "card stack" },
+      el("a", { class: "btn primary block", href: `#/make/${recipe.id}/${item.id}`, text: "🍸 Make this one" }),
+      el("p", { class: "hint center", text: "Make it as it is, or change anything to make your own remix." }),
+      v.by === uid() || isAdmin()
+        ? el("button", { class: "btn block", type: "button", text: v.name ? "Rename" : "Give it a name", onclick: () => renameSheet(item, recipe) }) : null));
+}
+
+/* The maker (or an admin) names or renames a variant. Empty goes back to the automatic name. */
+function renameSheet(item, recipe) {
+  openSheet(box => {
+    const name = el("input", { type: "text", maxlength: MAX_NAME, value: item.data.name || "", placeholder: "e.g. The Basement Sour",
+      autocapitalize: "words", "data-focus": "" });
+    const form = el("form", { class: "stack" },
+      el("h2", { text: item.data.name ? "Rename it" : "Name it" }),
+      el("label", { class: "field" }, el("span", { class: "field-label", text: "Name" }), name,
+        el("span", { class: "hint", text: `Leave it empty for the automatic name: ${variantTitle(recipe, { ...item.data, name: "" })}` })),
+      el("div", { class: "row" },
+        el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }),
+        el("button", { class: "btn primary", type: "submit", text: "Save" })));
+    form.addEventListener("submit", e => { e.preventDefault(); renameVariant(item.id, name.value); closeSheet(); toast("Saved."); });
+    box.append(form);
+  });
 }

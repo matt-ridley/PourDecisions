@@ -403,6 +403,15 @@ export function saveVariant(id, doc) {
   emit();
 }
 
+/* Renaming a variant: its maker, or an admin. An empty name goes back to the automatic one. */
+export function renameVariant(id, name) {
+  const n = clip(name, 40);
+  write(cloud.api.updateDoc(ref("variants", id), { name: n || cloud.api.deleteField() }));
+  store.variants = store.variants.map(v => v.id === id ? (n ? { ...v, name: n } : (({ name: _, ...rest }) => rest)(v)) : v);
+  setVariants(store.variants);
+  emit();
+}
+
 /* ---------- Ratings: one per person per drink ---------- */
 /* Rating a drink, or changing your rating. Works offline. `oldId`: your earlier rating's document, if it was saved
    under a duplicate that has since been merged into this drink (it's replaced by this one). */
