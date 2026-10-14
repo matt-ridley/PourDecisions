@@ -220,23 +220,14 @@ a.member-row:active { background: var(--surface-2); }
 .item-row .grow { display: grid; gap: 1px; }
 .item-icon { font-size: 26px; width: 36px; text-align: center; flex: none; }
 .chev svg { width: 20px; height: 20px; color: var(--muted); display: block; }
-.family { padding: 0; overflow: hidden; }
-.family > summary { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 16px 18px; cursor: pointer; list-style: none; min-height: 56px; }
-.family > summary::-webkit-details-marker { display: none; }
-.family > summary b { font: 700 20px/1.1 var(--f-display); }
-.family > summary::after { content: "+"; font: 700 22px/1 var(--f-display); color: var(--primary); margin-left: auto; }
-.family[open] > summary::after { content: "–"; }
-.family > summary .muted { white-space: nowrap; }
-.style-list { list-style: none; margin: 0; padding: 0 12px 12px; display: grid; }
-.style-list > li { border-top: 1px solid var(--line); padding: 10px 6px; }
-.style-name { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; }
-.style-list .item-list { padding: 4px 0 0; }
-.style summary { list-style: none; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
-.style summary::-webkit-details-marker { display: none; }
-.style summary .style-name { flex: 1; justify-content: flex-start; }
-.style summary .chip { margin-left: auto; }
-.style summary .style-name::after { content: "+"; font: 700 18px/1 var(--f-display); color: var(--primary); }
-.style[open] summary .style-name::after { content: "–"; }
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; font-size: 14px; font-weight: 700; }
+.crumbs li { display: inline-flex; align-items: center; min-width: 0; }
+.crumbs li + li::before { content: "›"; color: var(--muted); padding: 0 7px; font-weight: 800; }
+.crumbs a { color: var(--primary); text-decoration: none; padding: 6px 0; }
+.crumbs a:active { text-decoration: underline; }
+.crumbs [aria-current] { color: var(--muted); }
+.level-head { display: grid; gap: 6px; }
+.empty-row b { color: var(--muted); }
 .hero { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 26px 18px; }
 .hero-icon { font-size: 56px; line-height: 1; }
 .hero h2 { font-size: 30px; }

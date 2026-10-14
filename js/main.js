@@ -7,7 +7,7 @@ import { renderProfile } from "./profile.js";
 import { renderAdmin } from "./admin.js";
 import { renderHome } from "./home.js";
 import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
-import { renderDrinks, renderCategory, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
+import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -18,6 +18,7 @@ const ROUTES = {
   edit: { tab: null, live: false, render: renderLogEdit },
   drinks: { tab: "drinks", live: false, render: renderDrinks },
   cat: { tab: "drinks", sub: true, live: false, render: renderCategory },
+  style: { tab: "drinks", sub: true, live: false, render: renderStyle },
   drink: { tab: "drinks", sub: true, live: false, render: renderDrink },
   recipe: { tab: "drinks", sub: true, live: false, render: renderRecipe },
   ing: { tab: "drinks", sub: true, live: false, render: renderIngredient },
