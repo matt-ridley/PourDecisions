@@ -6,7 +6,7 @@ import { renderGate } from "./gate.js";
 import { renderProfile } from "./profile.js";
 import { renderAdmin } from "./admin.js";
 import { renderHome, renderLog } from "./home.js";
-import { renderDrinks, renderCategory, renderDrink, renderRecipe } from "./drinks.js";
+import { renderDrinks, renderCategory, renderDrink, renderRecipe, renderIngredient } from "./drinks.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -17,6 +17,7 @@ const ROUTES = {
   cat: { tab: "drinks", sub: true, live: false, render: renderCategory },
   drink: { tab: "drinks", sub: true, live: false, render: renderDrink },
   recipe: { tab: "drinks", sub: true, live: false, render: renderRecipe },
+  ing: { tab: "drinks", sub: true, live: false, render: renderIngredient },
   me: { tab: null, live: true, render: main => renderProfile(main) },
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
   admin: { tab: null, live: true, render: renderAdmin },

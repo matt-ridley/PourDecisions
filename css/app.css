@@ -246,6 +246,13 @@ a.member-row:active { background: var(--surface-2); }
 .ingredients { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ingredients li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .ingredients b { color: var(--primary); white-space: nowrap; }
+.ingredients a { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.fold { display: grid; gap: 8px; }
+.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 32px; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::after { content: "+"; font: 700 20px/1 var(--f-display); color: var(--primary); margin-left: auto; }
+.fold[open] > summary::after { content: "–"; }
+.fold .item-list, .card > .item-list { padding: 0; }
 .steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 
 /* ---------- Sheet, scrim, toast ---------- */
