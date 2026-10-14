@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.9.0 (beta)
+**Current version:** 0.9.1 (beta)
 
 ## Features
 
@@ -34,6 +34,12 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **On each drink's page:** the group's average rating, how many rated it, the most-picked flavours and everyone's reviews, newest first. Admins can take down a review's text (the stars stay).
   - **Top rated:** the group's favourites (Drinks › Top rated), best average first, filtered by category.
   - Ratings saved on logs before 0.8.0 still count: your latest one is your rating for that drink until you rate it again.
+- **Making a cocktail.** Tap **Make it** on any cocktail (or **Make it your way** when logging one) to follow its recipe with what you've actually got.
+  - **Pick the bottles:** each ingredient offers the bottles in the list that count for it (any Canadian rye for "Rye"), the ones you've used in cocktails or logged lately first. Or leave it as "any rye".
+  - **Change it up:** − and + change each amount (¼ oz or 5 ml at a time), × leaves an ingredient out (put it back from **Left out**), **Add an ingredient** adds bitters, a syrup or another bottle, and the glass and garnish can change too.
+  - **Your own variant:** anything different from the recipe is saved as a variant of the cocktail, named from what changed ("Whisky Sour · Dillon's Rye Whisky, more fresh lemon juice") unless you name it. Making the same thing again (same bottles, same amounts) counts toward the same variant, even if a friend made it first. Its strength comes from the real bottles, so standard drinks stay right.
+  - **Who's drinking:** tick yourself and anyone you're making one for. Each person gets one logged, and drinks you make for friends show you as the maker. **How many to make** scales the amounts for 2, 4 or a pitcher of 8.
+  - **Bartender mode:** the recipe in big text with a checkbox for every pour and step, and the screen stays awake while you make it.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
 - **Ounces or millilitres.** Pick oz or ml on your profile (saved per phone). Used for drink sizes and cocktail recipes.
 - **The drink list.** Search, or drill down one level at a time: Drinks › Whisky › Scotch › Islay Single Malt › the bottle. Every category, family and style has its own page with a short description, and breadcrumbs at the top lead back up. A level with only one choice is skipped (Rosé opens its drinks straight away).
@@ -58,7 +64,7 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
 2. ✅ **Ratings and reviews** (0.8.0).
 3. **Cocktail variants.** Make a cocktail by following its recipe, pick the bottles you actually used, change the amounts, add or leave out ingredients, and name it if you like. Each different version becomes a variant under the original cocktail, which shows how many variants the group has made. Making the same thing again (same bottles, same amounts) counts toward the same variant instead of adding a copy. Variants are rated by the group, and each one shows who has made it.
    - ✅ **Variants core** (0.9.0): what makes a variant, ids from what's in it, automatic names, makers, strength from the real bottles, security rules.
-   - **Make it** (0.9.1): follow the recipe with a bottle picker and amount stepper on each ingredient, add or remove ingredients, change the glass or garnish, an optional name, and batches (×2, ×4, a pitcher). **Bartender mode:** big text, a checkbox per step and the screen kept awake. **Make it for someone:** log it for another member, with you as the maker.
+   - ✅ **Make it** (0.9.1): follow the recipe with a bottle picker and amount stepper on each ingredient, add or remove ingredients, change the glass or garnish, an optional name, and batches (×2, ×4, a pitcher). **Bartender mode:** big text, a checkbox per step and the screen kept awake. **Make it for someone:** log it for another member, with you as the maker.
    - **Variants in the catalogue** (0.9.2): the variant count on each cocktail, a Variants list on its page, and a page per variant showing what's different from the original. **Remix** someone's variant (it shows what it was remixed from). **Make it again** from Home.
    - **Ratings, crown and stats** (0.9.3): rate variants (separate from the original's stars), top variants, a **House Pour** crown for the group's best-rated variant of each cocktail, **Compare** two variants side by side, a photo per variant, and mixologist stats on profiles (variants created, made by others, average rating).
 4. **The feed.** What everyone's pouring. Admins can delete any comment.
@@ -263,6 +269,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.9.1** (2026-Oct-14): Making a cocktail. **Make it** on each cocktail's page (and **Make it your way** when logging one) follows the recipe: pick the bottle you're using for each ingredient (yours first), change amounts with − and +, leave ingredients out or add new ones, and change the glass or garnish. Anything different is saved as your own variant, named from what changed unless you name it; making the same drink again reuses it. Tick who's drinking to log one for each of them, with you as the maker of theirs, and scale the amounts for a batch. **Bartender mode** shows it in big text with a checkbox per line and keeps the screen awake. Drinks made for friends are resent from the outbox like your own. No new security rules.
 - **0.9.0** (2026-Oct-14): Cocktail variants, the groundwork (nothing new on screen yet). New roadmap step 3: cocktail variants, in four parts. The new `js/variants.js` decides what counts as a variant (a bottle picked, an amount changed, an ingredient added or removed, or a different glass or garnish; picking "rye or bourbon" or leaving out an optional ingredient is still the recipe), gives each one an id made from what's in it, names unnamed ones from what changed ("Whisky Sour · Dillon's Rye Whisky, more fresh lemon juice"), and counts who has made each one. A cocktail's strength now uses the real bottles picked, so a full-proof bourbon counts as stronger. Security rules for variants, logs that point at a variant or were made for someone else, and rating a variant. **New `firestore.rules`: publish them before merging.**
 - **0.8.0** (2026-Oct-14): Ratings and reviews. One rating per person per drink, kept apart from logs, so a drink is rated once and changed whenever. Stars and flavours are gone from the log screen (logs keep their own notes). Rate later from **How was it?** on Home, a log's page or the drink's page, with stars, flavours and an optional review. Each drink's page shows the group's average, the most-picked flavours and everyone's reviews. New **Top rated** list under Drinks. Admins can take down a review's text. Ratings on older logs carry over. **New `firestore.rules`: publish them before merging.**
 - **0.7.0** (2026-Oct-13): Status light and System info. The Live/Offline pill is gone from the header, making room for an alerts icon later. Instead, a small ball on the glass shows the connection (green connected, pulsing green syncing, blue offline, red a sync problem), and stays on Back on inner pages. Tap the glass, or **System info** on your profile, for the connection in words, the app version with **Check for an update**, and this phone. No new security rules.

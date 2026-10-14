@@ -49,7 +49,7 @@ export function anotherOne(log) {
   const item = itemOf(log); // a merged or fixed drink logs as the drink it is now
   const id = saveLog({ kind: log.kind, drinkId: item ? item.id : log.drinkId, title: item ? item.title : log.title,
     style: item ? item.style.id : log.style, size: log.size, ml: log.ml, abv: item && log.kind === "drink" ? item.data.abv : log.abv,
-    at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())) });
+    at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())), variantId: log.variantId });
   toast(`Another ${titleOf(log)} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
 }
 
@@ -213,6 +213,11 @@ export function renderLogForm(main, item, editing = null) {
       el("div", { class: "grow" }, el("h2", { text: item.title }),
         el("p", { class: "muted small", text: [item.style.name, `${item.kind === "cocktail" ? "about " : d.approx ? "~" : ""}${abv}%`].join(" · ") })),
       editing ? null : el("a", { class: "btn small", href: "#/log", text: "Change" })),
+    !editing && item.kind === "cocktail" ? el("a", { class: "card admin-link", href: `#/make/${item.id}` },
+      el("span", { class: "item-icon", text: "🍸" }),
+      el("div", { class: "grow" }, el("b", { text: "Make it your way" }),
+        el("p", { class: "muted small", text: "Follow the recipe, pick the bottles you used and change the amounts." })),
+      el("span", { class: "chev", html: icon.chevron })) : null,
     form);
 }
 

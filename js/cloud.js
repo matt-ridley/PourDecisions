@@ -3,7 +3,7 @@
    Firestore's persistent cache keeps a copy on the phone, so the app opens and accepts changes with no signal;
    queued writes are sent when the phone is back online. Times are stored as epoch milliseconds from the phone clock. */
 import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
-import { setMemberDrinks, setFixes, setStyles } from "./catalog.js";
+import { setMemberDrinks, setFixes, setStyles, setVariants } from "./catalog.js";
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
 import { ratingId } from "./ratings.js";
@@ -31,6 +31,7 @@ export const store = {
   fixes: [],              // admins' corrections to built-in drinks (and built-in drinks merged into others)
   styles: [],             // admins' new and renamed styles
   ratings: [],            // one per person per drink: stars, flavours and a review (see ratings.js)
+  variants: [],           // members' own versions of cocktail recipes (see variants.js)
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -124,6 +125,7 @@ function refreshMemberListeners() {
   for (const k of Object.keys(cloud.meta)) if (k !== "group" && k !== "me") delete cloud.meta[k];
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
+  store.variants = []; setVariants([]);
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -142,6 +144,7 @@ function refreshMemberListeners() {
   list("fixes", l => { store.fixes = l; setFixes(l); });
   list("styles", l => { store.styles = l; setStyles(l); });
   list("ratings", l => { store.ratings = l; });
+  list("variants", l => { store.variants = l; setVariants(l); });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -158,6 +161,7 @@ function stopListeners() {
   store.group = undefined; store.me = undefined; store.members = new Map(); store.invite = undefined;
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
+  store.variants = []; setVariants([]);
 }
 
 function syncError(e) {
@@ -283,6 +287,8 @@ function cleanLog(f) {
   if (notes) log.notes = notes;
   if (f.tags && f.tags.length) log.tags = f.tags.slice(0, 5);
   if (f.placeId) log.placeId = f.placeId;
+  if (f.variantId) log.variantId = f.variantId;
+  if (f.madeBy) log.madeBy = f.madeBy;
   return log;
 }
 const pic = (src, at) => ({ uid: uid(), src, at, bytes: dataBytes(src) });
@@ -305,10 +311,13 @@ function sendEntry(e) {
 }
 
 /* A new log. Saved to the outbox first, then sent; works offline (Firestore sends it when there's signal).
-   pics: { photo, thumb } data URLs, or null. Returns the new log's id straight away. */
+   pics: { photo, thumb } data URLs, or null. Returns the new log's id straight away.
+   A drink you made for someone else is logged as theirs: fields.uid is theirs and fields.madeBy is you. */
 export function saveLog(fields, pics = null) {
   const id = newId("logs"), now = Date.now();
-  const log = { ...cleanLog(fields), uid: uid(), createdAt: now, hasPhoto: !!pics };
+  const forSomeone = fields.madeBy && fields.uid && fields.uid !== uid();
+  const log = { ...cleanLog(forSomeone ? { ...fields, madeBy: uid() } : { ...fields, madeBy: null }),
+    uid: forSomeone ? fields.uid : uid(), createdAt: now, hasPhoto: !!pics };
   const entry = { id, log, thumb: pics && pics.thumb, photo: pics && pics.photo, state: "sending", savedAt: now };
   outboxPut(entry).then(refreshOutbox).then(() => sendEntry(entry));
   return id;
@@ -359,7 +368,7 @@ export async function flushOutbox() {
     const entries = await outboxAll();
     store.outbox = entries; emit();
     for (const e of entries) {
-      if (e.state === "failed" || e.log.uid !== uid()) continue;
+      if (e.state === "failed" || (e.log.madeBy || e.log.uid) !== uid()) continue; // yours, or one you made for someone
       try {
         const snap = await cloud.api.getDocFromServer(ref("logs", e.id));
         if (snap.exists()) { await outboxDelete(e.id); continue; }
@@ -380,6 +389,19 @@ export async function retryLog(id) {
   sendEntry(entry);
 }
 export async function discardLog(id) { await outboxDelete(id); refreshOutbox(); }
+
+/* ---------- Cocktail variants ---------- */
+/* Saves a new variant (doc from variants.variantDoc). Separate from the logs that use it, so a refusal can't take a log
+   down with it. Two phones saving the same new variant offline both write it; the second arrives as a change and is
+   refused, which is fine: the variant is there, and the first maker keeps the credit. */
+export function saveVariant(id, doc) {
+  if (store.variants.some(v => v.id === id)) return;
+  cloud.api.setDoc(ref("variants", id), doc).catch(e => { if (e && e.code !== "permission-denied") syncError(e); });
+  // Show it straight away, before the listener catches up.
+  store.variants = [...store.variants, { id, ...doc }];
+  setVariants(store.variants);
+  emit();
+}
 
 /* ---------- Ratings: one per person per drink ---------- */
 /* Rating a drink, or changing your rating. Works offline. `oldId`: your earlier rating's document, if it was saved
