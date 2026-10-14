@@ -6,6 +6,7 @@ import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
 import { setMemberDrinks, setFixes, setStyles } from "./catalog.js";
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
+import { ratingId } from "./ratings.js";
 
 /* Add ?emulator to a localhost address to use the local Firebase emulator (npm run emulators) instead of the real project. */
 export const USE_EMULATOR = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emulator");
@@ -29,6 +30,7 @@ export const store = {
   drinks: [],             // drinks members added to the list
   fixes: [],              // admins' corrections to built-in drinks (and built-in drinks merged into others)
   styles: [],             // admins' new and renamed styles
+  ratings: [],            // one per person per drink: stars, flavours and a review (see ratings.js)
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -121,7 +123,7 @@ function refreshMemberListeners() {
   cloud.memberUnsubs = [];
   for (const k of Object.keys(cloud.meta)) if (k !== "group" && k !== "me") delete cloud.meta[k];
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
-  store.fixes = []; store.styles = []; setFixes([]); setStyles([]);
+  store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -139,6 +141,7 @@ function refreshMemberListeners() {
   list("drinks", l => { store.drinks = l; setMemberDrinks(l); });
   list("fixes", l => { store.fixes = l; setFixes(l); });
   list("styles", l => { store.styles = l; setStyles(l); });
+  list("ratings", l => { store.ratings = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -154,7 +157,7 @@ function stopListeners() {
   cloud.meta = {};
   store.group = undefined; store.me = undefined; store.members = new Map(); store.invite = undefined;
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
-  store.fixes = []; store.styles = []; setFixes([]); setStyles([]);
+  store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
 }
 
 function syncError(e) {
@@ -377,6 +380,29 @@ export async function retryLog(id) {
   sendEntry(entry);
 }
 export async function discardLog(id) { await outboxDelete(id); refreshOutbox(); }
+
+/* ---------- Ratings: one per person per drink ---------- */
+/* Rating a drink, or changing your rating. Works offline. `oldId`: your earlier rating's document, if it was saved
+   under a duplicate that has since been merged into this drink (it's replaced by this one). */
+export function saveRating(item, f, oldId = null) {
+  const id = ratingId(uid(), item.kind, item.id);
+  if (oldId && oldId !== id) deleteRating(oldId);
+  const r = { uid: uid(), kind: item.kind, drinkId: item.id, title: clip(item.title, 120), rating: f.rating, at: Date.now() };
+  if (f.tags && f.tags.length) r.tags = f.tags.slice(0, 5);
+  const review = clip(f.review, 500);
+  if (review) r.review = review;
+  write(cloud.api.setDoc(ref("ratings", id), r));
+  // Show it straight away, before the listener catches up.
+  store.ratings = [...store.ratings.filter(x => x.id !== id), { id, ...r }];
+  emit();
+}
+export function deleteRating(id) {
+  write(cloud.api.deleteDoc(ref("ratings", id)));
+  store.ratings = store.ratings.filter(x => x.id !== id);
+  emit();
+}
+/* Admins: take down someone's review text. Their stars and flavours stay. */
+export const removeReview = id => write(cloud.api.updateDoc(ref("ratings", id), { review: cloud.api.deleteField() }));
 
 /* ---------- Photos: loaded only when shown ---------- */
 const thumbCache = new Map(), photoCache = new Map();
