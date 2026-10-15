@@ -62,6 +62,8 @@ service cloud.firestore {
                          && optText(request.resource.data, "favourite", 60)
                          // Starred cocktails (the LCBO run lists what they're missing).
                          && (!("starred" in request.resource.data) || (request.resource.data.starred is list && request.resource.data.starred.size() <= 100))
+                         // Drinks you want to try (on your profile, with whose bar has them).
+                         && (!("wants" in request.resource.data) || (request.resource.data.wants is list && request.resource.data.wants.size() <= 200))
                          && (!("avatar" in request.resource.data) || request.resource.data.avatar == null
                              || (request.resource.data.avatar is string && request.resource.data.avatar.size() < 120000)))
         // Admins can pause or un-pause; only the owner can do that to another admin. Nobody can pause the owner.

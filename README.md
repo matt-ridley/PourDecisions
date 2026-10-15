@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.18.2 (beta)
+**Current version:** 0.18.3 (beta)
 
 ## Features
 
@@ -103,7 +103,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Between two people:** every drink either way, and **🎁 Give them one** to pay it back (the log form opens with them picked). Friends' profiles show the balance between you.
   - **🎁 Most Generous & 🥵 Thirstiest:** boards of who gave the most drinks, and who received the most more than they gave, all time or this month (from the Tab or the Variety board). The top giver of all time holds the **🎁 Most Generous** crown.
   - **❌ That's not right:** on a drink someone gave you. It comes off the Tab (the giver gets an alert), and **Put it back on the Tab** undoes it.
-- **🍸 What can I make.** From the Drinks tab or a bar: from what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
+- **🍸 What can I make.** From the Bar tab (or the Drinks tab): from what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
   - **A bottle counts for the broader ingredient too:** Rye also makes anything that asks for Whisky, and Crown Royal counts as Rye, Canadian whisky and Whisky. Kitchen basics (sugar, salt, water) are assumed, and optional extras never count as missing.
   - **Filters:** cocktails or mocktails, and an ingredient the drink must use ("rye drinks only").
   - **🛒 Best buy:** the single bottle or ingredient that would add the most cocktails, with which ones.
@@ -111,6 +111,9 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **From:** your bar & fridge (the default once you have one), anyone else's, or a checklist you tick by hand (saved on this phone, for a bar that isn't in the app).
 - **Ounces or millilitres.** Pick oz or ml in Settings (saved per phone). Used for drink sizes and cocktail recipes.
 - **The drink list.** Search, or drill down one level at a time: Drinks › Whisky › Scotch › Islay Single Malt › the bottle. Every category, family and style has its own page with a short description, and breadcrumbs at the top lead back up. A level with only one choice is skipped (Rosé opens its drinks straight away).
+  - **Search order:** the closest title first, each brand's main drink before its other bottles and flavours (Crown Royal Deluxe first for "crown"), non-alcoholic versions after the rest unless you type "0.0", "NA" or similar, and what the group logs most rising to the top.
+  - **On a drink's page:** **Log this** right under the name, then **🏠 Add** (to your fridge or bar, without leaving the page), **🎯 To try** and **🎁 Give** (pick a friend, and the log form opens with it for them, on the Tab).
+- **🎯 Want to try.** Drinks you've marked on their page and haven't had yet, on your profile (and friends' on theirs), with whose bar has one. A drink leaves the list once you log it.
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
   - **Drinks:** about 1,580 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (540), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
   - **Search:** matches names, brands, styles, categories, places (`guelph`, `county`) and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
@@ -214,7 +217,7 @@ From a review of the whole app after the roadmap was done: fewer hidden pages, s
 1. ✅ **Getting around** (0.18.0): Bar and Us tabs, Settings off the profile, Back that goes one level up when there's nowhere to go back to, the bar page with what's in it first and hosting below, links grouped into one list.
 2. ✅ **Home and the feed** (0.18.1): a slimmer welcome, the feed on the first screen, a compact How was it?, fewer crown posts, one Filter button, tidier feed cards.
 3. ✅ **Faster logging** (0.18.2): Log it always on screen, the extras folded away, one-tap Again, and your fridge on the Log screen.
-4. **Drinks** (0.18.3): more on a drink's page (add to your fridge or bar, want to try, give one), one place for what you have, and better search ranking.
+4. ✅ **Drinks** (0.18.3): more on a drink's page (add to your fridge or bar, want to try, give one), one place for what you have, and better search ranking.
 
 ### Backlog
 
@@ -234,7 +237,6 @@ Worth keeping in mind, but not planned:
 - **Spending stats:** what you paid when reloading, cost per drink, monthly spend (private).
 - **Rounds at the pub:** "my round" when out, feeding the Tab.
 - **Hangover rating:** an optional 1 to 5 the next morning, and what the worst nights had in common.
-- **Hunt list:** your wishlist, showing who already has the drink in their bar.
 - **Bottle share:** someone opens a special bottle and everyone at the night gets a logged pour.
 - **Who's driving:** a designated-driver flag on a Drink Night.
 - **Cellar** (vintage and "drink by", e.g. Icewine), **homebrew** batches that refill the fridge, **keg** tracking and a **party planner** (how much to buy for so many people and hours).
@@ -385,6 +387,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.18.3** (2026-Oct-15): **Drinks**, finishing the ease-of-use pass. A drink's page has **Log this** under its name, with **🏠 Add** (to your fridge or bar, staying on the page), **🎯 To try** and **🎁 Give** (pick a friend; the log form opens with it for them). **🎯 Want to try** on profiles lists drinks marked and not yet had, with whose bar has one. **Search** puts the closest title first, then each brand's main drink (the list's own order) before flavours and other bottles, non-alcoholic versions after the rest unless asked for, and what the group logs most higher up ("guinness" now starts with Guinness Draught). What can I make calls the tick list **Planning** once you have a bar in the app. **Changed `firestore.rules`** (a `wants` list on your member document, up to 200): publish them before merging. The app works with the old rules too.
 
 - **0.18.2** (2026-Oct-15): **Faster logging.** **Log it** stays on screen just above the tabs. The form shows how much and where (and from home, when the drink is in your fridge, bar or cooler); who it's for, when, notes and photo, and off the feed fold under **More options**, with a line saying what they're set to (open when editing or paying one back). The Log screen's recent drinks have **Again** (one tap, with Undo; each cocktail variant listed on its own), which replaces Make it again on Home, and a **From home** list of your cooler and fridge with **Drink one**. Opening the app straight onto Log now fills in your recent drinks as they load. No new security rules.
 
