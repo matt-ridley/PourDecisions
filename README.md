@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.11.3 (beta)
+**Current version:** 0.12.0 (beta)
 
 ## Features
 
@@ -74,6 +74,12 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Photos:** add an optional photo when you make it. It goes with your own drink, and the variant's page shows the latest photos.
   - **Mixologist stats** on each profile: cocktails made, variants created, times friends made them, the average rating they get, and House Pours held.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
+- **🍸 What can I make.** From the Drinks tab: tick what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
+  - **A bottle counts for the broader ingredient too:** Rye also makes anything that asks for Whisky, and Crown Royal counts as Rye, Canadian whisky and Whisky. Kitchen basics (sugar, salt, water) are assumed, and optional extras never count as missing.
+  - **Filters:** cocktails or mocktails, and an ingredient the drink must use ("rye drinks only").
+  - **🛒 Best buy:** the single bottle or ingredient that would add the most cocktails, with which ones.
+  - Cocktails you can make show **✅ Can make** in lists, and a recipe's page says what you're missing.
+  - The ticks are saved on this phone for now. Once My Bar arrives, your bar and fridge fill them in.
 - **Ounces or millilitres.** Pick oz or ml on your profile (saved per phone). Used for drink sizes and cocktail recipes.
 - **The drink list.** Search, or drill down one level at a time: Drinks › Whisky › Scotch › Islay Single Malt › the bottle. Every category, family and style has its own page with a short description, and breadcrumbs at the top lead back up. A level with only one choice is skipped (Rosé opens its drinks straight away).
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
@@ -111,14 +117,19 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
    - ✅ **Head-to-head and charts** (0.11.2): compare with a friend (tried by both, only you, only them), and personal charts: drinks by category and month, favourite styles, your top rated.
    - ✅ **Crowns** (0.11.3): one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak and more), on profiles and the board, with a feed post and an alert when one changes hands.
 
+6. **What can I make** (0.12.0). The bartender's cocktail filter comes first, from a checklist of what you have, so it works before the bar and fridge exist. It runs on the phone from the recipes, with no new reads or security rules.
+
 ### After the core: the bar, the fridge and the tab
 
 These milestones come after steps 1 to 5, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
 
 **A. Stock: the fridge and the bar**
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
+- **Everything in a household is shared:** no item belongs to just one person.
+- **Stored one item per document** (`stock/{household~item}`), so two people changing stock at once never overwrite each other. Fridge counts change with Firestore increments, so changes made offline add up.
 - **The Fridge:** beer and other cans and bottles, counted. **Reload** with one tap (+1, 6, 12, 15, 24 or 30), with recently reloaded drinks first. **Drink one** logs it and takes it out of the fridge. Warns when a drink is running low, at a level the household sets.
-- **My Bar:** bottles, tracked by how full they are (full, ¾, ½, ¼, empty) rather than exact amounts. A logged pour lowers the level using the bottle size. Mixers, bitters, syrups and garnishes go in the bar too.
+- **My Bar:** bottles, shown by how full they are (full, ¾, ½, ¼, empty). Pours lower the level automatically by the amount poured (Make it uses the bottles in your bar first), and a tap corrects it. Spare sealed bottles of the same drink are counted. Mixers, juices, syrups, bitters and garnishes go in the bar too, as simply Have or Out.
+- **What can I make from your bar:** the 0.12.0 page switches from the checklist to My bar (fridge included, since beer goes in some cocktails) or any household's bar. Any bottle that counts for an ingredient fills it (any rye for "Rye").
 - **Killed the bottle:** whoever pours the last drop gets the credit. A wall of empties on each profile.
 - **Coolers:** for a night out, load a cooler from your fridge. Drinks then come out of the cooler, and whatever's left goes back into the fridge afterwards.
 
@@ -140,7 +151,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **Morning-after recap:** the next morning, what you drank, standard drinks, and what you gave away and were given. "If you don't remember, the app will."
 
 **D. The bartender**
-- **What can I make:** cocktails sorted into Can make now, Missing 1 (with what to buy) and Missing 2+, from what's in your bar.
+- ✅ **What can I make** (0.12.0, from a checklist; from your bar once milestone A is built).
 - **Planning a night:** put everyone coming's bars together to see what the group could make, then agree who brings what (feeds the bring list).
 - **Your bar's page:** a name ("The Basement"), a photo, a signature drink and the current menu.
 - **Bar Menu / Order up:** the host publishes a menu of what they can make. Guests order from their phones, the host sees the queue and taps **Served**, and the drink is logged for the guest and comes out of the host's bar.
@@ -318,6 +329,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.12.0** (2026-Oct-15): **🍸 What can I make**, from the Drinks tab. Tick what's in your bar and the cocktails sort into Can make now, Missing 1 (with what's missing) and Missing 2 or more. A bottle counts for the broader ingredient too (Rye makes anything that asks for Whisky), kitchen basics are assumed, and optional extras never count as missing. Filter to cocktails or mocktails and to drinks that use a given ingredient. **Best buy** names the one ingredient that would add the most cocktails. Cocktail lists show ✅ Can make, and recipes say what you're missing. Ticks are saved on this phone until My Bar arrives. Roadmap: the bar and fridge plan now has shared households, one document per stock item, and bottle levels that follow your pours. No new security rules.
 
 - **0.11.3** (2026-Oct-15): Variety stats, part 4: crowns. Nine crowns with one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak, Hop Head, Dram Master, Sommelier, Mixologist, True North), each for the most variety in one thing, taken only by strictly passing the holder. Shown on the board (every crown and holder) and profiles; a change of hands is posted to the feed and sent as an alert to the winner and the one who lost it. This finishes roadmap step 5. **Changed `firestore.rules`** (crown posts can be cheered): publish them before merging.
 - **0.11.2** (2026-Oct-15): Variety stats, part 3. **Head-to-head** with a friend (from their profile): scores, and styles and countries tried by both, only you, only them. **Your charts**, private to you (from Just for you): drinks by month for the last year, by category, your favourite styles and your top rated. No new security rules.
