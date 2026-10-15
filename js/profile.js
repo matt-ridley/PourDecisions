@@ -8,6 +8,7 @@ import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
 import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
+import { householdOf, stockIn, fridgeCount } from "./stock.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
   ...options.map(([k, text]) => el("button", { type: "button", "aria-pressed": String(current === k), text, onclick: () => pick(k) })));
@@ -34,6 +35,7 @@ export function renderProfile(main, id) {
       el("h3", { text: `Recent drinks${mine && theirs.length ? ` (${theirs.length} logged)` : ""}` }),
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
+    barLink(m.id, mine),
     varietyCard(m.id),
     mine ? tryNextCard() : null,
     mine ? volumeCard() : null,
@@ -99,6 +101,19 @@ function confirmSignOut() {
     el("div", { class: "row" },
       el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }),
       el("button", { class: "btn danger", type: "button", text: "Sign out", onclick: () => { closeSheet(); signOut(); } })))));
+}
+
+/* Your bar and fridge (or a start button), or the household someone else is in. */
+function barLink(id, mine) {
+  const h = householdOf(store.households, id);
+  if (!h && !mine) return null;
+  const f = h ? stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0) : 0;
+  const b = h ? stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length : 0;
+  return el("a", { class: "card admin-link", href: h ? `#/bar/${h.id}/fridge` : "#/bar" },
+    el("span", { class: "item-icon", text: "🏠" }),
+    el("div", { class: "grow" }, el("b", { text: h ? h.name : "Your bar & fridge" }),
+      el("p", { class: "muted small", text: h ? `${f} in the fridge · ${b} bottle${b === 1 ? "" : "s"} in the bar` : "Keep track of what you have and see what you can make" })),
+    el("span", { class: "chev", html: icon.chevron }));
 }
 
 /* Cocktails made, variants created, how often friends made them, how they're rated, and House Pours held. */

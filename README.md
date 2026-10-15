@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.12.0 (beta)
+**Current version:** 0.13.0 (beta)
 
 ## Features
 
@@ -74,12 +74,16 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Photos:** add an optional photo when you make it. It goes with your own drink, and the variant's page shows the latest photos.
   - **Mixologist stats** on each profile: cocktails made, variants created, times friends made them, the average rating they get, and House Pours held.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
-- **🍸 What can I make.** From the Drinks tab: tick what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
+- **🏠 Your bar & fridge.** From your profile. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
+  - **🧊 Fridge:** beer, cider and cans, counted. **−** and **+** on each, and tap one to **reload** (+1, 6, 12, 15, 24 or 30), set a **running low** warning, empty it or remove it. The most recently changed come first. Counts add up correctly even when two phones change them with no signal.
+  - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
+  - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
+- **🍸 What can I make.** From the Drinks tab or a bar: from what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
   - **A bottle counts for the broader ingredient too:** Rye also makes anything that asks for Whisky, and Crown Royal counts as Rye, Canadian whisky and Whisky. Kitchen basics (sugar, salt, water) are assumed, and optional extras never count as missing.
   - **Filters:** cocktails or mocktails, and an ingredient the drink must use ("rye drinks only").
   - **🛒 Best buy:** the single bottle or ingredient that would add the most cocktails, with which ones.
   - Cocktails you can make show **✅ Can make** in lists, and a recipe's page says what you're missing.
-  - The ticks are saved on this phone for now. Once My Bar arrives, your bar and fridge fill them in.
+  - **From:** your bar & fridge (the default once you have one), anyone else's, or a checklist you tick by hand (saved on this phone, for a bar that isn't in the app).
 - **Ounces or millilitres.** Pick oz or ml on your profile (saved per phone). Used for drink sizes and cocktail recipes.
 - **The drink list.** Search, or drill down one level at a time: Drinks › Whisky › Scotch › Islay Single Malt › the bottle. Every category, family and style has its own page with a short description, and breadcrumbs at the top lead back up. A level with only one choice is skipped (Rosé opens its drinks straight away).
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
@@ -124,6 +128,8 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
 These milestones come after steps 1 to 5, since they all build on logging a drink. They share one idea: **every drink comes from somewhere (a fridge, a bar, a cooler or a store) and ends up with someone.** Each log records where the drink came from and who drank it, and the Tab, Drink Nights and recaps are worked out from those logs.
 
 **A. Stock: the fridge and the bar**
+- ✅ **Households, the bar and the fridge** (0.13.0): everything below except what follows your drinks.
+- **Next, stock follows your drinks** (0.13.1): Drink one, pours lowering bottle levels, Killed the bottle, running-low alerts.
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
 - **Everything in a household is shared:** no item belongs to just one person.
 - **Stored one item per document** (`stock/{household~item}`), so two people changing stock at once never overwrite each other. Fridge counts change with Firestore increments, so changes made offline add up.
@@ -251,6 +257,7 @@ npm run deploy:rules
 - A log kept off the feed has `offFeed: true`. It still counts in its owner's stats.
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
+- Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
 - Nothing about members is stored in this repository, which is public so GitHub Pages can host it for free.
@@ -329,6 +336,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.13.0** (2026-Oct-15): **🏠 Your bar & fridge**, part 1 of milestone A. Start a household from your profile (just you, or add the people you live with: everything in it is shared), and everyone can see every household's bar. The **fridge** counts beer and cans with −/+, one-tap reloads (+1 to +30) and a running-low warning; the **bar** keeps bottles by how full they are (Full to Empty), their size and sealed spares, plus mixers, juices and the rest as Have it or Out. **What can I make** now works from your bar and fridge by default (or anyone's, or the checklist), and each bar links to it. **New `firestore.rules`** (households and stock): publish them before merging.
 
 - **0.12.0** (2026-Oct-15): **🍸 What can I make**, from the Drinks tab. Tick what's in your bar and the cocktails sort into Can make now, Missing 1 (with what's missing) and Missing 2 or more. A bottle counts for the broader ingredient too (Rye makes anything that asks for Whisky), kitchen basics are assumed, and optional extras never count as missing. Filter to cocktails or mocktails and to drinks that use a given ingredient. **Best buy** names the one ingredient that would add the most cocktails. Cocktail lists show ✅ Can make, and recipes say what you're missing. Ticks are saved on this phone until My Bar arrives. Roadmap: the bar and fridge plan now has shared households, one document per stock item, and bottle levels that follow your pours. No new security rules.
 
