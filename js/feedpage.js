@@ -1,10 +1,10 @@
-/* The feed on Home: what everyone's pouring (see feed.js), with filters, "Same here" on a friend's drink, and
-   Show more for older days. Amounts are never shown: how much is a personal stat. */
-import { el, fill, avatar, fmtAgo, toast } from "./ui.js";
-import { store, uid, memberName, saveLog, deleteLog } from "./cloud.js";
+/* The feed on Home: what everyone's pouring (see feed.js), with filters, "Same here" on a friend's drink, 🍻 Cheers
+   and comments on every post, and Show more for older days. Amounts are never shown: how much is a personal stat. */
+import { el, fill, avatar, fmtAgo, toast, confirmButton } from "./ui.js";
+import { store, uid, isAdmin, memberName, saveLog, deleteLog, toggleCheer, addComment, deleteComment } from "./cloud.js";
 import { itemById } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
-import { feedItems, filterFeed, hasOlder, sameHere, FEED_DAYS } from "./feed.js";
+import { feedItems, filterFeed, hasOlder, sameHere, FEED_DAYS, postId, cheersOn, commentsOn, cleanComment, MAX_COMMENT } from "./feed.js";
 import { groupRatings, starText, ratingOfLog } from "./ratepage.js";
 import { asItem, variantTitle } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
@@ -54,14 +54,55 @@ export function feedCard() {
 }
 
 function feedRow(it) {
-  switch (it.type) {
-    case "session": return sessionCard(it);
-    case "review": return reviewCard(it);
-    case "variant": return variantCard(it);
-    case "house": return houseCard(it);
-    case "added": return addedCard(it);
-    default: return null;
-  }
+  const card = { session: sessionCard, review: reviewCard, variant: variantCard, house: houseCard, added: addedCard }[it.type];
+  const li = card ? card(it) : null;
+  if (li) li.append(reactions(it));
+  return li;
+}
+
+/* ---------- Cheers and comments ---------- */
+const openPosts = new Set(); // posts with their comments open (kept while the feed redraws)
+
+/* "Dave, Sam and you" */
+function people(ids) {
+  const names = ids.map(id => id === uid() ? "you" : member(id).displayName);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0] || "";
+}
+
+function reactions(it) {
+  const post = postId(it), to = it.uid;
+  const cheers = cheersOn(store.cheers, post), mine = cheers.includes(uid());
+  const comments = commentsOn(store.comments, post), open = openPosts.has(post);
+  const bar = el("div", { class: "react-bar" },
+    el("button", { type: "button", class: "react-btn", "aria-pressed": String(mine), "aria-label": mine ? "Take back your cheers" : "Cheers",
+      onclick: () => toggleCheer(post, to) }, "🍻 ", el("span", { text: cheers.length ? String(cheers.length) : "Cheers" })),
+    el("button", { type: "button", class: "react-btn", "aria-expanded": String(open),
+      "aria-label": comments.length ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : "Comment",
+      onclick: () => { open ? openPosts.delete(post) : openPosts.add(post); box.replaceWith(reactions(it)); } },
+      "💬 ", el("span", { text: comments.length ? String(comments.length) : "Comment" })),
+    cheers.length ? el("span", { class: "muted small grow", text: `${people(cheers)} said cheers` }) : null);
+  const box = el("div", { class: "react" }, bar, open ? commentBox(post, to, comments) : null);
+  return box;
+}
+
+function commentBox(post, to, comments) {
+  const input = el("textarea", { rows: 1, maxlength: MAX_COMMENT, placeholder: "Add a comment…", "aria-label": "Comment" });
+  const send = () => {
+    const text = cleanComment(input.value);
+    if (!text) return;
+    input.value = "";
+    input.blur(); // lets the feed redraw with the new comment
+    addComment(post, to, text);
+  };
+  input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+  return el("div", { class: "comments" },
+    comments.length ? el("ul", { class: "comment-list" }, ...comments.map(c => el("li", { class: "comment" },
+      el("a", { href: c.uid === uid() ? "#/me" : `#/u/${c.uid}` }, avatar(member(c.uid), "xs")),
+      el("div", { class: "grow" },
+        el("p", {}, el("b", { text: nameOf(c.uid) }), " ", el("span", { class: "notes", text: c.text })),
+        el("span", { class: "muted small", text: fmtAgo(c.at) })),
+      c.uid === uid() || isAdmin() ? confirmButton("×", "Delete?", () => deleteComment(c.id), "btn small quiet comment-del") : null))) : null,
+    el("div", { class: "comment-form" }, input, el("button", { type: "button", class: "btn small primary", text: "Send", onclick: send })));
 }
 
 const head = (id, text, at) => el("div", { class: "feed-head" },

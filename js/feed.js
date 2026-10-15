@@ -118,3 +118,29 @@ export function sameHere(log, { now = Date.now(), placeId = null } = {}) {
   }
   return { ...base, title: item.title, abv: item.data.abv || 0 };
 }
+
+/* ---------- Cheers and comments ---------- */
+/* A feed item's post id, which cheers and comments point at: s~<a night's first log>, r~<rating>, v~<variant>,
+   h~<variant crowned House Pour>, a~<drink added>. A night keeps its id as more drinks join it. */
+export function postId(item) {
+  switch (item.type) {
+    case "session": return `s~${item.logs[item.logs.length - 1].id}`;
+    case "review": return `r~${item.rating.docId || item.rating.id || `${item.rating.uid}_${item.rating.kind}_${item.rating.drinkId}`}`;
+    case "variant": return `v~${item.variantId}`;
+    case "house": return `h~${item.variantId}`;
+    case "added": return `a~${item.drinkId}`;
+    default: return "";
+  }
+}
+
+/* A cheer's document id: one per person per post. */
+export const cheerId = (post, uid) => `${post}|${uid}`;
+
+/* Who cheered a post, oldest first: [uid]. */
+export const cheersOn = (cheers, post) => cheers.filter(c => c.post === post).sort((a, b) => a.at - b.at).map(c => c.uid);
+
+/* A post's comments, oldest first. */
+export const commentsOn = (comments, post) => comments.filter(c => c.post === post).sort((a, b) => a.at - b.at);
+
+export const MAX_COMMENT = 300;
+export const cleanComment = s => String(s || "").trim().replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").slice(0, MAX_COMMENT);

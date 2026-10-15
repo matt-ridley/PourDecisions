@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { setVariants, setFixes } from "../js/catalog.js";
 import { startRows, buildVariant } from "../js/variants.js";
-import { sessions, feedItems, filterFeed, hasOlder, houseChanges, sameHere, FEED_DAYS } from "../js/feed.js";
+import { sessions, feedItems, filterFeed, hasOlder, houseChanges, sameHere, FEED_DAYS, postId, cheerId, cheersOn, commentsOn, cleanComment } from "../js/feed.js";
 
 afterEach(() => { setVariants([]); setFixes([]); });
 
@@ -92,4 +92,29 @@ test("same here: the same drink, now, at your place; a cocktail keeps its varian
   assert.equal(sameHere(log("a", "not-a-drink", now)), null);
   setFixes([{ id: "coors-light", mergedInto: "molson-canadian" }]);
   assert.equal(sameHere(log("a", "coors-light", now)).drinkId, "molson-canadian", "a merged drink logs as the one kept");
+});
+
+/* ---------- Cheers and comments ---------- */
+
+test("post ids: a night keeps its id as drinks join it; each kind of post has its own prefix", () => {
+  const first = log("a", "bud-light", now - 3 * H, { placeId: "keg" });
+  const one = sessions([first])[0], two = sessions([first, log("a", "bud-light", now - H, { placeId: "keg" })])[0];
+  assert.equal(postId(one), `s~${first.id}`);
+  assert.equal(postId(two), postId(one), "same night, same post");
+  assert.equal(postId({ type: "review", rating: { docId: "u_drink_x" } }), "r~u_drink_x");
+  assert.equal(postId({ type: "variant", variantId: "whisky-sour~abc" }), "v~whisky-sour~abc");
+  assert.equal(postId({ type: "house", variantId: "whisky-sour~abc" }), "h~whisky-sour~abc");
+  assert.equal(postId({ type: "added", drinkId: "d1" }), "a~d1");
+  assert.equal(cheerId("v~x", "u1"), "v~x|u1");
+});
+
+test("cheers and comments on a post, oldest first; comments are tidied and capped", () => {
+  const cheers = [{ post: "p", uid: "b", at: 2 }, { post: "p", uid: "a", at: 1 }, { post: "q", uid: "c", at: 0 }];
+  assert.deepEqual(cheersOn(cheers, "p"), ["a", "b"]);
+  const comments = [{ id: "2", post: "p", at: 5 }, { id: "1", post: "p", at: 3 }, { id: "3", post: "q", at: 1 }];
+  assert.deepEqual(commentsOn(comments, "p").map(c => c.id), ["1", "2"]);
+  assert.equal(cleanComment("  Nice   one\t!  "), "Nice one !");
+  assert.equal(cleanComment("a\n\n\n\nb"), "a\n\nb");
+  assert.equal(cleanComment("x".repeat(400)).length, 300);
+  assert.equal(cleanComment("   "), "");
 });
