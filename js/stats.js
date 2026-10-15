@@ -84,3 +84,70 @@ export function volumeOf(logs, now = Date.now()) {
   return { week: sum(wk), month: sum(startOfMonth(now)), year: sum(startOfYear(now)),
     avg8: { drinks: r1(past.length / 8), std: r1(exactStd(past) / 8) } };
 }
+
+/* ---------- Passports and Try next ---------- */
+
+/* Who in the group tried each style and each country first: { styles: Map(id -> { uid, at }), countries: Map }. */
+export function firstsInGroup(logs) {
+  const styles = new Map(), countries = new Map();
+  for (const l of [...logs].sort((a, b) => a.at - b.at)) {
+    const c = countsOf(l);
+    if (!c) continue;
+    if (!styles.has(c.style)) styles.set(c.style, { uid: l.uid, at: l.at });
+    if (c.country && !countries.has(c.country)) countries.set(c.country, { uid: l.uid, at: l.at });
+  }
+  return { styles, countries };
+}
+
+/* Every country in the list, A to Z, with how many drinks in the list come from it: [{ code, name, drinks }]. */
+export function countryList(items) {
+  const n = new Map();
+  for (const i of items) if (i.kind === "drink" && i.data.origin) { const c = countryOf(i.data.origin); n.set(c, (n.get(c) || 0) + 1); }
+  return [...new Set(Object.keys(ORIGINS).map(countryOf))].map(code => ({ code, name: ORIGINS[code] || code, drinks: n.get(code) || 0 }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/* A flag for a country code: two letters become a flag; Scotland, England and Wales get theirs; else a plain one. */
+const TAG = s => String.fromCodePoint(0x1F3F4, ...[...s].map(ch => 0xE0000 + ch.charCodeAt(0)), 0xE007F);
+const SUB_FLAGS = { "GB-SCT": TAG("gbsct"), "GB-ENG": TAG("gbeng"), "GB-WLS": TAG("gbwls"), "GB-NIR": "🇬🇧" };
+export const flagOf = code => SUB_FLAGS[code] || (/^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65)) : "🏳️");
+
+/* Try next: styles you haven't tried, the group's favourites first (best average rating of drinks in that style),
+   then the ones most people in the group have tried. Each comes with a drink to try: the group's best-rated in that
+   style, or else the one most logged. `ratings` is everyone's ratings (ratings.allRatings); `items` the drink list.
+   [{ style, avg, rated, triedBy, drink }] */
+export function tryNext(logs, ratings, uid, items, n = 5) {
+  const mine = new Set(), triedBy = new Map(), logged = new Map();
+  for (const l of logs) {
+    const c = countsOf(l);
+    if (!c) continue;
+    if (l.uid === uid) mine.add(c.style);
+    if (!triedBy.has(c.style)) triedBy.set(c.style, new Set());
+    triedBy.get(c.style).add(l.uid);
+    logged.set(c.drink, (logged.get(c.drink) || 0) + 1);
+  }
+  const byDrink = new Map();
+  for (const r of ratings) {
+    if (r.kind === "variant") continue;
+    const k = `${r.kind}:${r.drinkId}`, d = byDrink.get(k) || { sum: 0, n: 0 };
+    d.sum += r.rating; d.n++; byDrink.set(k, d);
+  }
+  const styles = new Map();
+  for (const i of items) {
+    if (!i.style || mine.has(i.style.id)) continue;
+    const k = `${i.kind}:${i.id}`, r = byDrink.get(k);
+    const s = styles.get(i.style.id) || { style: i.style.id, sum: 0, rated: 0, best: null, bestAvg: -1, most: null, mostN: 0 };
+    if (r) {
+      s.sum += r.sum; s.rated += r.n;
+      if (r.sum / r.n > s.bestAvg) { s.bestAvg = r.sum / r.n; s.best = i; }
+    }
+    if ((logged.get(k) || 0) > s.mostN) { s.mostN = logged.get(k); s.most = i; }
+    styles.set(i.style.id, s);
+  }
+  return [...styles.values()]
+    .map(s => ({ style: s.style, avg: s.rated ? Math.round(s.sum / s.rated * 10) / 10 : null, rated: s.rated,
+      triedBy: (triedBy.get(s.style) || new Set()).size, drink: s.best || s.most }))
+    .filter(s => s.drink && (s.rated || s.triedBy))
+    .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0) || b.triedBy - a.triedBy || b.rated - a.rated)
+    .slice(0, n);
+}

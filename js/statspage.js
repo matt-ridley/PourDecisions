@@ -1,9 +1,11 @@
 /* Variety on screen: the variety card on profiles, your private "just for you" numbers, and the group board (#/board).
    See stats.js. The board ranks variety only; how much anyone drinks is never shown to anyone else. */
-import { el, fill, avatar, icon } from "./ui.js";
+import { el, fill, avatar, icon, fmtDay } from "./ui.js";
 import { store, uid, memberName } from "./cloud.js";
 import { CATEGORIES } from "./catalog/styles.js";
-import { POINTS, varietyOf, board, totals, volumeOf } from "./stats.js";
+import { allItems, styleOf } from "./catalog.js";
+import { groupRatings, starText } from "./ratepage.js";
+import { POINTS, varietyOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext } from "./stats.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const member = id => store.members.get(id) || { id, displayName: memberName(id) };
@@ -30,6 +32,9 @@ export function varietyCard(id) {
     el("div", { class: "mix-stats" },
       tile(v.drinks.size, "different drinks"), tile(v.styles.size, "styles", t.styles),
       tile(v.families.size, "families", t.families), tile(v.countries.size, "countries", t.countries)),
+    el("div", { class: "row" },
+      el("a", { class: "btn small", href: `#/passport/styles/${id}`, text: "🎫 Style passport" }),
+      el("a", { class: "btn small", href: `#/passport/countries/${id}`, text: "🌍 Countries" })),
     v.styles.size ? el("ul", { class: "cat-bars" }, ...CATEGORIES.filter(c => v.byCategory.has(c.id)).map(c => {
       const n = v.byCategory.get(c.id).size, of = t.byCategory.get(c.id);
       return el("li", {}, el("span", { class: "cat-bar-label", text: `${c.icon} ${c.name}` }),
@@ -80,4 +85,69 @@ export function renderBoard(main) {
         el("li", { text: `A new country: ${POINTS.country} points (provinces count as Canada)` }),
         el("li", { text: `A new category (beer, whisky, wine…): ${POINTS.category} points` })),
       el("p", { class: "hint", text: "Having the same drink again scores nothing. A cocktail variant counts as its cocktail, and drinks kept off the feed still count." })));
+}
+
+/* ---------- Passports and Try next ---------- */
+const nameOf = id => id === uid() ? "you" : member(id).displayName;
+const firstLine = f => f ? `First in the group: ${nameOf(f.uid)}, ${fmtDay(f.at)}` : "Nobody in the group yet";
+
+/* #/passport/<styles|countries>/<uid>: every style (by category and family) or country, stamped once tried. */
+export function renderPassport(main, tab = "styles", who = uid()) {
+  if (!store.members.has(who) && who !== uid()) who = uid();
+  const v = varietyOf(store.logs.filter(l => l.uid === who)), firsts = firstsInGroup(store.logs);
+  const whose = who === uid() ? "Your" : `${member(who).displayName}'s`;
+  const tabs = el("div", { class: "seg", role: "tablist" }, ...[["styles", "🎫 Styles"], ["countries", "🌍 Countries"]].map(([k, label]) =>
+    el("a", { class: "seg-link", role: "tab", "aria-selected": String(tab === k), href: `#/passport/${k}/${who}`, text: label })));
+  const body = tab === "countries" ? countryPassport(v, firsts) : stylePassport(v, firsts);
+  fill(main, el("h2", { class: "page-title", text: `${whose} passport` }), tabs, ...body,
+    who === uid() ? tryNextCard() : null);
+}
+
+function stylePassport(v, firsts) {
+  const t = totals();
+  return [el("p", { class: "muted", text: `${v.styles.size} of ${t.styles} styles stamped. Tap a style to see its drinks.` }),
+    ...CATEGORIES.map(c => {
+      const n = (v.byCategory.get(c.id) || new Set()).size;
+      return el("details", { class: "card fold passport-cat", open: n ? "" : null },
+        el("summary", {}, el("b", { text: `${c.icon} ${c.name}` }), el("span", { class: "muted small", text: ` ${n}/${t.byCategory.get(c.id)}` })),
+        ...c.families.map(f => el("div", { class: "stack-tight" },
+          el("span", { class: "muted small passport-fam", text: f.name }),
+          el("div", { class: "stamps" }, ...f.styles.map(st => {
+            const got = v.styles.has(st.id), first = firsts.styles.get(st.id);
+            return el("a", { class: `stamp${got ? " got" : ""}`, href: `#/style/${st.id}`, title: firstLine(first) },
+              got ? "✓ " : "", st.name);
+          })))));
+    })];
+}
+
+function countryPassport(v, firsts) {
+  const list = countryList(allItems());
+  const got = list.filter(c => v.countries.has(c.code)), rest = list.filter(c => !v.countries.has(c.code));
+  const row = c => el("li", { class: `country${v.countries.has(c.code) ? " got" : ""}` },
+    el("span", { class: "flag", text: flagOf(c.code) }),
+    el("span", { class: "grow" }, el("b", { text: c.name }),
+      el("span", { class: "muted small", text: `${c.drinks} drink${c.drinks === 1 ? "" : "s"} in the list · ${firstLine(firsts.countries.get(c.code))}` })),
+    v.countries.has(c.code) ? el("span", { class: "chip gold", text: "✓" }) : null);
+  return [el("p", { class: "muted", text: `${got.length} of ${list.length} countries stamped.` }),
+    got.length ? el("ul", { class: "item-list card" }, ...got.map(row)) : null,
+    el("details", { class: "card fold" }, el("summary", {}, el("b", { text: `Still to try (${rest.length})` })),
+      el("ul", { class: "item-list" }, ...rest.map(row)))];
+}
+
+/* Styles you haven't tried that the group likes, each with a drink to try. On your profile and passport. */
+export function tryNextCard() {
+  const list = tryNext(store.logs, groupRatings(), uid(), allItems());
+  if (!list.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: "✨ Try next" }),
+    el("p", { class: "hint", text: `Styles you haven't had that the group likes. Each one is worth at least ${POINTS.drink + POINTS.style} points.` }),
+    el("ul", { class: "item-list" }, ...list.map(s => {
+      const st = styleOf(s.style), d = s.drink;
+      const meta = [s.avg ? `group ${starText(s.avg)}` : "", s.triedBy ? `${s.triedBy} in the group had it` : ""].filter(Boolean).join(" · ");
+      return el("li", {}, el("a", { class: "item-row", href: `#/${d.kind === "cocktail" ? "recipe" : "drink"}/${d.id}` },
+        el("span", { class: "item-icon", text: st ? st.category.icon : "✨" }),
+        el("span", { class: "grow" }, el("b", { text: st ? st.style.name : s.style }), el("span", { class: "small", text: `Try: ${d.title}` }),
+          meta ? el("span", { class: "muted small", text: meta }) : null),
+        el("span", { class: "chev", html: icon.chevron })));
+    })));
 }

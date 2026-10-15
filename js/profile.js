@@ -6,7 +6,7 @@ import { THEMES, getTheme, setTheme } from "./theme.js";
 import { getUnits, setUnits } from "./units.js";
 import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
-import { varietyCard, volumeCard } from "./statspage.js";
+import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
@@ -35,6 +35,7 @@ export function renderProfile(main, id) {
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
     varietyCard(m.id),
+    mine ? tryNextCard() : null,
     mine ? volumeCard() : null,
     mixologistCard(m.id)].filter(Boolean);
 
