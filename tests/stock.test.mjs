@@ -160,3 +160,18 @@ test("a bar's menu shows what it can make now, and its signature drink", () => {
   assert.equal(signatureOf(h).id, "manhattan");
   assert.equal(signatureOf({}), null);
 });
+
+import { runList, runText } from "../js/stock.js";
+
+test("the LCBO run: what's low, plus the one thing missing for starred cocktails (once each, not if already low)", () => {
+  const h = { id: "h1", name: "The Basement", members: ["me", "sue"] };
+  const stock = [fridge("molson-canadian", 2, { low: 4 }), bottle("crown-royal-deluxe", 100), ing("lemon-juice"), ing("ginger-ale", { out: true })];
+  const members = [{ id: "me", displayName: "Me", starred: ["whisky-sour", "manhattan", "rye-and-ginger"] }, { id: "sue", displayName: "Sue", starred: ["whisky-sour"] },
+    { id: "dave", displayName: "Dave", starred: ["negroni"] }];
+  const list = runList(stock, h, members, covers);
+  assert.deepEqual(list.map(r => [r.type, r.title]), [["low", "Molson Canadian"], ["low", "Crown Royal Deluxe"], ["low", "Ginger ale"],
+    ["star", "Simple syrup"]], "a Manhattan is 2 short (vermouth and bitters), so it isn't listed");
+  assert.equal(list[3].why, "For Whisky Sour (⭐ Me, Sue)");
+  assert.ok(!list.some(r => r.why.includes("Rye and Ginger")), "ginger ale is already on the low list");
+  assert.ok(runText(h, list).startsWith("🛒 LCBO run for The Basement\n- Molson Canadian (2 left)"));
+});

@@ -163,3 +163,9 @@ test("orders: a guest orders, the household serves it or says no, the guest can 
   await assertSucceeds(updateDoc(doc(guest, "orders/o5"), { state: "cancelled", at: Date.now() }), "take back a waiting one");
   await assertFails(updateDoc(doc(host, "orders/o5"), { item: "negroni", at: Date.now() }), "what was ordered never changes");
 });
+
+test("starred cocktails live on your own member document, up to 100", async () => {
+  await assertSucceeds(updateDoc(doc(as(env, "member"), "members/member"), { starred: ["manhattan", "negroni"] }));
+  await assertFails(updateDoc(doc(as(env, "member"), "members/member"), { starred: Array.from({ length: 101 }, (_, k) => `c${k}`) }));
+  await assertFails(updateDoc(doc(as(env, "member"), "members/owner"), { starred: ["manhattan"] }), "not someone else's");
+});

@@ -17,6 +17,7 @@ import { renderBoard, renderPassport, renderVs, renderCharts } from "./statspage
 import { renderMake } from "./makepage.js";
 import { renderMakeable } from "./makeablepage.js";
 import { renderBar, renderBars } from "./barpage.js";
+import { renderRun } from "./runpage.js";
 import { renderTab, renderGenerous } from "./tabpage.js";
 import { renderNights, renderNight, renderHost, renderPlan } from "./nightpage.js";
 import { applyTheme } from "./theme.js";
@@ -41,6 +42,7 @@ const ROUTES = {
   makeable: { tab: "drinks", sub: true, live: true, render: renderMakeable }, // what can I make: #/makeable[/<household or "list">]
   bar: { tab: null, live: true, render: renderBar }, // a household's fridge and bar: #/bar[/<household>/<fridge|bar>]
   bars: { tab: null, live: true, render: renderBars }, // every household
+  run: { tab: null, live: true, render: renderRun }, // the LCBO run: your household's shopping list
   tab: { tab: null, live: true, render: renderTab }, // the Tab: #/tab, #/tab/<uid>, #/tab/<a>/<b>
   generous: { tab: null, live: true, render: renderGenerous }, // Most Generous and Thirstiest: #/generous[/month]
   nights: { tab: null, live: true, render: renderNights }, // Drink Nights

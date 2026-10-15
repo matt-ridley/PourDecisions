@@ -11,7 +11,7 @@ import { currentCovers } from "./makeablepage.js";
 import { search, ingredientById, INGREDIENTS, normalize, allItems } from "./catalog.js";
 import { drinkOne, giftable } from "./logpage.js";
 import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal,
-  menuOf, signatureOf, haveFromStock } from "./stock.js";
+  menuOf, signatureOf, haveFromStock, runList } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // Bottle sizes are always in ml or litres, as on the label.
@@ -62,6 +62,9 @@ export function renderBar(main, hhId, tab) {
     tab === "fridge" ? fridgeCard(h, fridge, mine) : tab === "bar" ? barCards(h, bar, mine) : coolerCard(h, cooler, fridge, mine),
     mine && tab !== "cooler" ? el("button", { class: "btn primary block", type: "button", html: icon.plus, onclick: () => addSheet(h, tab) },
       tab === "fridge" ? "Add to the fridge" : "Add to the bar") : null,
+    mine ? (n => el("a", { class: "card admin-link", href: "#/run" }, el("span", { class: "item-icon", text: "🛒" }),
+      el("div", { class: "grow" }, el("b", { text: "LCBO run" }), el("p", { class: "muted small", text: n ? `${n} thing${n === 1 ? "" : "s"} to pick up` : "Nothing to pick up right now" })),
+      el("span", { class: "chev", html: icon.chevron })))(runList(store.stock, h, [...store.members.values()], currentCovers()).length) : null,
     el("a", { class: "card admin-link", href: `#/makeable/${h.id}` },
       el("span", { class: "item-icon", text: "🍸" }),
       el("div", { class: "grow" }, el("b", { text: "What can I make here" }), el("p", { class: "muted small", text: "Cocktails from this bar and fridge" })),

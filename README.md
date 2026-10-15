@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.16.2 (beta)
+**Current version:** 0.16.3 (beta)
 
 ## Features
 
@@ -84,6 +84,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Running low:** the 🔔 alerts tell everyone in the household when a fridge drink reaches its warning, a bottle is down to ¼ or empty with no spare, or an ingredient is marked out.
   - **The bar's page:** a photo, a line about the bar and a **⭐ signature drink** (Edit the bar's page), and **📜 the menu**: the cocktails you serve, picked from what you can make (Tick everything we can make), each showing whether it can be made right now.
   - **🛎️ Order up:** **Open the bar** (or host a night there) and guests can order from its menu, or a drink from the fridge or cooler, with a note. The household gets an alert and an **Orders** queue: **Serve** opens Make it with the guest picked (or hands over the drink), it's logged for them and goes on the Tab, and they get a "served" alert. **No** turns it down; a guest can take back an order that's still waiting.
+  - **🛒 LCBO run:** your household's shopping list, the same for everyone in it: fridge drinks at their warning, bottles at ¼ or empty with no spare, ingredients marked out, and the one thing missing for cocktails anyone in the household **☆ starred** (on a recipe). **Got it** puts it back in the fridge or bar, and **Share** sends the list with the phone's share sheet.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
 - **🎉 Drink Nights.** **Host a night** from Home: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
   - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
@@ -184,7 +185,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **Morning-after recap:** private, on Home until noon the next morning (and an alert): what you drank, standard drinks, and what you gave away and were given. "If you don't remember, the app will."
 
 **D. The bartender**
-- ✅ **Planning a night** (0.16.0), ✅ **your bar's page** (0.16.1) and ✅ **Bar Menu / Order up** (0.16.2). Next: the LCBO run (0.16.3).
+- ✅ **Planning a night** (0.16.0), ✅ **your bar's page** (0.16.1), ✅ **Bar Menu / Order up** (0.16.2) and ✅ **the LCBO run** (0.16.3). This finishes milestone D, and with it the bar, the fridge and the tab.
 - **Decided:** served orders go on the Tab (whoever serves gave it); ordering only while the bar is open (the household opens it, or a hosted night there is on); the LCBO run is shared by the phone's share sheet and is the same for everyone in the household (it's worked out from the stock); starred cocktails are each person's.
 - ✅ **What can I make** (0.12.0, from a checklist; from your bar once milestone A is built).
 - **Planning a night:** put everyone coming's bars together to see what the group could make, then agree who brings what (feeds the bring list).
@@ -371,6 +372,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.16.3** (2026-Oct-15): The bartender, part 4, finishing milestone D: **🛒 the LCBO run**. Star cocktails you want to make (☆ on a recipe). Your household's run lists what's running low (fridge warnings, bottles at ¼ or empty with no spare, ingredients out) and the one thing missing for anyone's starred cocktails. **Got it** restocks it (a reload, a fresh bottle or spare, or picking the bottle you bought), and **Share** sends the list. Linked from the bar page. **Changed `firestore.rules`** (starred cocktails on your member document, up to 100): publish them before merging.
 
 - **0.16.2** (2026-Oct-15): The bartender, part 3: **🛎️ Bar Menu / Order up**. A household can **Open the bar** (it's also open during a hosted night there); guests then order from its menu or fridge with a note. The household gets an alert and an Orders queue: **Serve** makes it with Make it (the guest picked) or hands over the drink, logging it for them on the Tab, and the guest is told it's served. Turn an order down, or take yours back while it's waiting. Open bars show 🟢 on Everyone's bars, and a night at someone's place links to its bar. **Changed `firestore.rules`** (`orders`, and a bar's `open`): publish them before merging.
 

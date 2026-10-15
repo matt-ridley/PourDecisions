@@ -8,7 +8,7 @@ import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
 import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
-import { store, uid, isAdmin, memberName, renameVariant, loadThumb } from "./cloud.js";
+import { store, uid, isAdmin, memberName, renameVariant, loadThumb, updateMe } from "./cloud.js";
 import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
 import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME,
   rankVariants, asItem, compareRows } from "./variants.js";
@@ -220,6 +220,7 @@ export function renderRecipe(main, id) {
       el("span", { class: "hero-icon", text: "🍹" }),
       el("h2", { text: r.name }),
       el("p", { class: "muted", text: `${i.style.name} · ${r.method} · ${r.glass}` }),
+      starButton(i.id),
       r.note ? el("p", { class: "small", text: r.note }) : null),
     el("section", { class: "card stack" },
       el("div", { class: "row spread" }, el("h3", { text: "Ingredients" }), unitsSeg),
@@ -233,6 +234,17 @@ export function renderRecipe(main, id) {
     variantsCard(i),
     ratingsCard(i),
     makeThis(i));
+}
+
+/* ⭐ Star a cocktail you want to make: the LCBO run lists the one thing you're missing for it. */
+function starButton(id) {
+  const starred = (store.me && store.me.starred) || [], on = starred.includes(id);
+  return el("button", { class: "btn small", type: "button", "aria-pressed": String(on), text: on ? "⭐ Starred" : "☆ Star it", onclick: e => {
+    const next = on ? starred.filter(x => x !== id) : [...starred, id].slice(-100);
+    updateMe({ starred: next });
+    e.currentTarget.textContent = on ? "☆ Star it" : "⭐ Starred";
+    if (!on) toast("Starred. If you're one thing short, it's on your LCBO run 🛒");
+  } });
 }
 
 /* Under a recipe's ingredients: whether what you've ticked in What can I make covers it. */

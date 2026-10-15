@@ -168,3 +168,36 @@ export const menuOf = (h, stock, covers) => {
 
 /* A signature drink stored as "kind:id" (a drink or a cocktail), or null. */
 export const signatureOf = h => { if (!h.signature) return null; const [kind, ...id] = h.signature.split(":"); return itemById(kind, id.join(":")); };
+
+/* ---------- The LCBO run ---------- */
+/* A household's shopping list, the same for everyone in it (it's worked out from the stock):
+   - low:  fridge drinks at their warning, bottles at ¼ or empty with no spare, ingredients marked out
+   - star: the one thing missing for a cocktail someone in the household starred (each ingredient once, listing the
+           cocktails it would make and who starred them), unless it's already on the low list
+   [{ key, type: "low" | "star", entry?, ing?: [ids], title, why }] */
+export function runList(stock, h, members, covers) {
+  const have = haveFromStock(stock, h.id, covers), out = [], seen = new Set();
+  for (const s of lowStock(stock, h.id)) {
+    const why = s.kind === "ing" ? "Out" : s.where === "fridge" ? `${fridgeCount(s)} left` : level(s) === 0 ? "Empty, no spare" : `Down to ${levelText(s)}, no spare`;
+    out.push({ key: s.id, type: "low", entry: s, title: s.thing.title, why });
+    if (s.kind === "ing") seen.add(s.item); else ingredientsOf(s.thing.item.data).forEach(id => seen.add(id));
+  }
+  const stars = new Map();
+  for (const m of members.filter(m => (h.members || []).includes(m.id))) {
+    for (const id of m.starred || []) {
+      const item = itemById("cocktail", id);
+      if (!item) continue;
+      const miss = missingFor(item.data, have);
+      if (miss.length !== 1 || miss[0].ing.some(i => seen.has(i))) continue;
+      const key = miss[0].ing.join("|"), cur = stars.get(key) || { key: `star~${key}`, type: "star", ing: miss[0].ing, title: miss[0].item, cocktails: [], by: [] };
+      if (!cur.cocktails.includes(item.title)) cur.cocktails.push(item.title);
+      if (!cur.by.includes(m.displayName)) cur.by.push(m.displayName);
+      stars.set(key, cur);
+    }
+  }
+  for (const s of stars.values()) out.push({ ...s, why: `For ${s.cocktails.join(", ")} (⭐ ${s.by.join(", ")})` });
+  return out;
+}
+
+/* The list as text, for the phone's share sheet. */
+export const runText = (h, list) => [`🛒 LCBO run for ${h.name}`, ...list.map(r => `- ${r.title} (${r.why})`)].join("\n");
