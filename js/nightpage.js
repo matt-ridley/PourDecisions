@@ -35,16 +35,25 @@ function nightRow(n) {
     statusChip(n)));
 }
 
-/* Home: tonight's nights (live, or starting within 12 hours), or a way to host one. */
+/* Home: tonight's nights (live, or starting within 12 hours). Nothing on, nothing shown: Us has Host a night. */
 export function tonightCard() {
   const list = tonight(store.nights, store.logs);
-  if (!list.length) return el("a", { class: "card admin-link", href: "#/nights" },
-    el("span", { class: "item-icon", text: "🎉" }),
-    el("div", { class: "grow" }, el("b", { text: "Drink Nights" }), el("p", { class: "muted small", text: "Host a night: who's coming, rounds and a recap" })),
-    el("span", { class: "chev", html: icon.chevron }));
+  if (!list.length) return null;
   return el("section", { class: "card stack" },
     el("h3", { text: "🎉 Tonight" }),
     el("ul", { class: "item-list" }, ...list.map(nightRow)));
+}
+
+/* Us: tonight's nights, Host a night and every night. */
+export function nightsCard() {
+  const list = tonight(store.nights, store.logs);
+  return el("section", { class: "card stack" },
+    el("h3", { text: list.length ? "🎉 Tonight" : "🎉 Drink Nights" }),
+    list.length ? el("ul", { class: "item-list" }, ...list.map(nightRow))
+      : el("p", { class: "muted small", text: "Nothing on tonight. Host a night: who's coming, rounds, a bring list and a recap." }),
+    el("div", { class: "row" },
+      el("a", { class: "btn primary", href: "#/host", text: "Host a night" }),
+      el("a", { class: "btn", href: "#/nights", text: "All nights" })));
 }
 
 export function renderNights(main) {

@@ -15,6 +15,14 @@ export function balanceText(id, net) {
   return net > 0 ? `${n} owes you ${plural(net, "drink")}` : net < 0 ? `You owe ${n} ${plural(-net, "drink")}` : `Even with ${n}`;
 }
 
+/* One line for the Us page: "Owed 3 · you owe 1", or nothing on your tab yet. */
+export function tabSummary() {
+  const mine = balancesFor(store.logs, uid());
+  const owed = mine.reduce((n, t) => n + Math.max(t.net, 0), 0), owe = mine.reduce((n, t) => n + Math.max(-t.net, 0), 0);
+  return owed || owe ? [owed ? `You're owed ${plural(owed, "drink")}` : "", owe ? `you owe ${plural(owe, "drink")}` : ""].filter(Boolean).join(" · ")
+    : "Who owes whom a drink";
+}
+
 /* The line on a friend's profile: the balance between you, linking to the history. */
 export function tabLine(id) {
   if (id === uid()) return null;
