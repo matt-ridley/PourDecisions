@@ -478,3 +478,26 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .country:not(.got) { opacity: .75; }
 .flag { font-size: 28px; width: 36px; text-align: center; flex: none; }
 .country .grow { display: grid; gap: 1px; }
+
+/* Head-to-head */
+.vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.vs-side { display: grid; justify-items: center; gap: 4px; text-align: center; }
+.vs-side .score { font-size: 34px; }
+.vs-mid { font: 700 20px/1 var(--f-display); color: var(--muted); }
+
+/* Charts: one colour, thin bars with rounded ends on the baseline, 2px gaps, values labelled, a tooltip on hover or tap. */
+.cols { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2px; height: 180px; align-items: end; }
+.col { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; align-items: end; justify-items: center; outline-offset: 0; }
+.col-bar { width: min(70%, 22px); height: var(--h); min-height: 2px; background: var(--primary); border-radius: 4px 4px 0 0; align-self: end; }
+.col-val { font-size: 11px; font-weight: 700; color: var(--muted); }
+.col-label { font-size: 11px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--line); width: 100%; text-align: center; }
+.hbars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hbars li { position: relative; display: grid; grid-template-columns: 128px minmax(0, 1fr) 32px; gap: 8px; align-items: center; font-size: 14px; }
+.hbars b { text-align: right; }
+.hbars .bar::after { border-radius: 0 4px 4px 0; }
+.col[data-tip]:hover::after, .col[data-tip]:focus-visible::after, .hbars li:hover::after, .hbars li:focus-visible::after {
+  content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap;
+  padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600; pointer-events: none;
+}
+.cols .col:first-child:hover::after, .cols .col:first-child:focus-visible::after { left: 0; transform: none; }
+.cols .col:last-child:hover::after, .cols .col:last-child:focus-visible::after { left: auto; right: 0; transform: none; }

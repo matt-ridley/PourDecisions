@@ -151,3 +151,50 @@ export function tryNext(logs, ratings, uid, items, n = 5) {
     .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0) || b.triedBy - a.triedBy || b.rated - a.rated)
     .slice(0, n);
 }
+
+/* ---------- Head-to-head ---------- */
+const split = (a, b) => ({ both: [...a].filter(x => b.has(x)), onlyA: [...a].filter(x => !b.has(x)), onlyB: [...b].filter(x => !a.has(x)) });
+
+/* Two people side by side: each one's variety, and styles, countries and drinks tried by both, only the first, only
+   the second. { a, b (varietyOf), styles, countries, drinks: { both, onlyA, onlyB } } */
+export function headToHead(logs, uidA, uidB) {
+  const a = varietyOf(logs.filter(l => l.uid === uidA)), b = varietyOf(logs.filter(l => l.uid === uidB));
+  return { a, b, styles: split(a.styles, b.styles), countries: split(a.countries, b.countries), drinks: split(a.drinks, b.drinks) };
+}
+
+/* ---------- Personal charts (only ever shown to the person themselves) ---------- */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/* Drinks per month for the last `n` months, oldest first: [{ year, month (0-11), label, drinks, std }]. Pass only the
+   person's own logs. */
+export function monthly(logs, now = Date.now(), n = 12) {
+  const d = new Date(now), out = [];
+  for (let k = n - 1; k >= 0; k--) {
+    const from = new Date(d.getFullYear(), d.getMonth() - k, 1), to = new Date(d.getFullYear(), d.getMonth() - k + 1, 1);
+    const ls = logs.filter(l => l.at >= from.getTime() && l.at < to.getTime() && l.at <= now);
+    out.push({ year: from.getFullYear(), month: from.getMonth(), label: MONTHS[from.getMonth()], drinks: ls.length, std: r1(exactStd(ls)) });
+  }
+  return out;
+}
+
+/* How many of your drinks fall in each category, most first: [{ category, drinks }]. */
+export function byCategoryCount(logs) {
+  const n = new Map();
+  for (const l of logs) { const c = countsOf(l); if (c) n.set(c.category, (n.get(c.category) || 0) + 1); }
+  return [...n].map(([category, drinks]) => ({ category, drinks })).sort((a, b) => b.drinks - a.drinks);
+}
+
+/* Your favourite styles: the ones you've had most, then the one had most recently: [{ style, drinks }]. */
+export function favouriteStyles(logs, n = 8) {
+  const m = new Map();
+  for (const l of logs) {
+    const c = countsOf(l);
+    if (!c) continue;
+    const s = m.get(c.style) || { style: c.style, drinks: 0, last: 0 };
+    s.drinks++; s.last = Math.max(s.last, l.at); m.set(c.style, s);
+  }
+  return [...m.values()].sort((a, b) => b.drinks - a.drinks || b.last - a.last).slice(0, n).map(({ style, drinks }) => ({ style, drinks }));
+}
+
+/* Your own ratings, best first (then the newest): [rating] from ratings.allRatings. */
+export const myTopRated = (ratings, uid, n = 10) => ratings.filter(r => r.uid === uid).sort((a, b) => b.rating - a.rating || b.at - a.at).slice(0, n);

@@ -5,7 +5,8 @@ import { setFixes, setVariants, itemById } from "../js/catalog.js";
 import { DRINKS } from "../js/catalog/drinks.js";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { startRows, buildVariant } from "../js/variants.js";
-import { POINTS, countsOf, varietyOf, scoreOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext } from "../js/stats.js";
+import { POINTS, countsOf, varietyOf, scoreOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext,
+  headToHead, monthly, byCategoryCount, favouriteStyles, myTopRated } from "../js/stats.js";
 import { allItems } from "../js/catalog.js";
 
 afterEach(() => { setFixes([]); setVariants([]); });
@@ -101,4 +102,32 @@ test("try next: untried styles, the group's favourites first, each with a drink 
   assert.equal(t[0].drink.id, islay.id, "the group's best-rated in that style");
   assert.ok(!t.some(x => x.style === lager.style), "not a style you've had");
   assert.equal(tryNext([], [], "me", allItems()).length, 0, "nothing to go on yet");
+});
+
+/* ---------- Head-to-head and personal charts ---------- */
+
+test("head-to-head: tried by both, only one, only the other", () => {
+  const h = headToHead([log("a", islay.id), log("a", lager.id), log("b", lager.id), log("b", "guinness-draught")], "a", "b");
+  assert.equal(h.a.score > 0 && h.b.score > 0, true);
+  assert.deepEqual(h.styles.both, [lager.style]); assert.deepEqual(h.styles.onlyA, ["islay"]); assert.equal(h.styles.onlyB.length, 1);
+  assert.deepEqual(h.countries.both, ["CA"]); assert.deepEqual(h.countries.onlyA, ["GB-SCT"]);
+  assert.equal(h.drinks.both.length, 1);
+});
+
+test("monthly: the last 12 months oldest first, empty months included, nothing from the future", () => {
+  const logs = [log("a", lager.id, now - H), log("a", lager.id, now - 2 * H), log("a", lager.id, new Date(2026, 6, 4).getTime()),
+    log("a", lager.id, new Date(2025, 9, 20).getTime()), log("a", lager.id, new Date(2025, 8, 1).getTime()), log("a", lager.id, now + D)];
+  const m = monthly(logs, now);
+  assert.equal(m.length, 12);
+  assert.deepEqual([m[0].label, m[0].year], ["Nov", 2025]); assert.deepEqual([m[11].label, m[11].year], ["Oct", 2026]);
+  assert.equal(m[11].drinks, 2); assert.equal(m.find(x => x.label === "Jul").drinks, 1);
+  assert.equal(m.reduce((t, x) => t + x.drinks, 0), 3, "Oct and Sep 2025 are outside the 12 months");
+});
+
+test("by category, favourite styles and your top rated", () => {
+  const logs = [log("a", lager.id), log("a", lager.id, now - H), log("a", islay.id)];
+  assert.deepEqual(byCategoryCount(logs), [{ category: "beer", drinks: 2 }, { category: "whisky", drinks: 1 }]);
+  assert.deepEqual(favouriteStyles(logs), [{ style: lager.style, drinks: 2 }, { style: "islay", drinks: 1 }]);
+  const r = [{ uid: "a", rating: 3, at: 1 }, { uid: "a", rating: 5, at: 1 }, { uid: "b", rating: 5, at: 2 }, { uid: "a", rating: 5, at: 3 }];
+  assert.deepEqual(myTopRated(r, "a").map(x => [x.rating, x.at]), [[5, 3], [5, 1], [3, 1]]);
 });

@@ -3,9 +3,11 @@
 import { el, fill, avatar, icon, fmtDay } from "./ui.js";
 import { store, uid, memberName } from "./cloud.js";
 import { CATEGORIES } from "./catalog/styles.js";
-import { allItems, styleOf } from "./catalog.js";
+import { allItems, styleOf, itemById } from "./catalog.js";
 import { groupRatings, starText } from "./ratepage.js";
-import { POINTS, varietyOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext } from "./stats.js";
+import { POINTS, varietyOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext,
+  headToHead, monthly, byCategoryCount, favouriteStyles, myTopRated } from "./stats.js";
+import { ORIGINS } from "./catalog/drinks.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const member = id => store.members.get(id) || { id, displayName: memberName(id) };
@@ -34,7 +36,8 @@ export function varietyCard(id) {
       tile(v.families.size, "families", t.families), tile(v.countries.size, "countries", t.countries)),
     el("div", { class: "row" },
       el("a", { class: "btn small", href: `#/passport/styles/${id}`, text: "🎫 Style passport" }),
-      el("a", { class: "btn small", href: `#/passport/countries/${id}`, text: "🌍 Countries" })),
+      el("a", { class: "btn small", href: `#/passport/countries/${id}`, text: "🌍 Countries" }),
+      id !== uid() ? el("a", { class: "btn small", href: `#/vs/${id}`, text: "⚔️ Head-to-head" }) : null),
     v.styles.size ? el("ul", { class: "cat-bars" }, ...CATEGORIES.filter(c => v.byCategory.has(c.id)).map(c => {
       const n = v.byCategory.get(c.id).size, of = t.byCategory.get(c.id);
       return el("li", {}, el("span", { class: "cat-bar-label", text: `${c.icon} ${c.name}` }),
@@ -51,7 +54,8 @@ export function volumeCard() {
     el("h3", { text: "🔒 Just for you" }),
     line("This week", v.week), line("This month", v.month), line("This year", v.year),
     line("Weekly average", v.avg8),
-    el("p", { class: "hint", text: "Your weekly average is over the last 8 full weeks. Only you can see this card: the group competes on variety, not volume." }));
+    el("p", { class: "hint", text: "Your weekly average is over the last 8 full weeks. Only you can see this card: the group competes on variety, not volume." }),
+    el("a", { class: "btn block", href: "#/charts", text: "📊 Your charts" }));
 }
 
 /* Home: the top of the board. */
@@ -150,4 +154,68 @@ export function tryNextCard() {
           meta ? el("span", { class: "muted small", text: meta }) : null),
         el("span", { class: "chev", html: icon.chevron })));
     })));
+}
+
+/* ---------- Head-to-head ---------- */
+/* #/vs/<uid>: you and a friend side by side. Styles and countries tried by both, only you, only them. */
+export function renderVs(main, other) {
+  if (!other || other === uid() || !store.members.has(other)) return fill(main, el("div", { class: "card" }, el("p", { text: "Pick a friend from the group to compare with." })));
+  const h = headToHead(store.logs, uid(), other), them = member(other).displayName;
+  const styleName = id => (styleOf(id) || { style: { name: id } }).style.name;
+  const countryName = c => `${flagOf(c)} ${ORIGINS[c] || c}`;
+  const side = (who, v) => el("div", { class: "vs-side" }, avatar(member(who), "lg"),
+    el("b", { text: who === uid() ? "You" : member(who).displayName }), el("b", { class: "score", text: String(v.score) }),
+    el("span", { class: "muted small", text: `${v.styles.size} styles · ${v.countries.size} countries · ${v.drinks.size} drinks` }));
+  const group = (title, s, name) => el("section", { class: "card stack" },
+    el("h3", { text: title }),
+    ...[["Both of you", s.both], ["Only you", s.onlyA], [`Only ${them}`, s.onlyB]].map(([label, list]) => el("div", { class: "stack-tight" },
+      el("span", { class: "muted small passport-fam", text: `${label} · ${list.length}` }),
+      list.length ? el("div", { class: "stamps" }, ...list.map(x => el("span", { class: "stamp got", text: name(x) })))
+        : el("span", { class: "muted small", text: "None yet" }))));
+  fill(main,
+    el("h2", { class: "page-title", text: "Head-to-head" }),
+    el("section", { class: "card vs" }, side(uid(), h.a), el("span", { class: "vs-mid", text: "vs" }), side(other, h.b)),
+    el("p", { class: "muted center", text: `You've both had ${h.drinks.both.length} of the same drinks. ${h.drinks.onlyB.length ? `${them} has had ${h.drinks.onlyB.length} you haven't.` : ""}` }),
+    group("Styles", h.styles, styleName),
+    group("Countries", h.countries, countryName));
+}
+
+/* ---------- Your charts (only you) ---------- */
+/* Single-series bars in one colour: a value per bar, a tooltip on hover or tap, and a label for screen readers. */
+function columns(rows) {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return el("div", { class: "cols", role: "list" }, ...rows.map(r => el("div", { class: "col", role: "listitem", tabindex: "0", "data-tip": r.tip, "aria-label": r.tip },
+    el("span", { class: "col-val", text: r.value ? String(r.value) : "" }),
+    r.value ? el("span", { class: "col-bar", style: `--h:${r.value / max * 100}%` }) : el("span"), // a month with none has no bar
+    el("span", { class: "col-label", text: r.label }))));
+}
+function hbars(rows) {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return el("ul", { class: "hbars" }, ...rows.map(r => el("li", { tabindex: "0", "data-tip": r.tip, "aria-label": r.tip },
+    el("span", { class: "cat-bar-label", text: r.label }), el("span", { class: "bar", style: `--pct:${r.value / max * 100}%` }),
+    el("b", { class: "small", text: String(r.value) }))));
+}
+
+/* #/charts: your drinks by month and category, favourite styles and top rated. Only you can open it. */
+export function renderCharts(main) {
+  const mine = store.logs.filter(l => l.uid === uid());
+  const months = monthly(mine), cats = byCategoryCount(mine), styles = favouriteStyles(mine), top = myTopRated(groupRatings(), uid());
+  const cat = id => CATEGORIES.find(c => c.id === id);
+  const itemOf = r => r.kind === "variant" ? null : itemById(r.kind, r.drinkId);
+  fill(main,
+    el("h2", { class: "page-title", text: "📊 Your charts" }),
+    el("p", { class: "muted", text: "🔒 Only you can see these." }),
+    mine.length ? null : el("p", { class: "card muted", text: "Log a few drinks and your charts fill in." }),
+    el("section", { class: "card stack" }, el("h3", { text: "Drinks by month" }),
+      columns(months.map(m => ({ label: m.label, value: m.drinks, tip: `${m.label} ${m.year}: ${plural(m.drinks, "drink")}, ${m.std} standard` })))),
+    cats.length ? el("section", { class: "card stack" }, el("h3", { text: "By category" }),
+      hbars(cats.map(c => ({ label: `${cat(c.category).icon} ${cat(c.category).name}`, value: c.drinks, tip: `${cat(c.category).name}: ${plural(c.drinks, "drink")}` })))) : null,
+    styles.length ? el("section", { class: "card stack" }, el("h3", { text: "Favourite styles" }),
+      hbars(styles.map(s => { const n = (styleOf(s.style) || { style: { name: s.style } }).style.name; return { label: n, value: s.drinks, tip: `${n}: ${plural(s.drinks, "drink")}` }; }))) : null,
+    top.length ? el("section", { class: "card stack" }, el("h3", { text: "Your top rated" }),
+      el("ol", { class: "item-list" }, ...top.map(r => {
+        const i = itemOf(r);
+        return el("li", {}, el("a", { class: "item-row", href: r.kind === "variant" ? `#/v/${r.drinkId}` : `#/${r.kind === "cocktail" ? "recipe" : "drink"}/${r.drinkId}` },
+          el("span", { class: "grow" }, el("b", { text: i ? i.title : "A cocktail variant" })), el("span", { class: "rating-line small", text: starText(r.rating) })));
+      }))) : null);
 }
