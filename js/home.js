@@ -43,7 +43,7 @@ export function renderHome(main) {
 
 /* Logs this phone hasn't got to the group: waiting for signal, or refused by the server (with Try again). */
 function outboxCard() {
-  const mine = store.outbox.filter(e => (e.log.madeBy || e.log.uid) === uid());
+  const mine = store.outbox.filter(e => (e.log.madeBy || e.log.givenBy || e.log.uid) === uid());
   const failed = mine.filter(e => e.state === "failed"), waiting = mine.length - failed.length;
   if (!failed.length && !waiting) return null;
   return el("section", { class: `card stack ${failed.length ? "problem" : ""}` },

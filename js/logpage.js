@@ -80,15 +80,25 @@ function fromHome(fields, entry) {
   return t.undo;
 }
 
+/* Friends you can give a drink to: everyone else in the group who isn't paused, by name. */
+export const giftable = () => [...store.members.values()].filter(m => m.id !== uid() && !m.suspended)
+  .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+/* The next log form opens with this friend picked as who it's for (Pay one back on the Tab). */
+let giveTo = null;
+export const giveNext = id => { giveTo = id; };
+
 /* Drink one (or pour one) straight from the fridge or bar: logged now in its usual size, at the same place as tonight's
-   last drink. */
-export function drinkOne(item, entry) {
+   last drink. With `to`, it's given to that friend instead: logged as theirs, with you as the giver (the Tab). */
+export function drinkOne(item, entry, to = null) {
   const sizes = sizesFor(item), size = sizes.find(z => z.key === defaultSize(item)) || sizes[0];
   const fields = { kind: "drink", drinkId: item.id, title: item.title, style: item.style.id, size: size.key, ml: size.ml,
     abv: itemAbv(item), at: Date.now(), placeId: placeIdNow(lastPlace(store.logs, uid())) };
+  if (to) Object.assign(fields, { uid: to, givenBy: true });
   const putBack = fromHome(fields, entry);
   const id = saveLog(fields);
-  toast(fields.killed ? `${item.title} logged. You killed the bottle! 🍾` : `${item.title} logged 🍻`,
+  const said = to ? `Gave ${memberName(to)} a ${item.title} 🎁` : `${item.title} logged 🍻`;
+  toast(fields.killed ? `${said} You killed the bottle! 🍾` : said,
     { label: "Undo", run: () => { deleteLog(id); putBack(); } });
 }
 
@@ -206,6 +216,16 @@ export function renderLogForm(main, item, editing = null) {
     ...homes.map(e => el("button", { type: "button", class: "chip-btn", "aria-pressed": String(s.from === e.id), onclick: () => { s.from = e.id; drawFrom(); } }, sourceLabel(e))));
   drawFrom();
 
+  // Who's it for: you, or a friend you're giving it to (it goes on the Tab).
+  s.to = editing ? null : giveTo; giveTo = null;
+  const friends = editing ? [] : giftable();
+  const toBox = el("div", { class: "chips", role: "group", "aria-label": "Who's it for" });
+  const drawTo = () => fill(toBox,
+    el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.to), onclick: () => { s.to = null; drawTo(); } }, "Me"),
+    ...friends.map(m => el("button", { type: "button", class: "chip-btn who", "aria-pressed": String(s.to === m.id),
+      onclick: () => { s.to = m.id; drawTo(); } }, avatar(m, "xs"), m.displayName)));
+  drawTo();
+
   // Keep it off the feed
   const offIn = el("input", { type: "checkbox", checked: editing && editing.offFeed ? true : null });
 
@@ -230,6 +250,8 @@ export function renderLogForm(main, item, editing = null) {
   const save = el("button", { class: "btn primary block", type: "submit", text: editing ? "Save changes" : `Log it ${item.category.icon}` });
   const form = el("form", { class: "stack" },
     el("section", { class: "card stack" }, el("h3", { text: "How much?" }), sizeBox, otherRow, stdLine),
+    friends.length ? el("section", { class: "card stack" }, el("h3", { text: "Who's it for?" }), toBox,
+      el("p", { class: "hint", text: "Giving it to a friend logs it for them and puts it on the Tab: they owe you one." })) : null,
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
     homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home or a cooler?" }), fromBox,
       el("p", { class: "hint", text: "Takes it out of the fridge or cooler, or the amount out of the bottle in your bar." })) : null,
@@ -257,10 +279,12 @@ export function renderLogForm(main, item, editing = null) {
       history.back();
       return;
     }
+    if (s.to) Object.assign(fields, { uid: s.to, givenBy: true, offFeed: false });
     const putBack = fromHome(fields, homes.find(e => e.id === s.from));
     const id = saveLog(fields, s.pics || null);
     query = "";
-    toast(fields.killed ? `${item.title} logged. You killed the bottle! 🍾` : `${item.title} logged 🍻`,
+    const said = s.to ? `Gave ${memberName(s.to)} a ${item.title} 🎁` : `${item.title} logged 🍻`;
+    toast(fields.killed ? `${said} You killed the bottle! 🍾` : said,
       { label: "Undo", run: () => { deleteLog(id); putBack(); } });
     location.hash = "#/home";
   });
@@ -373,6 +397,7 @@ export function renderLogDetail(main, id) {
   const facts = [
     variant && item ? ["Variant", el("a", { href: `#/v/${variant.id}`, text: variantTitle(item.data, variant.data) })] : null,
     log.madeBy ? ["Made by", log.madeBy === uid() ? "You" : memberName(log.madeBy)] : null,
+    log.givenBy ? ["🎁 Given by", log.givenBy === uid() ? "You" : memberName(log.givenBy)] : null,
     ["How much", `${fmtVolume(log.ml, getUnits())} at ${log.abv}% (${stdText(std)})`],
     log.placeId ? ["Where", placeName(log.placeId) || "A place that was removed"] : null,
     log.from ? ["From", fromText(log.from)] : null,

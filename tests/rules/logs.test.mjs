@@ -115,3 +115,14 @@ test("a paused member can't log", async () => {
   await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "members/member"), { suspended: true }));
   await assertFails(setDoc(doc(as(env, "member"), "logs/a"), log("member")));
 });
+
+test("giving a drink: the giver logs it for a member, can delete it, and who gave it never changes", async () => {
+  const db = as(env, "member");
+  await assertSucceeds(setDoc(doc(db, "logs/g1"), log("owner", { givenBy: "member" })));
+  await assertFails(setDoc(doc(db, "logs/g2"), log("owner", { givenBy: "admin2" })), "not as someone else");
+  await assertFails(setDoc(doc(db, "logs/g3"), log("member", { givenBy: "member" })), "not to yourself");
+  await assertFails(setDoc(doc(db, "logs/g4"), log("nobody", { givenBy: "member" })), "only to a member");
+  await assertFails(updateDoc(doc(as(env, "owner"), "logs/g1"), { givenBy: "owner" }), "the receiver can't change who gave it");
+  await assertSucceeds(updateDoc(doc(as(env, "owner"), "logs/g1"), { notes: "Thanks!", editedAt: Date.now() }), "the receiver edits their drink");
+  await assertSucceeds(deleteDoc(doc(db, "logs/g1")), "the giver can take it back");
+});

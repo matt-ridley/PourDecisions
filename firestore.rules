@@ -72,11 +72,12 @@ service cloud.firestore {
     // Times are phone-clock epoch ms. A log can't be dated in the future (10 minutes of clock slack), or before 2020.
     // uid is who drank it. madeBy is who made it, when someone made a cocktail for someone else: they log it for them.
     // variantId points at the cocktail variant made (variants below); drinkId stays the original cocktail.
+    // givenBy is who gave it, when someone gave a drink to someone else (the Tab): they log it for them.
     // from is the stock entry it came out of (a fridge or bar, see stock below); killed lists the bottles (drink ids)
     // this pour emptied, for the wall of empties.
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed"])
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed", "givenBy"])
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -100,16 +101,19 @@ service cloud.firestore {
 
     match /logs/{id} {
       allow read: if isMember();
-      // Your own drink, or one you made for another member (madeBy is you).
+      // Your own drink, or one you made (madeBy) or gave (givenBy) to another member: you log it for them.
       allow create: if isMember() && logOk(request.resource.data) && !("editedAt" in request.resource.data)
         && (("madeBy" in request.resource.data)
             ? request.resource.data.madeBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid))
+            : ("givenBy" in request.resource.data)
+            ? request.resource.data.givenBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid))
             : request.resource.data.uid == me());
-      // The drinker edits it; who drank it and who made it never change.
+      // The drinker edits it; who drank it, who made it and who gave it never change.
       allow update: if isMember() && resource.data.uid == me() && logOk(request.resource.data)
-        && !changed().hasAny(["uid", "createdAt", "madeBy"]);
-      // Your own, one you made for someone, or anyone's for an admin.
-      allow delete: if isMember() && (resource.data.uid == me() || resource.data.get("madeBy", "") == me() || isAdmin());
+        && !changed().hasAny(["uid", "createdAt", "madeBy", "givenBy"]);
+      // Your own, one you made or gave someone, or anyone's for an admin.
+      allow delete: if isMember() && (resource.data.uid == me() || resource.data.get("madeBy", "") == me()
+        || resource.data.get("givenBy", "") == me() || isAdmin());
     }
 
     // ---------- Ratings: one per person per drink (doc id = uid_kind_drinkId) ----------

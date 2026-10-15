@@ -4,7 +4,7 @@ import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, fi
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
   loadCooler, unloadCooler } from "./cloud.js";
 import { search, ingredientById, INGREDIENTS, normalize } from "./catalog.js";
-import { drinkOne } from "./logpage.js";
+import { drinkOne, giftable } from "./logpage.js";
 import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -104,12 +104,25 @@ function coolerCard(h, rows, fridge, mine) {
     el("h3", { text: `${plural(total, "drink")} in the cooler` }),
     el("ul", { class: "item-list" }, ...rows.map(s => el("li", { class: "make-row" },
       el("span", { class: "make-name" }, el("b", { text: `${thingIcon(s)} ${s.thing.title}` }), el("span", { class: "muted small", text: `${fridgeCount(s)} left` })),
+      mine && fridgeCount(s) > 0 ? giveButton(s, s.thing, "btn small") : null,
       el("button", { type: "button", class: "btn small", text: "Drink one", disabled: fridgeCount(s) <= 0, onclick: () => drinkOne(s.thing.item, s) })))),
     mine ? el("div", { class: "row" },
       el("button", { class: "btn", type: "button", text: "Load more", disabled: !canLoad, onclick: () => loadSheet(h, fridge) }),
       confirmButton("Back in the fridge", total ? `Tap again: ${total} go back` : "Tap again to put it away", () => {
         unloadCooler(h.id); toast(total ? `${plural(total, "drink")} back in the fridge` : "Cooler put away");
       }, "btn")) : null);
+}
+
+/* Give one to a friend: pick who, and it's logged for them and goes on the Tab. */
+function giveButton(s, thing = s.thing, cls = "btn") {
+  return el("button", { class: cls, type: "button", text: "🎁 Give one", onclick: () => openSheet(box => box.append(el("div", { class: "stack" },
+    el("h2", { text: `Give a ${thing.title}` }),
+    el("p", { class: "hint", text: "It's logged for them, comes out of here, and goes on the Tab." }),
+    el("div", { class: "chips" }, ...giftable().map(m => el("button", { type: "button", class: "chip-btn who", onclick: () => {
+      drinkOne(thing.item, s, m.id); closeSheet();
+    } }, avatar(m, "xs"), m.displayName))),
+    giftable().length ? null : el("p", { class: "muted", text: "Nobody else is in the group yet." }),
+    el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })))) });
 }
 
 /* Pick how many of each fridge drink go in the cooler. */
@@ -178,9 +191,9 @@ function fridgeSheet(s) {
     box.append(el("div", { class: "stack" },
       el("h2", { text: s.thing.title }),
       el("p", { class: "muted", text: `${fridgeCount(s)} in the fridge` }),
-      fridgeCount(s) > 0 ? el("button", { class: "btn primary block", type: "button", text: `${thingIcon(s)} Drink one`, onclick: () => {
-        drinkOne(s.thing.item, s); closeSheet();
-      } }) : null,
+      fridgeCount(s) > 0 ? el("div", { class: "row" },
+        el("button", { class: "btn primary", type: "button", text: `${thingIcon(s)} Drink one`, onclick: () => { drinkOne(s.thing.item, s); closeSheet(); } }),
+        giveButton(s)) : null,
       el("p", { class: "hint", text: "Drink one logs it for you and takes it out of the fridge. − takes one out without logging it." }),
       el("h3", { text: "Reload" }),
       el("div", { class: "chips" }, ...RELOADS.map(n => el("button", { type: "button", class: "chip-btn", text: `+${n}`, onclick: () => {
@@ -234,9 +247,9 @@ function bottleSheet(s) {
       const cur = { ...s, ...now }, f = level(cur);
       fill(box, el("div", { class: "stack" },
         el("h2", { text: s.thing.title }),
-        f > 0 || cur.spares ? el("button", { class: "btn primary block", type: "button", text: `${thingIcon(s)} Pour one`, onclick: () => {
-          drinkOne(s.thing.item, cur); closeSheet();
-        } }) : null,
+        f > 0 || cur.spares ? el("div", { class: "row" },
+          el("button", { class: "btn primary", type: "button", text: `${thingIcon(s)} Pour one`, onclick: () => { drinkOne(s.thing.item, cur); closeSheet(); } }),
+          giveButton(cur, s.thing)) : null,
         el("h3", { text: "How full" }),
         el("div", { class: "seg small", role: "group", "aria-label": "How full" }, ...LEVELS.map(([q, label]) =>
           el("button", { type: "button", "aria-pressed": String(f === q), text: label, onclick: () => { changeStock(s.id, { left: Math.round(cur.size * q) }); later(draw); } }))),
