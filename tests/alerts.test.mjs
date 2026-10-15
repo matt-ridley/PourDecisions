@@ -95,3 +95,10 @@ test("the giver hears when a drink they gave is disputed", () => {
   assert.deepEqual(list.map(a => [a.kind, a.from.join(), a.at]), [["disputed", "dave", now - H]]);
   assert.ok(!alertsFor("dave", { logs, now }).some(a => a.kind === "disputed"));
 });
+
+test("Bar Menu: the household hears about new orders; the guest hears it's served (once, not also as a gift)", () => {
+  const orders = [{ id: "o1", hh: "h1", by: "dave", state: "waiting", at: now - H, item: "manhattan", kind: "cocktail" },
+    { id: "o2", hh: "h2", by: "me", state: "served", servedBy: "sam", logId: "L", at: now - H, item: "manhattan", kind: "cocktail" }];
+  const logs = [{ id: "L", uid: "me", madeBy: "sam", at: now - H, kind: "cocktail", drinkId: "manhattan" }];
+  assert.deepEqual(kinds(alertsFor("me", { orders, myHh: "h1", logs, now })), [["order", "dave"], ["served", "sam"]]);
+});

@@ -104,6 +104,7 @@ export function drinkOne(item, entry, to = null) {
   const said = to ? `Gave ${memberName(to)} a ${item.title} 🎁` : `${item.title} logged 🍻`;
   toast(fields.killed ? `${said} You killed the bottle! 🍾` : said,
     { label: "Undo", run: () => { deleteLog(id); putBack(); } });
+  return id;
 }
 
 /* A round: one of the same drink for each person, in its usual size. Yours is your own drink; everyone else's is given
