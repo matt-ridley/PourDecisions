@@ -3,7 +3,7 @@
    Firestore's persistent cache keeps a copy on the phone, so the app opens and accepts changes with no signal;
    queued writes are sent when the phone is back online. Times are stored as epoch milliseconds from the phone clock. */
 import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
-import { setMemberDrinks, setFixes, setStyles, setVariants } from "./catalog.js";
+import { setMemberDrinks, setFixes, setStyles, setVariants, setPopularity } from "./catalog.js";
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
 import { ratingId } from "./ratings.js";
@@ -147,7 +147,7 @@ function refreshMemberListeners() {
     fn(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     emit();
   }, syncError));
-  list("logs", l => { store.logs = l; });
+  list("logs", l => { store.logs = l; setPopularity(l); });
   list("places", l => { store.places = l; });
   list("drinks", l => { store.drinks = l; setMemberDrinks(l); });
   list("fixes", l => { store.fixes = l; setFixes(l); });

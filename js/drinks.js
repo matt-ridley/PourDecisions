@@ -14,6 +14,9 @@ import { madeVariants, variantCount, variantTitle, variantRecipe, changes, chang
   rankVariants, asItem, compareRows } from "./variants.js";
 import { ratingsCard, groupRatings, starText } from "./ratepage.js";
 import { haveSet } from "./makeablepage.js";
+import { householdOf } from "./stock.js";
+import { pickWhere } from "./barpage.js";
+import { giftable, giveNext } from "./logpage.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
@@ -184,12 +187,44 @@ export function renderDrink(main, id) {
     el("section", { class: "hero card" },
       el("span", { class: "hero-icon", text: i.category.icon }),
       el("h2", { text: i.title }),
-      el("p", { class: "muted", text: i.style.name })),
+      el("p", { class: "muted", text: i.style.name }),
+      drinkActions(i)),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
     ratingsCard(i),
-    logThis(i),
     useItIn(d),
     adminDrinkTools(i));
+}
+
+/* Under a drink's name: Log it (how often you've had it), then add it to your fridge or bar, want to try it, or give
+   one to a friend. */
+function drinkActions(i) {
+  const h = drinkHistory(store.logs, uid(), i.kind, i.id), hh = householdOf(store.households, uid());
+  const wants = (store.me && store.me.wants) || [], wanted = wants.includes(i.id);
+  return el("div", { class: "stack drink-actions" },
+    h.count ? el("p", { class: "muted small", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,
+    el("a", { class: "btn primary block", href: `#/log/${i.kind}/${i.id}`, text: h.count ? "Log another" : "Log this" }),
+    el("div", { class: "row" },
+      hh ? el("button", { class: "btn small", type: "button", text: "🏠 Add", "aria-label": "Add to my fridge or bar", onclick: () => pickWhere(hh, i, null, { stay: true }) }) : null,
+      h.count ? null : el("button", { class: "btn small", type: "button", "aria-pressed": String(wanted), "aria-label": "Want to try", text: wanted ? "🎯 On list" : "🎯 To try",
+        onclick: e => {
+          const now = (store.me && store.me.wants) || [], on = now.includes(i.id);
+          updateMe({ wants: on ? now.filter(x => x !== i.id) : [...now, i.id].slice(-200) });
+          e.currentTarget.textContent = on ? "🎯 To try" : "🎯 On list";
+          e.currentTarget.setAttribute("aria-pressed", String(!on));
+          if (!on) toast("On your Want to try list (on your profile) 🎯");
+        } }),
+      giftable().length ? el("button", { class: "btn small", type: "button", text: "🎁 Give", "aria-label": "Give one to a friend", onclick: () => giveSheet(i) }) : null));
+}
+
+/* Give one: pick the friend, then the log form opens with them as who it's for (it goes on the Tab). */
+function giveSheet(i) {
+  openSheet(box => box.append(el("div", { class: "stack" },
+    el("h2", { text: `Give a ${i.title}` }),
+    el("p", { class: "muted", text: "It's logged for them and goes on the Tab: they owe you one." }),
+    el("div", { class: "chips" }, ...giftable().map(m => el("button", { type: "button", class: "chip-btn who", onclick: () => {
+      giveNext(m.id); closeSheet(); location.hash = `#/log/${i.kind}/${i.id}`;
+    } }, avatar(m, "xs"), m.displayName))),
+    el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet }))));
 }
 
 const foldOpen = new Map();
@@ -324,12 +359,6 @@ function makeThis(i) {
 }
 
 /* "Log this" plus how often you've had it. */
-function logThis(i) {
-  const h = drinkHistory(store.logs, uid(), i.kind, i.id);
-  return el("section", { class: "card stack" },
-    h.count ? el("p", { class: "muted", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,
-    el("a", { class: "btn primary block", href: `#/log/${i.kind}/${i.id}`, text: h.count ? "Log another" : "Log this" }));
-}
 
 /* ---------- Cocktail variants ---------- */
 const times = n => n === 1 ? "once" : `${n} times`;

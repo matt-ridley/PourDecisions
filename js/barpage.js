@@ -490,8 +490,9 @@ function addIng(h, g) {
   toast(`${g.name} is in the bar`);
 }
 
-/* Second step for a drink: fridge (how many) or bar (bottle size). Already there? Add to it instead. */
-function pickWhere(h, i, tab) {
+/* Second step for a drink: fridge (how many) or bar (bottle size). Already there? Add to it instead. From a drink's
+   page (`stay`), it stays on that page instead of opening the fridge or bar. */
+export function pickWhere(h, i, tab, { stay = false } = {}) {
   let where = defaultWhere(i);
   openSheet(box => {
     const draw = () => {
@@ -507,7 +508,7 @@ function pickWhere(h, i, tab) {
                if (have) reload(have, n);
                else setStock(id, { hh: h.id, where, kind: "drink", item: i.id }, { count: n });
                closeSheet(); toast(`Added ${n} ${i.title}`);
-               location.hash = `#/bar/${h.id}/fridge`;
+               if (!stay) location.hash = `#/bar/${h.id}/fridge`;
              } })))]
           : [have ? el("p", { class: "muted", text: `Already in the bar (${levelText(have)}). Adding it again counts a spare bottle.` })
                : field("Bottle size", sizePick(size, v => { size = v; })),
@@ -515,7 +516,7 @@ function pickWhere(h, i, tab) {
                if (have) changeStock(id, { spares: (have.spares || 0) + 1 });
                else setStock(id, { hh: h.id, where, kind: "drink", item: i.id }, { size, left: size, spares: 0 });
                closeSheet(); toast(`${i.title} is in the bar`);
-               location.hash = `#/bar/${h.id}/bar`;
+               if (!stay) location.hash = `#/bar/${h.id}/bar`;
              } })],
         el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
     };

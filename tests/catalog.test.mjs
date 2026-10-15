@@ -5,7 +5,7 @@ import { CATEGORIES, STYLE_INDEX } from "../js/catalog/styles.js";
 import { DRINKS, ORIGINS } from "../js/catalog/drinks.js";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { INGREDIENTS, INGREDIENT_INDEX } from "../js/catalog/ingredients.js";
-import { drinkTitle, normalize, search, browse, ITEMS, itemById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "../js/catalog.js";
+import { drinkTitle, normalize, search, setPopularity, browse, ITEMS, itemById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "../js/catalog.js";
 import { slug } from "../js/catalog/make.js";
 
 test("style ids are unique across the whole tree", () => {
@@ -101,7 +101,7 @@ test("normalize drops accents and punctuation", () => {
 });
 
 test("search matches every word, ignores accents and puts title starts first", () => {
-  assert.deepEqual(search("jager").map(i => i.id), ["jagerbomb", "jagermeister", "jagermeister-cold-brew-coffee", "jagermeister-manifest"]);
+  assert.deepEqual(search("jager").map(i => i.id), ["jagermeister", "jagermeister-cold-brew-coffee", "jagermeister-manifest", "jagerbomb"]);
   assert.ok(search("crown peach").some(i => i.id === "crown-royal-peach"));
   assert.ok(!search("crown peach").some(i => i.id === "crown-royal-deluxe"));
   assert.equal(search("molson")[0].id, "molson-canadian");
@@ -161,4 +161,16 @@ test("every category, family and style has a short description, and nothing else
   assert.deepEqual(Object.keys(ABOUT_CATEGORY).sort(), CATEGORIES.map(c => c.id).sort());
   assert.deepEqual(Object.keys(ABOUT_FAMILY).sort(), fams.sort());
   assert.deepEqual(Object.keys(ABOUT_STYLE).sort(), styles.sort());
+});
+
+test("search puts each brand's main drink first, non-alcoholic last unless asked, then what the group drinks", () => {
+  assert.equal(search("guinness")[0].id, "guinness-draught");
+  assert.equal(search("guinness")[3].id, "guinness-0-0"); // after Draught, Extra Stout and Foreign Extra Stout
+  assert.equal(search("guinness 0.0")[0].id, "guinness-0-0");
+  assert.equal(search("crown")[0].id, "crown-royal-deluxe");
+  assert.equal(search("jameson")[0].id, "jameson-irish-whiskey");
+  assert.equal(search("smirnoff")[0].id, "smirnoff-no-21-vodka");
+  assert.equal(search("heineken")[0].id, "heineken"); // the exact title first
+  setPopularity([{ kind: "drink", drinkId: "crown-royal-peach" }, { kind: "drink", drinkId: "crown-royal-peach" }]);
+  try { assert.equal(search("crown")[0].id, "crown-royal-peach"); } finally { setPopularity([]); }
 });

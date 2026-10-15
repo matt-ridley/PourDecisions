@@ -168,4 +168,7 @@ test("starred cocktails live on your own member document, up to 100", async () =
   await assertSucceeds(updateDoc(doc(as(env, "member"), "members/member"), { starred: ["manhattan", "negroni"] }));
   await assertFails(updateDoc(doc(as(env, "member"), "members/member"), { starred: Array.from({ length: 101 }, (_, k) => `c${k}`) }));
   await assertFails(updateDoc(doc(as(env, "member"), "members/owner"), { starred: ["manhattan"] }), "not someone else's");
+  // Drinks to try, up to 200.
+  await assertSucceeds(updateDoc(doc(as(env, "member"), "members/member"), { wants: ["guinness-draught"] }));
+  await assertFails(updateDoc(doc(as(env, "member"), "members/member"), { wants: Array.from({ length: 201 }, (_, k) => `d${k}`) }));
 });

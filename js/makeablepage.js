@@ -118,14 +118,11 @@ export function renderMakeable(main, arg) {
   const from = el("select", { "aria-label": "From" },
     mine ? el("option", { value: mine.id, text: `Your bar & fridge (${mine.name})`, selected: hh === mine }) : null,
     ...others.map(h => el("option", { value: h.id, text: h.name, selected: hh === h })),
-    el("option", { value: "list", text: "A checklist I tick by hand", selected: !hh }));
+    el("option", { value: "list", text: mine ? "Planning: tick by hand" : "A checklist I tick by hand", selected: !hh }));
   from.addEventListener("change", () => { location.hash = `#/makeable/${from.value}`; });
   const stockCount = hh ? [...stockIn(store.stock, hh.id, "bar"), ...stockIn(store.stock, hh.id, "fridge")].filter(onHand).length : 0;
 
   fill(main,
-    el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {},
-      el("li", {}, el("a", { href: "#/drinks", text: "Drinks" })),
-      el("li", {}, el("span", { "aria-current": "page", text: "What can I make" })))),
     el("h2", { class: "page-title", text: "🍸 What can I make" }),
     store.households.length ? field("From", from) : null,
     hh ? el("section", { class: "card stack" },
@@ -133,8 +130,8 @@ export function renderMakeable(main, arg) {
       el("a", { class: "btn block", href: `#/bar/${hh.id}/bar`, text: (hh.members || []).includes(uid()) ? "Open the bar to change it" : "See this bar" }))
     : el("section", { class: "card stack" },
       el("div", { class: "row spread" }, el("h3", { text: "What you have" }), count),
-      el("p", { class: "hint", text: mine ? "Tick what you have by hand, for a bar that isn't in the app. Kitchen basics like sugar and water are assumed. Saved on this phone." :
-        "Tick what's in your bar, or start your bar & fridge from your profile to keep it up to date. A bottle counts for the broader ingredient too: Rye also makes anything that asks for Whisky. Kitchen basics like sugar and water are assumed. Saved on this phone." }),
+      el("p", { class: "hint", text: mine ? "For planning: tick ingredients by hand (a bar that isn't in the app, or what you'd buy). Your own bar is the first choice in From. Kitchen basics like sugar and water are assumed. Saved on this phone." :
+        "Tick what's in your bar, or start your bar & fridge on the Bar tab to keep it up to date as you pour. A bottle counts for the broader ingredient too: Rye also makes anything that asks for Whisky. Kitchen basics like sugar and water are assumed. Saved on this phone." }),
       el("label", { class: "search" }, el("span", { html: icon.search }), findBox),
       ...folds,
       have.size ? clear : null),

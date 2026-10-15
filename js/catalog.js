@@ -101,15 +101,31 @@ export const aboutStyle = id => { const s = styleOf(id); return (s && s.style.ab
 
 const byTitle = (a, b) => a.title.localeCompare(b.title);
 
+/* How often the group has logged each drink ("kind:id" -> count), so search puts what the group drinks first. */
+let popular = new Map();
+export function setPopularity(logs) {
+  popular = new Map();
+  for (const l of logs) { const k = `${l.kind}:${resolveId(l.kind, l.drinkId)}`; popular.set(k, (popular.get(k) || 0) + 1); }
+}
+
+// Asking for non-alcoholic ("0.0", "NA", "alcohol free"...) keeps those drinks up with the rest.
+const NA_WORDS = /\b(0|na|non|free|zero|dealcoholized|mocktail)\b/;
+
 /* Every word typed must appear somewhere (title, brand, style, category, origin or, for cocktails, an ingredient).
-   Titles that start with what was typed come first. */
+   Order: the title is what was typed, then titles starting with it, then titles with every word in them, then the
+   rest; within those, non-alcoholic drinks after the others (unless asked for), then what the group logs most, then
+   the list's own order (each brand's main drink is listed first: Crown Royal Deluxe before its flavours). */
 export function search(query, { category = null, items = visible } = {}) {
   const q = normalize(query), words = q.split(" ").filter(Boolean);
   const pool = category ? items.filter(i => i.category && i.category.id === category) : items;
   if (!words.length) return [...pool].sort(byTitle);
   const hits = pool.filter(i => words.every(w => i.haystack.includes(w)));
-  const starts = i => normalize(i.title).startsWith(q) ? 0 : 1;
-  return hits.sort((a, b) => starts(a) - starts(b) || byTitle(a, b));
+  const pos = new Map(items.map((i, n) => [i, n]));
+  const tier = i => { const t = normalize(i.title); return t === q ? 0 : t.startsWith(q) ? 1 : words.every(w => t.includes(w)) ? 2 : 3; };
+  const naLast = NA_WORDS.test(q) ? () => 0 : i => i.category && i.category.id === "na" ? 1 : 0;
+  const pop = i => popular.get(`${i.kind}:${i.id}`) || 0;
+  const key = new Map(hits.map(i => [i, [tier(i), naLast(i), -pop(i), pos.get(i)]]));
+  return hits.sort((a, b) => { const x = key.get(a), y = key.get(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || x[3] - y[3]; });
 }
 
 /* A category's families and styles, each with the catalog items in it (empty styles included). */

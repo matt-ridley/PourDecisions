@@ -8,7 +8,7 @@ import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
 import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
-import { householdOf, stockIn, fridgeCount, emptiesOf } from "./stock.js";
+import { householdOf, stockIn, fridgeCount, emptiesOf, onHand } from "./stock.js";
 import { itemById } from "./catalog.js";
 import { tabLine } from "./tabpage.js";
 
@@ -41,6 +41,7 @@ export function renderProfile(main, id) {
     // Your own bar and the Tab have tabs of their own (Bar, Us); a friend's profile links to theirs.
     mine ? null : barLink(m.id),
     mine ? null : tabLine(m.id),
+    wantsCard(m, mine),
     emptiesCard(m.id),
     varietyCard(m.id),
     mine ? tryNextCard() : null,
@@ -111,6 +112,27 @@ function confirmSignOut() {
     el("div", { class: "row" },
       el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }),
       el("button", { class: "btn danger", type: "button", text: "Sign out", onclick: () => { closeSheet(); signOut(); } })))));
+}
+
+/* Want to try: drinks someone marked on a drink's page and hasn't had yet, with whose bar has one. */
+function wantsCard(m, mine) {
+  const tried = new Set(store.logs.filter(l => l.uid === m.id).map(l => (itemById(l.kind, l.drinkId) || { id: l.drinkId }).id));
+  const list = [...new Set(m.wants || [])].map(id => itemById("drink", id)).filter(i => i && !tried.has(i.id)).reverse();
+  if (!list.length) return null;
+  const where = id => store.households.filter(h => store.stock.some(s => s.hh === h.id && s.kind === "drink" && s.item === id && onHand(s)))
+    .map(h => h.name);
+  return el("section", { class: "card stack" },
+    el("h3", { text: `🎯 Want to try · ${list.length}` }),
+    el("ul", { class: "item-list" }, ...list.slice(0, 12).map(i => {
+      const bars = where(i.id);
+      return el("li", {}, el("a", { class: "item-row", href: `#/drink/${i.id}` },
+        el("span", { class: "item-icon", text: i.category.icon }),
+        el("span", { class: "grow" }, el("b", { text: i.title }),
+          el("span", { class: "muted small", text: [i.style.name, bars.length ? `🏠 In ${bars.join(", ")}` : ""].filter(Boolean).join(" · ") })),
+        el("span", { class: "chev", html: icon.chevron })));
+    })),
+    list.length > 12 ? el("p", { class: "muted small", text: `And ${list.length - 12} more.` }) : null,
+    mine ? el("p", { class: "hint", text: "Add drinks with 🎯 Want to try on a drink's page. They leave the list once you log one." }) : null);
 }
 
 /* Killed the bottle: a wall of the empties someone poured the last drop of. */
