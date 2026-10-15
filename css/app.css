@@ -271,6 +271,11 @@ a.member-row:active { background: var(--surface-2); }
 .fold > summary::-webkit-details-marker { display: none; }
 .fold > summary::after { content: "+"; font: 700 20px/1 var(--f-display); color: var(--primary); margin-left: auto; }
 .fold[open] > summary::after { content: "–"; }
+/* The save button on a long form: stays just above the tabs while the form is on screen. */
+.sticky-save { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 30px); z-index: 5; display: grid; gap: 6px; }
+.sticky-save .btn { box-shadow: 0 6px 18px rgba(0, 0, 0, .22); }
+.sticky-save .msg { background: var(--surface); border-radius: 12px; padding: 8px 12px; }
+.sticky-save .msg:empty { display: none; }
 .fold .item-list, .card > .item-list { padding: 0; }
 .steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 

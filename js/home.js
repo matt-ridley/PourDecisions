@@ -1,14 +1,11 @@
 /* Home: a short hello, then anything that needs you now (drinks that didn't send, the morning after, tonight's nights,
    drinks to rate), then the feed. The group, the boards and the Tab are on the Us tab. */
-import { el, fill, toast } from "./ui.js";
-import { store, uid, isAdmin, retryLog, discardLog, saveLog, deleteLog } from "./cloud.js";
+import { el, fill } from "./ui.js";
+import { store, uid, isAdmin, retryLog, discardLog } from "./cloud.js";
 import { toCheck } from "./moderation.js";
 import { TAGLINE } from "./config.js";
-import { itemById } from "./catalog.js";
 import { rateCard } from "./ratepage.js";
 import { feedCard } from "./feedpage.js";
-import { recentVariants, variantTitle, makeLogs } from "./variants.js";
-import { lastPlace, resolvePlace } from "./logs.js";
 import { tonightCard, morningHomeCard } from "./nightpage.js";
 
 export function renderHome(main) {
@@ -21,7 +18,6 @@ export function renderHome(main) {
     morningHomeCard(),
     tonightCard(),
     rateCard(),
-    againCard(),
     isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
       el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
       el("span", { class: "chip gold", text: String(toCheck().length) })) : null,
@@ -49,26 +45,3 @@ const REASONS = {
   "resource-exhausted": "The group is over its free daily limit. Try again tomorrow.",
 };
 const reason = code => REASONS[code] || `Reason: ${code || "unknown"}`;
-
-/* Make it again: your latest cocktail variants, logged again in one tap (same bottles, same amounts), with Undo. */
-function againCard() {
-  const list = recentVariants(store.logs, uid());
-  if (!list.length) return null;
-  return el("section", { class: "card stack" },
-    el("h3", { text: "Make it again" }),
-    el("ul", { class: "item-list" }, ...list.map(({ item }) => {
-      const base = itemById("cocktail", item.base);
-      if (!base) return null;
-      const title = variantTitle(base.data, item.data);
-      return el("li", { class: "log-row" },
-        el("a", { class: "item-row grow", href: `#/v/${item.id}` }, el("span", { class: "log-thumb icon", text: "🍸" }),
-          el("span", { class: "grow" }, el("b", { text: title }), el("span", { class: "muted small", text: base.title }))),
-        el("button", { class: "btn small", type: "button", text: "Again", "aria-label": `Make ${title} again`, onclick: () => {
-          const p = lastPlace(store.logs, uid());
-          const [f] = makeLogs({ recipe: base.data, variant: { ...item.data, id: item.id }, drinkers: [uid()], me: uid(), at: Date.now(),
-            placeId: p ? (resolvePlace(store.places, p) || { id: p }).id : null });
-          const id = saveLog(f);
-          toast(`Another ${title} logged 🍹`, { label: "Undo", run: () => deleteLog(id) });
-        } }));
-    })));
-}

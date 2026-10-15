@@ -107,7 +107,7 @@ const mine = (logs, uid) => logs.filter(l => l.uid === uid).sort((a, b) => b.at 
 export function recentDrinks(logs, uid, n = 6) {
   const seen = new Set(), out = [];
   for (const l of mine(logs, uid)) {
-    const key = `${l.kind}:${resolveId(l.kind, l.drinkId)}`;
+    const key = `${l.kind}:${resolveId(l.kind, l.drinkId)}:${l.variantId || ""}`; // each cocktail variant is its own
     if (seen.has(key)) continue;
     seen.add(key); out.push(l);
     if (out.length >= n) break;

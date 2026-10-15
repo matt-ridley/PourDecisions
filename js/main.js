@@ -28,7 +28,7 @@ import { applyTheme } from "./theme.js";
    `tab` is the bottom-nav tab it belongs to; `sub` pages inside a tab show Back instead of the glass. */
 const ROUTES = {
   home: { tab: "home", live: true, render: renderHome },
-  log: { tab: "log", live: false, render: renderLog },
+  log: { tab: "log", live: kind => !kind, render: renderLog }, // the search redraws as data arrives; the form doesn't
   l: { tab: null, live: true, render: renderLogDetail },
   edit: { tab: null, live: false, render: renderLogEdit },
   make: { tab: null, live: false, render: renderMake }, // not live: a friend's new log mustn't reset what you're making
@@ -76,6 +76,7 @@ function parseRoute() {
   if (!ROUTES[name]) return { name: "home", ...ROUTES.home };
   const r = { name, arg, arg2, ...ROUTES[name] };
   if (typeof r.sub === "function") r.sub = r.sub(arg);
+  if (typeof r.live === "function") r.live = r.live(arg);
   return r;
 }
 
@@ -113,6 +114,8 @@ function goBack() {
 let pendingRender = false;
 const typing = () => {
   const a = document.activeElement;
+  // An empty search box has nothing to lose, so it doesn't hold up a redraw.
+  if (a && a.type === "search" && !a.value) return false;
   return !!(a && $("main").contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
 };
 const flushPending = () => { if (pendingRender && !typing()) { pendingRender = false; render(); } };
