@@ -97,3 +97,19 @@ test("pours come off with an increment, and logs say where a drink came from and
   await assertFails(setDoc(doc(db, "logs/l3"), { ...log, from: 5 }));
 });
 
+test("anyone in the group can take a drink from a cooler, but only its household loads it or changes anything else", async () => {
+  await seedHouse();
+  const COOLER = "stock/h1~cooler~drink~molson-canadian";
+  const can = (by, extra = {}) => ({ hh: "h1", where: "cooler", kind: "drink", item: "molson-canadian", count: 12, by, at: Date.now(), ...extra });
+  await assertFails(setDoc(doc(as(env, "member2"), COOLER), can("member2")), "only the household loads it");
+  await assertSucceeds(setDoc(doc(as(env, "member"), COOLER), can("member")));
+  const friend = as(env, "member2");
+  await assertSucceeds(updateDoc(doc(friend, COOLER), { count: increment(-1), by: "member2", at: Date.now() }));
+  await assertSucceeds(updateDoc(doc(friend, COOLER), { count: increment(1), by: "member2", at: Date.now() }), "Undo puts it back");
+  await assertFails(updateDoc(doc(friend, COOLER), { low: 2, by: "member2", at: Date.now() }), "only the count");
+  await assertFails(deleteDoc(doc(friend, COOLER)));
+  await assertSucceeds(setDoc(doc(as(env, "member"), BEER), beer("member")));
+  await assertFails(updateDoc(doc(friend, BEER), { count: increment(-1), by: "member2", at: Date.now() }), "fridges stay the household's");
+  await assertFails(updateDoc(doc(as(env, "stranger"), COOLER), { count: increment(-1), by: "stranger", at: Date.now() }));
+});
+

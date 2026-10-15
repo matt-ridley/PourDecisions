@@ -1,10 +1,11 @@
-/* The bar and the fridge: #/bar (yours), #/bar/<household>/<fridge|bar>, and #/bars (every household).
+/* The bar and the fridge: #/bar (yours), #/bar/<household>/<fridge|bar|cooler>, and #/bars (every household).
    Everyone can look at every household; only its members change it. The data rules are in stock.js. */
 import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field } from "./ui.js";
-import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock } from "./cloud.js";
+import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
+  loadCooler, unloadCooler } from "./cloud.js";
 import { search, ingredientById, INGREDIENTS, normalize } from "./catalog.js";
 import { drinkOne } from "./logpage.js";
-import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless } from "./stock.js";
+import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // Bottle sizes are always in ml or litres, as on the label.
@@ -22,8 +23,8 @@ export function renderBar(main, hhId, tab) {
   if (!h) return hhId ? fill(main, el("div", { class: "card" }, el("p", { text: "That household isn't here any more." })), allLink())
     : renderStart(main);
   const mine = (h.members || []).includes(uid());
-  tab = tab === "bar" ? "bar" : "fridge";
-  const fridge = stockIn(store.stock, h.id, "fridge"), bar = stockIn(store.stock, h.id, "bar");
+  tab = tab === "bar" || tab === "cooler" ? tab : "fridge";
+  const fridge = stockIn(store.stock, h.id, "fridge"), bar = stockIn(store.stock, h.id, "bar"), cooler = stockIn(store.stock, h.id, "cooler");
   const base = `#/bar/${h.id}`;
 
   fill(main,
@@ -35,9 +36,10 @@ export function renderBar(main, hhId, tab) {
       mine ? el("button", { class: "btn small", type: "button", text: "Household settings", onclick: () => settingsSheet(h) }) : null),
     el("div", { class: "seg", role: "tablist" },
       el("a", { class: "seg-link", href: `${base}/fridge`, "aria-selected": String(tab === "fridge"), text: `🧊 Fridge · ${fridge.reduce((n, s) => n + fridgeCount(s), 0)}` }),
-      el("a", { class: "seg-link", href: `${base}/bar`, "aria-selected": String(tab === "bar"), text: `🍾 Bar · ${bar.length}` })),
-    tab === "fridge" ? fridgeCard(h, fridge, mine) : barCards(h, bar, mine),
-    mine ? el("button", { class: "btn primary block", type: "button", html: icon.plus, onclick: () => addSheet(h, tab) },
+      el("a", { class: "seg-link", href: `${base}/bar`, "aria-selected": String(tab === "bar"), text: `🍾 Bar · ${bar.length}` }),
+      el("a", { class: "seg-link", href: `${base}/cooler`, "aria-selected": String(tab === "cooler"), text: `❄️ Cooler · ${coolerTotal(store.stock, h.id)}` })),
+    tab === "fridge" ? fridgeCard(h, fridge, mine) : tab === "bar" ? barCards(h, bar, mine) : coolerCard(h, cooler, fridge, mine),
+    mine && tab !== "cooler" ? el("button", { class: "btn primary block", type: "button", html: icon.plus, onclick: () => addSheet(h, tab) },
       tab === "fridge" ? "Add to the fridge" : "Add to the bar") : null,
     el("a", { class: "card admin-link", href: `#/makeable/${h.id}` },
       el("span", { class: "item-icon", text: "🍸" }),
@@ -68,8 +70,15 @@ function renderStart(main) {
 export function renderBars(main) {
   const hs = [...store.households].sort((a, b) => a.name.localeCompare(b.name));
   const mine = householdOf(store.households, uid());
+  const out = hs.filter(h => coolerTotal(store.stock, h.id) > 0);
   fill(main,
     el("h2", { class: "page-title", text: "🏠 Everyone's bars" }),
+    out.length ? el("section", { class: "card stack" },
+      el("h3", { text: "❄️ Coolers out" }),
+      el("ul", { class: "item-list" }, ...out.map(h => el("li", {}, el("a", { class: "item-row", href: `#/bar/${h.id}/cooler` },
+        el("span", { class: "item-icon", text: "❄️" }),
+        el("span", { class: "grow" }, el("b", { text: h.name }), el("span", { class: "muted small", text: `${plural(coolerTotal(store.stock, h.id), "drink")} left · grab one` })),
+        el("span", { class: "chev", html: icon.chevron })))))) : null,
     hs.length ? el("ul", { class: "item-list card" }, ...hs.map(h => {
       const f = stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0);
       const b = stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length;
@@ -80,6 +89,64 @@ export function renderBars(main) {
         el("span", { class: "chev", html: icon.chevron })));
     })) : el("p", { class: "card muted", text: "Nobody has set up a bar yet." }),
     mine ? null : el("a", { class: "btn primary block", href: "#/bar", text: "Start yours" }));
+}
+
+/* ---------- The cooler ---------- */
+/* Loaded from the fridge for a night out. Anyone in the group can take a drink from it; what's left goes back in the
+   fridge afterwards. */
+function coolerCard(h, rows, fridge, mine) {
+  const total = rows.reduce((n, s) => n + fridgeCount(s), 0), canLoad = fridge.some(s => fridgeCount(s) > 0);
+  if (!rows.length) return el("section", { class: "card stack" },
+    el("p", { text: mine ? "Heading out? Load the cooler from your fridge. Drinks then come out of the cooler (friends can grab one too), and whatever's left goes back in the fridge when you're home." : "This cooler isn't out right now." }),
+    mine ? el("button", { class: "btn primary block", type: "button", text: "❄️ Load the cooler", disabled: !canLoad, onclick: () => loadSheet(h, fridge) }) : null,
+    mine && !canLoad ? el("p", { class: "hint", text: "The fridge is empty: add drinks to it first." }) : null);
+  return el("section", { class: "card stack" },
+    el("h3", { text: `${plural(total, "drink")} in the cooler` }),
+    el("ul", { class: "item-list" }, ...rows.map(s => el("li", { class: "make-row" },
+      el("span", { class: "make-name" }, el("b", { text: `${thingIcon(s)} ${s.thing.title}` }), el("span", { class: "muted small", text: `${fridgeCount(s)} left` })),
+      el("button", { type: "button", class: "btn small", text: "Drink one", disabled: fridgeCount(s) <= 0, onclick: () => drinkOne(s.thing.item, s) })))),
+    mine ? el("div", { class: "row" },
+      el("button", { class: "btn", type: "button", text: "Load more", disabled: !canLoad, onclick: () => loadSheet(h, fridge) }),
+      confirmButton("Back in the fridge", total ? `Tap again: ${total} go back` : "Tap again to put it away", () => {
+        unloadCooler(h.id); toast(total ? `${plural(total, "drink")} back in the fridge` : "Cooler put away");
+      }, "btn")) : null);
+}
+
+/* Pick how many of each fridge drink go in the cooler. */
+function loadSheet(h, fridge) {
+  const rows = fridge.filter(s => s.kind === "drink" && fridgeCount(s) > 0), pick = new Map(rows.map(s => [s.id, 0]));
+  openSheet(box => {
+    const go = el("button", { class: "btn primary block", type: "button" });
+    const drawGo = () => {
+      const n = [...pick.values()].reduce((a, b) => a + b, 0);
+      go.textContent = n ? `Load ${plural(n, "drink")}` : "Pick what goes in";
+      go.disabled = !n;
+    };
+    const line = s => {
+      const val = el("b", { class: "step-val" });
+      const set = n => { pick.set(s.id, Math.max(0, Math.min(fridgeCount(s), n))); val.textContent = String(pick.get(s.id)); drawGo(); };
+      set(0);
+      return el("li", { class: "make-row" },
+        el("span", { class: "make-name" }, el("b", { text: s.thing.title }), el("span", { class: "muted small", text: `${fridgeCount(s)} in the fridge` })),
+        el("button", { type: "button", class: "chip-btn tag", text: "All", onclick: () => set(fridgeCount(s)) }),
+        el("div", { class: "stepper", role: "group", "aria-label": `How many ${s.thing.title}` },
+          el("button", { type: "button", class: "step-btn", "aria-label": "One less", text: "−", onclick: () => set(pick.get(s.id) - 1) }),
+          val,
+          el("button", { type: "button", class: "step-btn", "aria-label": "One more", text: "+", onclick: () => set(pick.get(s.id) + 1) })));
+    };
+    go.addEventListener("click", () => {
+      loadCooler(h.id, rows.map(s => ({ entry: s, n: pick.get(s.id) })));
+      closeSheet(); toast("Cooler loaded ❄️");
+      location.hash = `#/bar/${h.id}/cooler`;
+    });
+    drawGo();
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: "Load the cooler" }),
+      el("p", { class: "hint", text: "They come out of the fridge now and go back in when you put the cooler away." }),
+      el("ul", { class: "item-list" }, ...rows.map(line)),
+      go,
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
 }
 
 /* ---------- The fridge ---------- */

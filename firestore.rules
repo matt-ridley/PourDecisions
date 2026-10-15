@@ -265,7 +265,7 @@ service cloud.firestore {
     // One document per thing in a household's fridge or bar; the id says which (household~where~kind~item).
     function stockOk(id, d) {
       return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "by", "at"])
-        && d.hh is string && d.where in ["fridge", "bar"] && d.kind in ["drink", "ing"]
+        && d.hh is string && d.where in ["fridge", "bar", "cooler"] && d.kind in ["drink", "ing"]
         && d.item is string && d.item.size() > 0 && d.item.size() <= 80
         && id == d.hh + "~" + d.where + "~" + d.kind + "~" + d.item
         // A count can dip below 0 when two phones offline take the last can; the app shows that as 0.
@@ -281,8 +281,10 @@ service cloud.firestore {
     match /stock/{id} {
       allow read: if isMember();
       allow create: if inHousehold(request.resource.data.hh) && stockOk(id, request.resource.data);
-      allow update: if inHousehold(resource.data.hh) && stockOk(id, request.resource.data)
-        && !changed().hasAny(["hh", "where", "kind", "item"]);
+      allow update: if stockOk(id, request.resource.data) && !changed().hasAny(["hh", "where", "kind", "item"]) && (
+        inHousehold(resource.data.hh)
+        // A cooler out at a night is shared: anyone in the group can take a drink from it (or put one back on Undo).
+        || (isMember() && resource.data.where == "cooler" && changed().hasOnly(["count", "by", "at"])));
       allow delete: if isMember() && (inHousehold(resource.data.hh) || isAdmin());
     }
 

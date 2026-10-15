@@ -3,8 +3,10 @@
    - households/{id}: { name, members: [uid], by, at }. One or more people who share a fridge and a bar. Everyone in
      the group can see every household; its members change it. Everything in it is shared.
    - stock/{hh~where~kind~item}: one document per thing, so two people changing stock at once never overwrite each other.
-       where: "fridge" or "bar"; kind: "drink" (a drink in the list) or "ing" (a recipe ingredient, like lime juice)
+       where: "fridge", "bar" or "cooler"; kind: "drink" (a drink in the list) or "ing" (a recipe ingredient, like lime juice)
        fridge drink: count (cans or bottles; Firestore increments, so changes made offline add up), low (warn at or below)
+       cooler drink: count, like the fridge. A household's cooler is loaded from its fridge for a night out, anyone in
+                     the group can take a drink from it, and what's left goes back in the fridge afterwards.
        bar drink:    size (bottle ml), left (ml in the open bottle), spares (sealed bottles of the same drink)
        ingredient:   out (true = ran out; kept on the list so it's easy to restock)
      by and at: who changed it last, and when. */
@@ -29,7 +31,7 @@ export const defaultWhere = item => item && item.category && FRIDGE_CATS.include
    in the list are left out. Fridge: most recently changed first. Bar: bottles A to Z, then ingredients A to Z. */
 export function stockIn(stock, hh, where) {
   const rows = stock.filter(s => s.hh === hh && s.where === where).map(s => ({ ...s, thing: thingOf(s) })).filter(s => s.thing);
-  if (where === "fridge") return rows.sort((a, b) => (b.at || 0) - (a.at || 0));
+  if (where !== "bar") return rows.sort((a, b) => (b.at || 0) - (a.at || 0));
   return rows.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "drink" ? -1 : 1) || a.thing.title.localeCompare(b.thing.title));
 }
 
@@ -54,7 +56,7 @@ export const levelText = s => LEVELS.find(([f]) => f === level(s))[1];
 /* Is it there to use? A fridge drink with any left, a bar bottle with something in it (or a spare), an ingredient not out. */
 export function onHand(s) {
   if (s.kind === "ing") return !s.out;
-  if (s.where === "fridge") return fridgeCount(s) > 0;
+  if (s.where !== "bar") return fridgeCount(s) > 0;
   return (s.left || 0) > 0 || (s.spares || 0) > 0;
 }
 
@@ -87,8 +89,9 @@ export function pourFrom(s, ml) {
   return { killed, inc: -ml };
 }
 
-/* Where a drink could come from at home: your household's fridge or bar entries for it that have some left. */
-export const sourcesFor = (stock, hh, drinkId) => !hh ? [] : ["fridge", "bar"]
+/* Where a drink could come from at home: your household's cooler (when it's out), fridge or bar entries for it that
+   have some left, in that order. */
+export const sourcesFor = (stock, hh, drinkId) => !hh ? [] : ["cooler", "fridge", "bar"]
   .map(where => stock.find(s => s.id === stockId(hh, where, "drink", drinkId)))
   .filter(s => s && onHand(s));
 
@@ -116,5 +119,18 @@ export const emptiesOf = (logs, uid) => logs.filter(l => (l.madeBy || l.uid) ===
    with no spare, and ingredients marked out. */
 export function lowStock(stock, hh) {
   return stock.filter(s => s.hh === hh).map(s => ({ ...s, thing: thingOf(s) })).filter(s => s.thing && (
-    s.kind === "ing" ? s.out : s.where === "fridge" ? isLow(s) : !s.spares && level(s) <= 0.25));
+    s.kind === "ing" ? s.out : s.where === "fridge" ? isLow(s) : s.where === "bar" && !s.spares && level(s) <= 0.25));
 }
+
+/* ---------- Coolers ---------- */
+
+/* Other households' coolers with this drink in them, for a friend to take one from. */
+export const coolersWith = (stock, drinkId, exceptHh = null) => stock.filter(s => s.where === "cooler" && s.kind === "drink"
+  && s.item === drinkId && s.hh !== exceptHh && fridgeCount(s) > 0);
+
+/* How many drinks are in a household's cooler (0 = it's not out). */
+export const coolerTotal = (stock, hh) => stock.filter(s => s.hh === hh && s.where === "cooler").reduce((n, s) => n + fridgeCount(s), 0);
+
+/* Putting the cooler away: each drink left in it goes back in the fridge (n), and every cooler entry is cleared. */
+export const unloadMoves = (stock, hh) => stock.filter(s => s.hh === hh && s.where === "cooler")
+  .map(s => ({ cooler: s, fridgeId: stockId(hh, "fridge", s.kind, s.item), n: fridgeCount(s) }));

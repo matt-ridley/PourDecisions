@@ -107,3 +107,29 @@ test("running low: fridge at its warning, a bottle at ¼ or empty with no spare,
     bottle("crown-royal-deluxe", 150, { spares: 1 }), ing("lime-juice", { out: true }), ing("lemon-juice")];
   assert.deepEqual(lowStock(stock, "h1").map(s => s.item).sort(), ["campari", "lime-juice", "molson-canadian"]);
 });
+
+import { coolersWith, coolerTotal, unloadMoves } from "../js/stock.js";
+
+const cooler = (item, count, extra = {}) => ({ id: stockId("h1", "cooler", "drink", item), hh: "h1", where: "cooler", kind: "drink", item, count, ...extra });
+
+test("a drink in your cooler comes first, then the fridge, then the bar", () => {
+  const stock = [fridge("molson-canadian", 4), cooler("molson-canadian", 6)];
+  assert.deepEqual(sourcesFor(stock, "h1", "molson-canadian").map(s => s.where), ["cooler", "fridge"]);
+  assert.ok(onHand(cooler("molson-canadian", 1)) && !onHand(cooler("molson-canadian", 0)));
+});
+
+test("friends can find a drink in other households' coolers", () => {
+  const stock = [cooler("molson-canadian", 6), { ...cooler("molson-canadian", 2), hh: "h2", id: stockId("h2", "cooler", "drink", "molson-canadian") },
+    { ...cooler("molson-canadian", 0), hh: "h3", id: stockId("h3", "cooler", "drink", "molson-canadian") }];
+  assert.deepEqual(coolersWith(stock, "molson-canadian", "h2").map(s => s.hh), ["h1"]);
+  assert.deepEqual(coolersWith(stock, "molson-canadian").map(s => s.hh).sort(), ["h1", "h2"]);
+});
+
+test("putting the cooler away sends what's left back to the fridge and never counts as running low", () => {
+  const stock = [cooler("molson-canadian", 5), cooler("molson-canadian-67", -1), fridge("molson-canadian", 1, { low: 2 })];
+  assert.equal(coolerTotal(stock, "h1"), 5);
+  assert.deepEqual(unloadMoves(stock, "h1").map(m => [m.fridgeId, m.n]),
+    [["h1~fridge~drink~molson-canadian", 5], ["h1~fridge~drink~molson-canadian-67", 0]]);
+  assert.deepEqual(lowStock(stock, "h1").map(s => s.where), ["fridge"]);
+  assert.deepEqual(stockIn(stock, "h1", "cooler").map(s => s.item).sort(), ["molson-canadian", "molson-canadian-67"]);
+});

@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.13.1 (beta)
+**Current version:** 0.13.2 (beta)
 
 ## Features
 
@@ -78,6 +78,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🧊 Fridge:** beer, cider and cans, counted. **−** and **+** on each, and tap one to **reload** (+1, 6, 12, 15, 24 or 30), set a **running low** warning, empty it or remove it. The most recently changed come first. Counts add up correctly even when two phones change them with no signal.
   - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
   - **Drinks come out as you have them:** **Drink one** on a fridge drink (or **Pour one** on a bottle) logs it for you in its usual size and takes it out. Logging a drink you have at home asks **From home?** (picked for you unless you're somewhere), and **Make it** lists your own bottles first and takes what you pour out of them (a beer per serving from the fridge for a Boilermaker). Undo puts it back.
+  - **❄️ Cooler:** heading out? **Load the cooler** from your fridge (pick how many of each, or All). Drinks then come out of the cooler, and anyone in the group can **Drink one** from it: it shows under **Coolers out** on Everyone's bars, and logging a drink that's in a cooler offers it. **Back in the fridge** puts whatever's left back when you're home.
   - **🍾 Killed the bottle:** the pour that empties a bottle gets the credit (the maker, for a drink made for someone else), and a spare is opened for the rest. Each profile has a wall of the bottles they finished.
   - **Running low:** the 🔔 alerts tell everyone in the household when a fridge drink reaches its warning, a bottle is down to ¼ or empty with no spare, or an ingredient is marked out.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
@@ -133,7 +134,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 **A. Stock: the fridge and the bar**
 - ✅ **Households, the bar and the fridge** (0.13.0): everything below except what follows your drinks.
 - ✅ **Stock follows your drinks** (0.13.1): Drink one, pours lowering bottle levels, Killed the bottle, running-low alerts.
-- **Still to come in A:** coolers.
+- ✅ **Coolers** (0.13.2). This finishes milestone A.
 - **Households:** a fridge and a bar belong to a household, either one person or several people who share them (couples, roommates). Everyone in the group can see every household's fridge and bar.
 - **Everything in a household is shared:** no item belongs to just one person.
 - **Stored one item per document** (`stock/{household~item}`), so two people changing stock at once never overwrite each other. Fridge counts change with Firestore increments, so changes made offline add up.
@@ -141,7 +142,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **My Bar:** bottles, shown by how full they are (full, ¾, ½, ¼, empty). Pours lower the level automatically by the amount poured (Make it uses the bottles in your bar first), and a tap corrects it. Spare sealed bottles of the same drink are counted. Mixers, juices, syrups, bitters and garnishes go in the bar too, as simply Have or Out.
 - **What can I make from your bar:** the 0.12.0 page switches from the checklist to My bar (fridge included, since beer goes in some cocktails) or any household's bar. Any bottle that counts for an ingredient fills it (any rye for "Rye").
 - **Killed the bottle:** whoever pours the last drop gets the credit. A wall of empties on each profile.
-- **Coolers:** for a night out, load a cooler from your fridge. Drinks then come out of the cooler, and whatever's left goes back into the fridge afterwards.
+- **Coolers:** for a night out, load a cooler from your fridge. Drinks then come out of the cooler (anyone in the group can take one), and whatever's left goes back into the fridge afterwards.
 
 **B. The Tab**
 - **Give a drink:** pick a person. The drink is logged for them, comes out of your fridge, bar or cooler, and goes on the Tab. When it comes from a shared household fridge, the person who hands it over is the giver.
@@ -262,7 +263,7 @@ npm run deploy:rules
 - A drink from home has `from` (the stock document it came out of), and a pour that emptied bottles has `killed` (their drink ids).
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
-- Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
+- Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar|cooler~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
 - Nothing about members is stored in this repository, which is public so GitHub Pages can host it for free.
@@ -341,6 +342,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.13.2** (2026-Oct-15): **❄️ Coolers**, finishing milestone A. Each household's bar page has a Cooler tab: load it from the fridge for a night out (how many of each, or All), and **Back in the fridge** returns whatever's left. Anyone in the group can **Drink one** from a cooler that's out: Everyone's bars lists the **Coolers out**, and logging a drink that's in a cooler offers it (your own cooler is picked for you). **Changed `firestore.rules`** (coolers, and anyone in the group can change a cooler's count): publish them before merging.
 
 - **0.13.1** (2026-Oct-15): Your bar & fridge, part 2: stock follows your drinks. **Drink one** from the fridge and **Pour one** from a bottle log it in one tap and take it out; logging a drink you have at home offers **From home?**; **Make it** lists your own bottles first and takes what you pour out of them (a fridge beer per serving). Undo puts it back. **🍾 Killed the bottle:** the last pour gets the credit, a spare is opened for the rest, and profiles show a wall of empties. **Running-low alerts** for the household: fridge drinks at their warning, bottles at ¼ or empty with no spare, ingredients marked out. **Changed `firestore.rules`** (logs can say where they came from and what they killed; a bottle can dip below empty when two phones pour at once): publish them before merging.
 
