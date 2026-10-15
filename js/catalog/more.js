@@ -50,4 +50,24 @@ const RTD = [
   d("Mott's Clamato", "Caesar", "canned-cocktail", 5.0, "CA", { variant: "Classic", ...A }),
 ];
 
-export const MORE = [...CIDER, ...SAKE, ...RTD];
+// ---------- More seltzers (0.18.4) ----------
+const budLight = maker("Bud Light", "", "", A);
+const highNoon = maker("High Noon", "US", "", A);
+const corona = maker("Corona", "", "", A);
+const vizzy = maker("Vizzy", "", "", A);
+const socialLite = maker("Social Lite", "CA", "", A);
+
+const SELTZERS = [
+  ...flavours(whiteClaw, "Hard Seltzer", "seltzer", 5.0, ["Pineapple", "Passion Fruit", "Strawberry", "Tangerine", "Peach", "Blackberry"]),
+  ...flavours(whiteClaw, "Surge", "seltzer", 8.0, ["Blackberry", "Cranberry", "Natural Lime", "Blood Orange"], A),
+  ...flavours(truly, "Hard Seltzer", "seltzer", 5.0, ["Black Cherry", "Mango", "Grapefruit & Pomelo", "Passion Fruit"]),
+  ...flavours(nutrl, "Vodka Soda", "seltzer", 5.0, ["Mango", "Peach", "Grapefruit"]),
+  ...flavours(cottage, "Vodka Soda", "seltzer", 5.0, ["Grapefruit", "Raspberry", "Watermelon", "Mango"]),
+  ...flavours(budLight, "Seltzer", "seltzer", 5.0, ["Black Cherry", "Lemon Lime", "Strawberry", "Mango"]),
+  ...flavours(highNoon, "Vodka Soda", "seltzer", 4.5, ["Pineapple", "Watermelon", "Black Cherry", "Grapefruit", "Lime", "Peach", "Mango", "Passion Fruit"]),
+  ...flavours(corona, "Hard Seltzer", "seltzer", 4.5, ["Lime", "Mango", "Black Cherry", "Tropical Lime"]),
+  ...flavours(vizzy, "Hard Seltzer", "seltzer", 5.0, ["Strawberry Kiwi", "Pineapple Orange", "Black Cherry Lime", "Watermelon Strawberry"]),
+  ...flavours(socialLite, "Vodka Soda", "seltzer", 5.0, ["Lemon Lime", "Ginger Lime"]),
+];
+
+export const MORE = [...CIDER, ...SAKE, ...RTD, ...SELTZERS];
