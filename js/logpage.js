@@ -3,7 +3,7 @@
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
-import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
+import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount } from "./stock.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { ORIGINS } from "./catalog/drinks.js";
@@ -62,7 +62,13 @@ export function anotherOne(log) {
 
 /* ---------- Drinks from home: your household's fridge and bar ---------- */
 const myHousehold = () => householdOf(store.households, uid());
-const sourceLabel = e => e.where === "fridge" ? `🧊 Your fridge (${fridgeCount(e)} left)` : `🍾 Your bar (${levelText(e)})`;
+function sourceLabel(e) {
+  if (e.where === "cooler") {
+    const mine = e.hh === (myHousehold() || {}).id, h = store.households.find(x => x.id === e.hh);
+    return `❄️ ${mine ? "Your cooler" : `${h ? h.name : "A"} cooler`} (${fridgeCount(e)} left)`;
+  }
+  return e.where === "fridge" ? `🧊 Your fridge (${fridgeCount(e)} left)` : `🍾 Your bar (${levelText(e)})`;
+}
 
 /* Takes the drink out of the fridge or bar it came from and adds where it came from (and a bottle it emptied) to the
    log's fields. Returns how to put it back, for Undo. */
@@ -189,9 +195,11 @@ export function renderLogForm(main, item, editing = null) {
   // Notes
   const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
 
-  // From home: your fridge or bar, when this drink is in one. Picked by default unless you're somewhere.
-  const homes = editing || item.kind !== "drink" ? [] : sourcesFor(store.stock, (myHousehold() || {}).id, item.id);
-  s.from = homes.length && !s.placeId ? homes[0].id : null;
+  // From home: your cooler, fridge or bar when this drink is in one, or a friend's cooler. Your own cooler is picked by
+  // default (it's out with you); the fridge or bar only when you're not somewhere; a friend's cooler never.
+  const myHh = (myHousehold() || {}).id;
+  const homes = editing || item.kind !== "drink" ? [] : [...sourcesFor(store.stock, myHh, item.id), ...coolersWith(store.stock, item.id, myHh)];
+  s.from = homes.length && homes[0].hh === myHh && (homes[0].where === "cooler" || !s.placeId) ? homes[0].id : null;
   const fromBox = el("div", { class: "chips", role: "group", "aria-label": "From" });
   const drawFrom = () => fill(fromBox,
     el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.from), onclick: () => { s.from = null; drawFrom(); } }, "Not from home"),
@@ -223,8 +231,8 @@ export function renderLogForm(main, item, editing = null) {
   const form = el("form", { class: "stack" },
     el("section", { class: "card stack" }, el("h3", { text: "How much?" }), sizeBox, otherRow, stdLine),
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
-    homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home?" }), fromBox,
-      el("p", { class: "hint", text: "Takes it out of your fridge, or the amount out of the bottle in your bar." })) : null,
+    homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home or a cooler?" }), fromBox,
+      el("p", { class: "hint", text: "Takes it out of the fridge or cooler, or the amount out of the bottle in your bar." })) : null,
     el("section", { class: "card stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
     el("section", { class: "card stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
     el("section", { class: "card stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
@@ -396,7 +404,7 @@ export function renderLogDetail(main, id) {
 /* "Fridge at The Basement", from a stock id (household~where~kind~item). */
 function fromText(id) {
   const [hh, where] = id.split("~"), h = store.households.find(x => x.id === hh);
-  return `${where === "fridge" ? "Fridge" : "Bar"} at ${h ? h.name : "a household that was removed"}`;
+  return `${where === "fridge" ? "Fridge" : where === "cooler" ? "Cooler" : "Bar"} at ${h ? h.name : "a household that was removed"}`;
 }
 
 /* A log whose drink was removed from the list: still editable, with sizes for its old style. */

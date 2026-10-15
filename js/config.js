@@ -1,5 +1,5 @@
 // Bump on every change: major for a big change in how the app works, minor for a new feature, patch for fixes.
-export const VERSION = "0.13.1";
+export const VERSION = "0.13.2";
 
 // Firebase project for the group. Leave null until the project exists; the app then shows setup steps.
 // This config is public by design; access is limited by the rules in firestore.rules.

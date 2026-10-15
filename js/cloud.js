@@ -7,7 +7,7 @@ import { setMemberDrinks, setFixes, setStyles, setVariants } from "./catalog.js"
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
 import { ratingId } from "./ratings.js";
-import { pourFrom } from "./stock.js";
+import { pourFrom, stockId, unloadMoves } from "./stock.js";
 
 /* Add ?emulator to a localhost address to use the local Firebase emulator (npm run emulators) instead of the real project. */
 export const USE_EMULATOR = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emulator");
@@ -594,10 +594,10 @@ export const changeStock = (id, fields) => write(cloud.api.updateDoc(ref("stock"
 export const addToFridge = (id, n) => changeStock(id, { count: cloud.api.increment(n) });
 export const removeStock = id => write(cloud.api.deleteDoc(ref("stock", id)));
 
-/* Takes a drink out of a fridge (n cans) or a bar bottle (ml poured; see pourFrom in stock.js).
+/* Takes a drink out of a fridge or cooler (n cans) or a bar bottle (ml poured; see pourFrom in stock.js).
    Returns { killed, undo }, or null when there's nothing left to take. Undo puts it back. */
 export function takeOut(s, { ml = 0, n = 0 }) {
-  if (s.where === "fridge") {
+  if (s.where !== "bar") {
     addToFridge(s.id, -n);
     return { killed: false, undo: () => addToFridge(s.id, n) };
   }
@@ -606,4 +606,25 @@ export function takeOut(s, { ml = 0, n = 0 }) {
   if (p.set) changeStock(s.id, p.set); else changeStock(s.id, { left: cloud.api.increment(p.inc) });
   return { killed: p.killed, undo: p.set ? () => changeStock(s.id, { left: s.left || 0, spares: s.spares || 0 })
     : () => changeStock(s.id, { left: cloud.api.increment(-p.inc) }) };
+}
+
+/* Loads the cooler from the fridge: picks are [{ entry: a fridge entry, n }]. One batch, with increments on both sides. */
+export function loadCooler(hh, picks) {
+  const { increment } = cloud.api, b = cloud.api.writeBatch(cloud.db);
+  for (const { entry, n } of picks.filter(p => p.n > 0)) {
+    b.update(ref("stock", entry.id), { count: increment(-n), ...stamp() });
+    b.set(ref("stock", stockId(hh, "cooler", entry.kind, entry.item)),
+      { hh, where: "cooler", kind: entry.kind, item: entry.item, count: increment(n), ...stamp() }, { merge: true });
+  }
+  write(b.commit());
+}
+
+/* Puts the cooler away: what's left goes back in the fridge and the cooler is emptied. */
+export function unloadCooler(hh) {
+  const { increment } = cloud.api, b = cloud.api.writeBatch(cloud.db);
+  for (const m of unloadMoves(store.stock, hh)) {
+    if (m.n > 0) b.set(ref("stock", m.fridgeId), { hh, where: "fridge", kind: m.cooler.kind, item: m.cooler.item, count: increment(m.n), ...stamp() }, { merge: true });
+    b.delete(ref("stock", m.cooler.id));
+  }
+  write(b.commit());
 }
