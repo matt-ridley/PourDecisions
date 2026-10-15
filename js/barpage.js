@@ -3,6 +3,7 @@
 import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field } from "./ui.js";
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock } from "./cloud.js";
 import { search, ingredientById, INGREDIENTS, normalize } from "./catalog.js";
+import { drinkOne } from "./logpage.js";
 import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -89,7 +90,7 @@ function fridgeCard(h, rows, mine) {
     rows.length ? el("ul", { class: "item-list" }, ...rows.map(s => el("li", { class: "make-row" },
       el("button", { type: "button", class: "make-name", disabled: !mine, onclick: () => fridgeSheet(s) },
         el("b", { text: `${thingIcon(s)} ${s.thing.title}` }),
-        el("span", { class: "muted small", text: isLow(s) ? `Running low · warns at ${s.low}` : mine ? "Reload or change" : "" })),
+        el("span", { class: "muted small", text: isLow(s) ? `Running low · warns at ${s.low}` : mine ? "Drink one, reload or change" : "" })),
       mine ? el("div", { class: "stepper", role: "group", "aria-label": `How many ${s.thing.title}` },
         el("button", { type: "button", class: "step-btn", "aria-label": "One less", text: "−", disabled: fridgeCount(s) <= 0, onclick: () => addToFridge(s.id, -1) }),
         el("b", { class: "step-val", text: String(fridgeCount(s)) }),
@@ -110,6 +111,10 @@ function fridgeSheet(s) {
     box.append(el("div", { class: "stack" },
       el("h2", { text: s.thing.title }),
       el("p", { class: "muted", text: `${fridgeCount(s)} in the fridge` }),
+      fridgeCount(s) > 0 ? el("button", { class: "btn primary block", type: "button", text: `${thingIcon(s)} Drink one`, onclick: () => {
+        drinkOne(s.thing.item, s); closeSheet();
+      } }) : null,
+      el("p", { class: "hint", text: "Drink one logs it for you and takes it out of the fridge. − takes one out without logging it." }),
       el("h3", { text: "Reload" }),
       el("div", { class: "chips" }, ...RELOADS.map(n => el("button", { type: "button", class: "chip-btn", text: `+${n}`, onclick: () => {
         reload(s, n); closeSheet(); toast(`Added ${n} ${s.thing.title}`);
@@ -162,6 +167,9 @@ function bottleSheet(s) {
       const cur = { ...s, ...now }, f = level(cur);
       fill(box, el("div", { class: "stack" },
         el("h2", { text: s.thing.title }),
+        f > 0 || cur.spares ? el("button", { class: "btn primary block", type: "button", text: `${thingIcon(s)} Pour one`, onclick: () => {
+          drinkOne(s.thing.item, cur); closeSheet();
+        } }) : null,
         el("h3", { text: "How full" }),
         el("div", { class: "seg small", role: "group", "aria-label": "How full" }, ...LEVELS.map(([q, label]) =>
           el("button", { type: "button", "aria-pressed": String(f === q), text: label, onclick: () => { changeStock(s.id, { left: Math.round(cur.size * q) }); later(draw); } }))),

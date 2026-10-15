@@ -72,3 +72,49 @@ export function haveFromStock(stock, hh, covers) {
 
 /* Members who aren't in any household yet, so they can be added to one. */
 export const homeless = (members, households) => members.filter(m => !householdOf(households, m.id));
+
+/* ---------- Drinks taking stock out ---------- */
+
+/* What pouring `ml` from a bar bottle does. The pour that empties the open bottle kills it (credit to whoever poured);
+   if there's a spare, it's opened for the rest of the pour. Returns { killed, inc } to take ml off with an increment
+   (safe when two phones pour at once), or { killed, set } when a spare is opened. An empty bottle with no spare gives
+   null: nothing to pour from. */
+export function pourFrom(s, ml) {
+  const left = s.left || 0, spares = s.spares || 0;
+  if (left <= 0) return spares ? { killed: false, set: { left: Math.max(0, s.size - ml), spares: spares - 1 } } : null;
+  const killed = left - ml <= 0;
+  if (killed && spares) return { killed, set: { left: Math.max(0, s.size + left - ml), spares: spares - 1 } };
+  return { killed, inc: -ml };
+}
+
+/* Where a drink could come from at home: your household's fridge or bar entries for it that have some left. */
+export const sourcesFor = (stock, hh, drinkId) => !hh ? [] : ["fridge", "bar"]
+  .map(where => stock.find(s => s.id === stockId(hh, where, "drink", drinkId)))
+  .filter(s => s && onHand(s));
+
+/* What making a cocktail takes out: each picked bottle that's in your bar loses what was poured (all servings); a picked
+   drink that's only in your fridge (the beer in a Boilermaker) loses one per serving. Rows: Make it's rows (drinkId, oz). */
+export function makePours(rows, servings, stock, hh, mlPerOz) {
+  const out = new Map();
+  for (const r of rows) {
+    if (!r.drinkId) continue;
+    const [first] = sourcesFor(stock, hh, r.drinkId).sort((a, b) => (a.where === "bar" ? 0 : 1) - (b.where === "bar" ? 0 : 1));
+    if (!first) continue;
+    const p = out.get(first.id) || { entry: first, drinkId: r.drinkId, ml: 0, n: 0 };
+    if (first.where === "bar") p.ml += (r.oz || 0) * mlPerOz * servings; else p.n = servings;
+    out.set(first.id, p);
+  }
+  return [...out.values()].filter(p => p.n || p.ml > 0).map(p => ({ ...p, ml: Math.round(p.ml) }));
+}
+
+/* Killed the bottle: every bottle someone poured the last drop of, newest first. The credit goes to whoever poured
+   (the maker of a drink made for someone else). */
+export const emptiesOf = (logs, uid) => logs.filter(l => (l.madeBy || l.uid) === uid && Array.isArray(l.killed))
+  .flatMap(l => l.killed.map(drinkId => ({ drinkId, at: l.at, logId: l.id }))).sort((a, b) => b.at - a.at);
+
+/* What's running low in a household, for alerts: fridge drinks at or below their warning, bottles down to ¼ or empty
+   with no spare, and ingredients marked out. */
+export function lowStock(stock, hh) {
+  return stock.filter(s => s.hh === hh).map(s => ({ ...s, thing: thingOf(s) })).filter(s => s.thing && (
+    s.kind === "ing" ? s.out : s.where === "fridge" ? isLow(s) : !s.spares && level(s) <= 0.25));
+}

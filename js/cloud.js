@@ -7,6 +7,7 @@ import { setMemberDrinks, setFixes, setStyles, setVariants } from "./catalog.js"
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
 import { ratingId } from "./ratings.js";
+import { pourFrom } from "./stock.js";
 
 /* Add ?emulator to a localhost address to use the local Firebase emulator (npm run emulators) instead of the real project. */
 export const USE_EMULATOR = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has("emulator");
@@ -300,6 +301,8 @@ function cleanLog(f) {
   if (f.variantId) log.variantId = f.variantId;
   if (f.madeBy) log.madeBy = f.madeBy;
   if (f.offFeed) log.offFeed = true;
+  if (f.from) log.from = clip(f.from, 200);
+  if (f.killed && f.killed.length) log.killed = f.killed.slice(0, 20);
   return log;
 }
 const pic = (src, at) => ({ uid: uid(), src, at, bytes: dataBytes(src) });
@@ -590,3 +593,17 @@ export const changeStock = (id, fields) => write(cloud.api.updateDoc(ref("stock"
 /* Adds to (or, with a negative n, takes from) a fridge count. Increments add up even when made offline on two phones. */
 export const addToFridge = (id, n) => changeStock(id, { count: cloud.api.increment(n) });
 export const removeStock = id => write(cloud.api.deleteDoc(ref("stock", id)));
+
+/* Takes a drink out of a fridge (n cans) or a bar bottle (ml poured; see pourFrom in stock.js).
+   Returns { killed, undo }, or null when there's nothing left to take. Undo puts it back. */
+export function takeOut(s, { ml = 0, n = 0 }) {
+  if (s.where === "fridge") {
+    addToFridge(s.id, -n);
+    return { killed: false, undo: () => addToFridge(s.id, n) };
+  }
+  const p = pourFrom(s, ml);
+  if (!p) return null;
+  if (p.set) changeStock(s.id, p.set); else changeStock(s.id, { left: cloud.api.increment(p.inc) });
+  return { killed: p.killed, undo: p.set ? () => changeStock(s.id, { left: s.left || 0, spares: s.spares || 0 })
+    : () => changeStock(s.id, { left: cloud.api.increment(-p.inc) }) };
+}

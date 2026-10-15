@@ -72,9 +72,11 @@ service cloud.firestore {
     // Times are phone-clock epoch ms. A log can't be dated in the future (10 minutes of clock slack), or before 2020.
     // uid is who drank it. madeBy is who made it, when someone made a cocktail for someone else: they log it for them.
     // variantId points at the cocktail variant made (variants below); drinkId stays the original cocktail.
+    // from is the stock entry it came out of (a fridge or bar, see stock below); killed lists the bottles (drink ids)
+    // this pour emptied, for the wall of empties.
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed"])
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed"])
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -90,6 +92,8 @@ service cloud.firestore {
         && (!("tags" in d) || (d.tags is list && d.tags.size() <= 5))
         && optText(d, "placeId", 40)
         && (!("offFeed" in d) || d.offFeed is bool)
+        && optText(d, "from", 200)
+        && (!("killed" in d) || (d.killed is list && d.killed.size() > 0 && d.killed.size() <= 20))
         && (!("variantId" in d) || (d.kind == "cocktail" && d.variantId is string && d.variantId.size() > 0 && d.variantId.size() <= 120))
         && (!("editedAt" in d) || d.editedAt is int);
     }
@@ -268,7 +272,8 @@ service cloud.firestore {
         && (!("count" in d) || (d.count is int && d.count >= -100 && d.count <= 1000))
         && (!("low" in d) || (d.low is int && d.low >= 0 && d.low <= 1000))
         && (!("size" in d) || (d.size is int && d.size > 0 && d.size <= 5000))
-        && (!("left" in d) || (d.left is number && d.left >= 0 && d.left <= 5000))
+        // ml left can also dip below 0 when two phones pour the last of a bottle at once (shown as empty).
+        && (!("left" in d) || (d.left is number && d.left >= -5000 && d.left <= 5000))
         && (!("spares" in d) || (d.spares is int && d.spares >= 0 && d.spares <= 100))
         && (!("out" in d) || d.out is bool)
         && d.by == me() && d.at is int;

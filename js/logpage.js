@@ -2,7 +2,8 @@
    (see ratepage.js). Also a log's own page (#/l/<id>), editing it, adding a drink to the shared list, and the
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
-import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto } from "./cloud.js";
+import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
+import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { ORIGINS } from "./catalog/drinks.js";
@@ -57,6 +58,32 @@ export function anotherOne(log) {
     style: item ? item.style.id : log.style, size: log.size, ml: log.ml, abv: item && log.kind === "drink" ? item.data.abv : log.abv,
     at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())), variantId: log.variantId, offFeed: log.offFeed });
   toast(`Another ${titleOf(log)} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
+}
+
+/* ---------- Drinks from home: your household's fridge and bar ---------- */
+const myHousehold = () => householdOf(store.households, uid());
+const sourceLabel = e => e.where === "fridge" ? `🧊 Your fridge (${fridgeCount(e)} left)` : `🍾 Your bar (${levelText(e)})`;
+
+/* Takes the drink out of the fridge or bar it came from and adds where it came from (and a bottle it emptied) to the
+   log's fields. Returns how to put it back, for Undo. */
+function fromHome(fields, entry) {
+  const t = entry && takeOut(entry, { ml: fields.ml, n: 1 });
+  if (!t) return () => {};
+  fields.from = entry.id;
+  if (t.killed) fields.killed = [fields.drinkId];
+  return t.undo;
+}
+
+/* Drink one (or pour one) straight from the fridge or bar: logged now in its usual size, at the same place as tonight's
+   last drink. */
+export function drinkOne(item, entry) {
+  const sizes = sizesFor(item), size = sizes.find(z => z.key === defaultSize(item)) || sizes[0];
+  const fields = { kind: "drink", drinkId: item.id, title: item.title, style: item.style.id, size: size.key, ml: size.ml,
+    abv: itemAbv(item), at: Date.now(), placeId: placeIdNow(lastPlace(store.logs, uid())) };
+  const putBack = fromHome(fields, entry);
+  const id = saveLog(fields);
+  toast(fields.killed ? `${item.title} logged. You killed the bottle! 🍾` : `${item.title} logged 🍻`,
+    { label: "Undo", run: () => { deleteLog(id); putBack(); } });
 }
 
 /* ---------- #/log: what are you drinking? ---------- */
@@ -162,6 +189,15 @@ export function renderLogForm(main, item, editing = null) {
   // Notes
   const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
 
+  // From home: your fridge or bar, when this drink is in one. Picked by default unless you're somewhere.
+  const homes = editing || item.kind !== "drink" ? [] : sourcesFor(store.stock, (myHousehold() || {}).id, item.id);
+  s.from = homes.length && !s.placeId ? homes[0].id : null;
+  const fromBox = el("div", { class: "chips", role: "group", "aria-label": "From" });
+  const drawFrom = () => fill(fromBox,
+    el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.from), onclick: () => { s.from = null; drawFrom(); } }, "Not from home"),
+    ...homes.map(e => el("button", { type: "button", class: "chip-btn", "aria-pressed": String(s.from === e.id), onclick: () => { s.from = e.id; drawFrom(); } }, sourceLabel(e))));
+  drawFrom();
+
   // Keep it off the feed
   const offIn = el("input", { type: "checkbox", checked: editing && editing.offFeed ? true : null });
 
@@ -187,6 +223,8 @@ export function renderLogForm(main, item, editing = null) {
   const form = el("form", { class: "stack" },
     el("section", { class: "card stack" }, el("h3", { text: "How much?" }), sizeBox, otherRow, stdLine),
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
+    homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home?" }), fromBox,
+      el("p", { class: "hint", text: "Takes it out of your fridge, or the amount out of the bottle in your bar." })) : null,
     el("section", { class: "card stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
     el("section", { class: "card stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
     el("section", { class: "card stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
@@ -211,9 +249,11 @@ export function renderLogForm(main, item, editing = null) {
       history.back();
       return;
     }
+    const putBack = fromHome(fields, homes.find(e => e.id === s.from));
     const id = saveLog(fields, s.pics || null);
     query = "";
-    toast(`${item.title} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
+    toast(fields.killed ? `${item.title} logged. You killed the bottle! 🍾` : `${item.title} logged 🍻`,
+      { label: "Undo", run: () => { deleteLog(id); putBack(); } });
     location.hash = "#/home";
   });
 
@@ -327,6 +367,8 @@ export function renderLogDetail(main, id) {
     log.madeBy ? ["Made by", log.madeBy === uid() ? "You" : memberName(log.madeBy)] : null,
     ["How much", `${fmtVolume(log.ml, getUnits())} at ${log.abv}% (${stdText(std)})`],
     log.placeId ? ["Where", placeName(log.placeId) || "A place that was removed"] : null,
+    log.from ? ["From", fromText(log.from)] : null,
+    log.killed ? ["🍾 Killed", log.killed.map(d => (itemById("drink", d) || { title: "a bottle" }).title).join(", ")] : null,
     ["When", fmtDate(log.at)],
     log.editedAt ? ["Edited", fmtDate(log.editedAt)] : null,
   ].filter(Boolean);
@@ -349,6 +391,12 @@ export function renderLogDetail(main, id) {
       mineLog || isAdmin() ? confirmButton(mineLog ? "Delete this log" : "Delete this log (admin)", "Tap again to delete", () => {
         deleteLog(log.id); toast("Deleted."); history.back();
       }, "btn danger block") : null));
+}
+
+/* "Fridge at The Basement", from a stock id (household~where~kind~item). */
+function fromText(id) {
+  const [hh, where] = id.split("~"), h = store.households.find(x => x.id === hh);
+  return `${where === "fridge" ? "Fridge" : "Bar"} at ${h ? h.name : "a household that was removed"}`;
 }
 
 /* A log whose drink was removed from the list: still editable, with sizes for its old style. */
