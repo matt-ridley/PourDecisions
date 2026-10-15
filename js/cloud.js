@@ -38,6 +38,7 @@ export const store = {
   households: [],         // people who share a fridge and a bar (see stock.js)
   stock: [],              // what's in every household's fridge and bar, one document per thing
   nights: [],             // Drink Nights (see nights.js)
+  bring: [],              // the bring lists of Drink Nights
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -132,7 +133,7 @@ function refreshMemberListeners() {
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = []; store.nights = [];
+  store.households = []; store.stock = []; store.nights = []; store.bring = [];
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -157,6 +158,7 @@ function refreshMemberListeners() {
   list("households", l => { store.households = l; });
   list("stock", l => { store.stock = l; });
   list("nights", l => { store.nights = l; });
+  list("bring", l => { store.bring = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -174,7 +176,7 @@ function stopListeners() {
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = []; store.nights = [];
+  store.households = []; store.stock = []; store.nights = []; store.bring = [];
 }
 
 function syncError(e) {
@@ -655,3 +657,12 @@ export function updateNight(id, f) {
 export const joinNight = id => write(cloud.api.updateDoc(ref("nights", id), { guests: cloud.api.arrayUnion(uid()), ...stamp() }));
 export const leaveNight = id => write(cloud.api.updateDoc(ref("nights", id), { guests: cloud.api.arrayRemove(uid()), ...stamp() }));
 export const deleteNight = id => write(cloud.api.deleteDoc(ref("nights", id)));
+
+/* The bring list: something someone's bringing to a night (you, or anyone if you're the host). */
+export function addBring(night, by, text, n) {
+  const d = { night, by, text: clip(text, 80), addedBy: uid(), at: Date.now() };
+  if (n > 0) d.n = Math.min(99, Math.round(n));
+  write(cloud.api.setDoc(ref("bring", newId("bring")), d));
+}
+export const setArrived = (id, arrived) => write(cloud.api.updateDoc(ref("bring", id), { arrived, at: Date.now() }));
+export const removeBring = id => write(cloud.api.deleteDoc(ref("bring", id)));

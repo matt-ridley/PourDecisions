@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.15.1 (beta)
+**Current version:** 0.15.2 (beta)
 
 ## Features
 
@@ -86,6 +86,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **🎉 Drink Nights.** **Host a night** from Home: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
   - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
   - **🍻 Round:** on a night you're at, pick a drink (tonight's favourites come first) and who's having one. It logs one for each: yours is yours, everyone else's is on you (the Tab). It comes out of your cooler, fridge or a bar bottle if you pick one. **🔁 Same again** pours the last round again. Undo takes the whole round back.
+  - **📝 Bring list:** who's bringing what (with how many), ticked off when it arrives. Add your own; the host can add for anyone there. Drinks to share go in your cooler, so friends can grab one and it goes on the Tab.
   - **Tonight** on Home shows nights that are on or start within 12 hours, and logging a drink during a night you're at picks its place.
 - **🧾 The Tab.** Who owes whom a drink, from your profile. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
   - **You and everyone:** "Dave owes you 2", "You owe Sam 1", with what each of you gave. **Around the group** shows everyone else's open tabs: everyone can see every balance.
@@ -166,7 +167,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **No confirming:** a drink given counts straight away. The person receiving gets an alert and can tap **That's not right**, which takes it off the Tab and tells the giver.
 
 **C. Drink Nights**
-- ✅ **Hosting a night** (0.15.0) and ✅ **group rounds** (0.15.1). Next: the bring list (0.15.2), recaps and the morning-after recap (0.15.3).
+- ✅ **Hosting a night** (0.15.0), ✅ **group rounds** (0.15.1) and ✅ **the bring list** (0.15.2). Next: recaps and the morning-after recap (0.15.3).
 - **Joining:** the host invites people, and anyone else in the group can tap **I'm here**.
 - Host, place, who's there and start time. The end time is optional: with none, the night ends with the last drink logged, which is marked as the **Nightcap**.
 - At home (the host's fridge and bar), out with coolers, or both.
@@ -280,6 +281,7 @@ npm run deploy:rules
 - A drink from home has `from` (the stock document it came out of), and a pour that emptied bottles has `killed` (their drink ids).
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
+- Bring lists are stored in `bring` (night, who's bringing it, what, how many, arrived).
 - Drink Nights are stored in `nights` (host, name, place, start, optional end, who's there). Their drinks aren't marked on the logs: they're worked out from who's there and when.
 - Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar|cooler~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
@@ -360,6 +362,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.15.2** (2026-Oct-15): Drink Nights, part 3: **📝 the bring list**. On a night: who's bringing what (and how many), ticked off when it arrives by whoever's bringing it or the host. You add your own; the host can add for anyone there. A reminder to load your cooler with drinks to share. **New `firestore.rules`** (`bring`): publish them before merging.
 
 - **0.15.1** (2026-Oct-15): Drink Nights, part 2: **🍻 group rounds**. On a night you're at, **Round** logs the same drink for everyone you pick (tonight's drinks offered first): yours is yours, the rest go on the Tab as given by you, and it comes out of your cooler, fridge or a bar bottle. **Same again** repeats the last round; Undo takes the whole round back. No new security rules.
 
