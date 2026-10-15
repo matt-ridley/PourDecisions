@@ -3,6 +3,7 @@
 import { VERSION, FIREBASE_SDK } from "./config.js";
 import { el, fill, fmtDate, fmtAgo, toast } from "./ui.js";
 import { store, cloud, syncStatus, USE_EMULATOR } from "./cloud.js";
+import { usage, FREE } from "./usage.js";
 import { getTheme, THEMES } from "./theme.js";
 
 /* The dot's colour, in words. `kind` comes from syncStatus(). */
@@ -19,7 +20,7 @@ const SDK = (FIREBASE_SDK.match(/\/(\d+\.\d+\.\d+)\//) || [])[1] || "?";
 const plural = (n, one, many = one + "s") => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const line = (k, v) => v == null ? null : el("div", { class: "fact" }, el("dt", { text: k }), el("dd", {}, v));
 const installed = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const fmtBytes = n => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GB` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} MB` : `${Math.round(n / 1024)} KB`);
+const fmtBytes = n => (n >= 1024 ** 3 ? `${+(n / 1024 ** 3).toFixed(2)} GB` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${Math.round(n)} bytes`);
 
 /* Filled in after the page draws (they're async), so the page never waits on them. */
 function later(promise, fmt) {
@@ -44,6 +45,41 @@ function connection() {
       failed ? line("Refused", `${plural(failed, "drink")}. Open Home to try again.`) : null,
       line("Changes to send", s.pending ? "Yes, they send when there's signal" : "None")),
     el("p", { class: "hint", text: "The dot on the glass at the top shows this: green = connected, pulsing green = syncing, blue = offline, red = a sync problem." }));
+}
+
+/* ---------- The free plan ---------- */
+/* Everything the app listens to, as { collection: [docs] }, for the estimate. */
+function collections() {
+  return {
+    config: [store.group || {}, ...(store.invite ? [{ id: "invite", code: store.invite }] : [])], members: [...store.members.values()],
+    logs: store.logs, places: store.places, drinks: store.drinks, fixes: store.fixes, styles: store.styles, ratings: store.ratings,
+    variants: store.variants, cheers: store.cheers, comments: store.comments, households: store.households, stock: store.stock,
+    nights: store.nights, bring: store.bring, orders: store.orders,
+  };
+}
+
+/* A bar filled to a share (0 to 1): amber from 60%, red from 85%. */
+function meter(share, label) {
+  const p = Math.min(1, Math.max(0, share));
+  return el("div", { class: `meter${p >= 0.85 ? " bad" : p >= 0.6 ? " warn" : ""}`, role: "meter", "aria-label": label,
+    "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(p * 100)) }, el("i", { style: `width: ${(p * 100).toFixed(1)}%` }));
+}
+const pct = p => p < 0.001 ? "under 0.1%" : `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
+const many = n => n === Infinity ? "lots of" : n.toLocaleString();
+
+/* Storage, and what each app open costs, against the free plan (on System info and Group admin). */
+export function freePlanCard() {
+  const photos = store.logs.filter(l => l.hasPhoto).length + store.households.filter(h => h.hasPhoto).length;
+  const u = usage(collections(), photos);
+  return el("section", { class: "card stack" },
+    el("h3", { text: "📊 The free plan" }),
+    el("p", { class: "small" }, el("b", { text: "Storage: " }), `about ${fmtBytes(u.stored)} of ${fmtBytes(FREE.stored)} (${pct(u.pct.stored)})`),
+    meter(u.pct.stored, "Storage used"),
+    el("p", { class: "muted small", text: `Room for about ${many(u.logsLeft)} more drinks at today's average (${fmtBytes(u.avgLog)} each, photos included).` }),
+    el("p", { class: "small" }, el("b", { text: "Each app open on a new phone: " }), `${plural(u.perOpen.reads, "read")} and ${fmtBytes(u.perOpen.bytes)} to download`),
+    meter(u.perOpen.reads / FREE.readsPerDay, "Reads per open, of the daily limit"),
+    el("p", { class: "muted small", text: `The free plan allows ${FREE.readsPerDay.toLocaleString()} reads a day: about ${many(u.opensPerDay)} opens like that a day, and ${fmtBytes(FREE.downloadPerMonth)} of downloads a month: about ${many(u.opensPerMonth)} a month.` }),
+    el("p", { class: "hint", text: "Estimates, worked out on this phone. Opening the app again on the same phone mostly reads only what changed, so real use is well under this." }));
 }
 
 function app() {
@@ -85,5 +121,5 @@ function phone() {
 }
 
 export function renderSystem(main) {
-  fill(main, el("h2", { class: "page-title", text: "System info" }), connection(), app(), phone());
+  fill(main, el("h2", { class: "page-title", text: "System info" }), connection(), app(), freePlanCard(), phone());
 }
