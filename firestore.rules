@@ -239,6 +239,48 @@ service cloud.firestore {
       allow delete: if isMember() && (resource.data.uid == me() || isAdmin());
     }
 
+    // ---------- The bar and the fridge (see js/stock.js) ----------
+    // A household is one or more people sharing a fridge and a bar. Everyone in the group sees every household; its
+    // members rename it, add people and leave. Everything in it is shared.
+    function householdPath(id) { return /databases/$(database)/documents/households/$(id); }
+    function inHousehold(id) { return isMember() && exists(householdPath(id)) && me() in get(householdPath(id)).data.members; }
+    function householdOk(d) {
+      return d.keys().hasOnly(["name", "members", "by", "at"])
+        && cleanName(d.name) && d.members is list && d.members.size() <= 10
+        && d.by == me() && d.at is int;
+    }
+    match /households/{id} {
+      allow read: if isMember();
+      // You start one with just yourself in it.
+      allow create: if isMember() && householdOk(request.resource.data) && request.resource.data.members == [me()];
+      // Its members change it (adding someone, or leaving). Admins can tidy one up too.
+      allow update: if ((isMember() && me() in resource.data.members) || isAdmin()) && householdOk(request.resource.data);
+      allow delete: if isMember() && (me() in resource.data.members || isAdmin());
+    }
+
+    // One document per thing in a household's fridge or bar; the id says which (household~where~kind~item).
+    function stockOk(id, d) {
+      return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "by", "at"])
+        && d.hh is string && d.where in ["fridge", "bar"] && d.kind in ["drink", "ing"]
+        && d.item is string && d.item.size() > 0 && d.item.size() <= 80
+        && id == d.hh + "~" + d.where + "~" + d.kind + "~" + d.item
+        // A count can dip below 0 when two phones offline take the last can; the app shows that as 0.
+        && (!("count" in d) || (d.count is int && d.count >= -100 && d.count <= 1000))
+        && (!("low" in d) || (d.low is int && d.low >= 0 && d.low <= 1000))
+        && (!("size" in d) || (d.size is int && d.size > 0 && d.size <= 5000))
+        && (!("left" in d) || (d.left is number && d.left >= 0 && d.left <= 5000))
+        && (!("spares" in d) || (d.spares is int && d.spares >= 0 && d.spares <= 100))
+        && (!("out" in d) || d.out is bool)
+        && d.by == me() && d.at is int;
+    }
+    match /stock/{id} {
+      allow read: if isMember();
+      allow create: if inHousehold(request.resource.data.hh) && stockOk(id, request.resource.data);
+      allow update: if inHousehold(resource.data.hh) && stockOk(id, request.resource.data)
+        && !changed().hasAny(["hh", "where", "kind", "item"]);
+      allow delete: if isMember() && (inHousehold(resource.data.hh) || isAdmin());
+    }
+
     // ---------- Catalogue moderation ----------
     // Corrections to built-in drinks (doc id = the built-in drink's id), laid over the list by the app. Only the
     // fields that differ are stored. mergedInto points a duplicate at the drink to keep.

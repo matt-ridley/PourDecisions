@@ -1,10 +1,12 @@
-/* #/makeable: What can I make. Tick what you have, and the cocktails sort into Can make now, Missing 1 (with what to
-   buy) and Missing 2+, with the best single bottle to buy. The ticks are kept on this phone only; once My Bar arrives,
-   your bar and fridge will fill them in. The logic is in makeable.js. */
+/* #/makeable[/<household>|/list]: What can I make. Cocktails sort into Can make now, Missing 1 (with what to buy) and
+   Missing 2+, with the best single bottle to buy, from what's in a household's bar and fridge (yours by default) or
+   from a checklist ticked by hand (kept on this phone only). The logic is in makeable.js and stock.js. */
 import { el, fill, icon, field, confirmButton } from "./ui.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { allItems, normalize } from "./catalog.js";
 import { coverMap, expandHave, usesIngredient, sortByHave, bestBuys, checklistIngredients } from "./makeable.js";
+import { store, uid } from "./cloud.js";
+import { householdOf, haveFromStock, stockIn, onHand } from "./stock.js";
 
 const KEY = "pour-have";
 const KIND_ICONS = { spirit: "🥃", liqueur: "🍶", wine: "🍷", beer: "🍺", mixer: "🥤", juice: "🍋", syrup: "🍯", bitters: "💧",
@@ -26,24 +28,39 @@ function currentCovers() {
   return covers;
 }
 
-/* Everything you have (ticks plus what they cover), or null when nothing is ticked, so other pages can skip badges. */
+/* Where "what you have" comes from: a household id, or "list" for the checklist. With none picked yet, your own
+   household if you have one. Other pages' "Can make" badges follow the last one picked. */
+let lastSource = null;
+function sourceOf(arg) {
+  const want = arg || lastSource;
+  if (want === "list") return null;
+  return store.households.find(h => h.id === want) || householdOf(store.households, uid());
+}
+
+/* Everything you have, or null when there's nothing to go on (so other pages can skip badges). */
 export function haveSet() {
+  const h = sourceOf(null);
+  if (h) return stockIn(store.stock, h.id, "bar").some(onHand) || stockIn(store.stock, h.id, "fridge").some(onHand)
+    ? haveFromStock(store.stock, h.id, currentCovers()) : null;
   const t = ticked();
   return t.size ? expandHave(t, currentCovers()) : null;
 }
 
 // Filters stay put while moving between screens (this session only).
 let kind = "all", must = "", find = "";
+const openKinds = new Set(); // checklist folds left open, so a redraw keeps them open
 const KINDS = [["all", "All"], ["cocktail", "Cocktails"], ["mocktail", "Mocktails"]];
 const isMocktail = i => i.style && i.style.id === "mocktail";
 
-export function renderMakeable(main) {
+export function renderMakeable(main, arg) {
+  const hh = sourceOf(arg);
+  lastSource = hh ? hh.id : "list";
   const have = ticked(), cov = currentCovers(), list = checklistIngredients();
   const results = el("div", { class: "stack" }), count = el("span", { class: "muted small" });
 
   const draw = () => {
     count.textContent = have.size ? `${have.size} ticked` : "Nothing ticked yet";
-    fill(results, ...resultCards(expandHave(have, cov), cov));
+    fill(results, ...resultCards(hh ? haveFromStock(store.stock, hh.id, cov) : expandHave(have, cov), cov));
   };
 
   // The checklist: one fold per kind (spirits, liqueurs...), with a box to find an ingredient quickly.
@@ -59,7 +76,7 @@ export function renderMakeable(main) {
   const folds = Object.keys(INGREDIENT_KINDS).filter(k => k !== "pantry").map(k => {
     const gs = list.filter(g => g.kind === k).sort((a, b) => a.name.localeCompare(b.name));
     const n = el("span", { class: "muted small" }), chips = gs.map(chip);
-    const fold = el("details", { class: "fold" },
+    const fold = el("details", { class: "fold", open: openKinds.has(k), ontoggle: () => fold.open ? openKinds.add(k) : openKinds.delete(k) },
       el("summary", {}, el("b", { text: `${KIND_ICONS[k]} ${INGREDIENT_KINDS[k]}` }), " ", n),
       el("div", { class: "chips" }, ...chips));
     fold.update = () => { const on = gs.filter(g => have.has(g.id)).length; n.textContent = on ? `· ${on} of ${gs.length}` : `· ${gs.length}`; };
@@ -67,7 +84,7 @@ export function renderMakeable(main) {
       let shown = 0;
       chips.forEach(c => { const hit = !q || c.dataset.name.includes(q); c.hidden = !hit; shown += hit; });
       fold.hidden = !shown;
-      if (q) fold.open = true;
+      if (q && shown) fold.open = true;
     };
     fold.update();
     return fold;
@@ -80,7 +97,7 @@ export function renderMakeable(main) {
 
   const clear = confirmButton("Clear all", "Tap again to untick everything", () => {
     have.clear(); saveTicked(have);
-    renderMakeable(main);
+    renderMakeable(main, "list");
   }, "btn small");
 
   // Filters: cocktails or mocktails, and an ingredient the drink must use.
@@ -95,14 +112,29 @@ export function renderMakeable(main) {
     ...[...list].sort((a, b) => a.name.localeCompare(b.name)).map(g => el("option", { value: g.id, text: g.name, selected: g.id === must })));
   pick.addEventListener("change", () => { must = pick.value; draw(); });
 
+  // From: your household first, then everyone else's, then the checklist.
+  const mine = householdOf(store.households, uid());
+  const others = store.households.filter(h => h !== mine).sort((a, b) => a.name.localeCompare(b.name));
+  const from = el("select", { "aria-label": "From" },
+    mine ? el("option", { value: mine.id, text: `Your bar & fridge (${mine.name})`, selected: hh === mine }) : null,
+    ...others.map(h => el("option", { value: h.id, text: h.name, selected: hh === h })),
+    el("option", { value: "list", text: "A checklist I tick by hand", selected: !hh }));
+  from.addEventListener("change", () => { location.hash = `#/makeable/${from.value}`; });
+  const stockCount = hh ? [...stockIn(store.stock, hh.id, "bar"), ...stockIn(store.stock, hh.id, "fridge")].filter(onHand).length : 0;
+
   fill(main,
     el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {},
       el("li", {}, el("a", { href: "#/drinks", text: "Drinks" })),
       el("li", {}, el("span", { "aria-current": "page", text: "What can I make" })))),
     el("h2", { class: "page-title", text: "🍸 What can I make" }),
-    el("section", { class: "card stack" },
+    store.households.length ? field("From", from) : null,
+    hh ? el("section", { class: "card stack" },
+      el("p", {}, el("b", { text: hh.name }), ` has ${stockCount} thing${stockCount === 1 ? "" : "s"} on hand. A bottle counts for the broader ingredient too: Rye also makes anything that asks for Whisky. Kitchen basics like sugar and water are assumed.`),
+      el("a", { class: "btn block", href: `#/bar/${hh.id}/bar`, text: (hh.members || []).includes(uid()) ? "Open the bar to change it" : "See this bar" }))
+    : el("section", { class: "card stack" },
       el("div", { class: "row spread" }, el("h3", { text: "What you have" }), count),
-      el("p", { class: "hint", text: "Tick what's in your bar. A bottle counts for the broader ingredient too: Rye also makes anything that asks for Whisky. Kitchen basics like sugar and water are assumed. Saved on this phone." }),
+      el("p", { class: "hint", text: mine ? "Tick what you have by hand, for a bar that isn't in the app. Kitchen basics like sugar and water are assumed. Saved on this phone." :
+        "Tick what's in your bar, or start your bar & fridge from your profile to keep it up to date. A bottle counts for the broader ingredient too: Rye also makes anything that asks for Whisky. Kitchen basics like sugar and water are assumed. Saved on this phone." }),
       el("label", { class: "search" }, el("span", { html: icon.search }), findBox),
       ...folds,
       have.size ? clear : null),
@@ -125,7 +157,7 @@ export function renderMakeable(main) {
       el("section", { class: "card stack" },
         el("h3", { text: `✅ Can make now · ${now.length}` }),
         now.length ? el("ul", { class: "item-list" }, ...now.map(r => row(r.item, metaOf(r.item))))
-          : el("p", { class: "muted", text: have.size ? "Nothing yet. Missing 1 shows what's closest." : "Tick what you have above, and the cocktails you can make show up here." })),
+          : el("p", { class: "muted", text: hh ? "Nothing yet. Missing 1 shows what's closest." : have.size ? "Nothing yet. Missing 1 shows what's closest." : "Tick what you have above, and the cocktails you can make show up here." })),
       buys.length ? el("section", { class: "card stack" },
         el("h3", { text: "🛒 Best buy" }),
         el("p", { class: "hint", text: "One more bottle or ingredient, and the most cocktails you could add." }),

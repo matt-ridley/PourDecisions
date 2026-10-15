@@ -34,6 +34,8 @@ export const store = {
   variants: [],           // members' own versions of cocktail recipes (see variants.js)
   cheers: [],             // 🍻 on feed posts, one per person per post
   comments: [],           // comments on feed posts
+  households: [],         // people who share a fridge and a bar (see stock.js)
+  stock: [],              // what's in every household's fridge and bar, one document per thing
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -128,6 +130,7 @@ function refreshMemberListeners() {
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
+  store.households = []; store.stock = [];
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -149,6 +152,8 @@ function refreshMemberListeners() {
   list("variants", l => { store.variants = l; setVariants(l); });
   list("cheers", l => { store.cheers = l; });
   list("comments", l => { store.comments = l; });
+  list("households", l => { store.households = l; });
+  list("stock", l => { store.stock = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -166,6 +171,7 @@ function stopListeners() {
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
+  store.households = []; store.stock = [];
 }
 
 function syncError(e) {
@@ -556,3 +562,31 @@ export const resetStyle = id => write(cloud.api.deleteDoc(ref("styles", id)));
 export const renamePlace = (id, name) => write(cloud.api.updateDoc(ref("places", id), { name: clip(name, 60) }));
 export const mergePlace = (id, intoId) => write(cloud.api.updateDoc(ref("places", id), { mergedInto: intoId }));
 export const unmergePlace = id => write(cloud.api.updateDoc(ref("places", id), { mergedInto: cloud.api.deleteField() }));
+
+/* ---------- The bar and the fridge (see stock.js) ---------- */
+/* A new household with just you in it. Returns its id straight away (works offline). */
+export function createHousehold(name) {
+  const id = newId("households");
+  write(cloud.api.setDoc(ref("households", id), { name: cleanName(name) || "My place", members: [uid()], by: uid(), at: Date.now() }));
+  return id;
+}
+/* Rename it, or change who's in it. */
+export const updateHousehold = (id, f) => write(cloud.api.updateDoc(ref("households", id),
+  { ...f, ...("name" in f ? { name: cleanName(f.name) || "My place" } : {}), by: uid(), at: Date.now() }));
+
+/* Leave a household. The last one out takes its fridge and bar with them. */
+export function leaveHousehold(h) {
+  const left = (h.members || []).filter(m => m !== uid());
+  if (left.length) return updateHousehold(h.id, { members: left });
+  const b = cloud.api.writeBatch(cloud.db);
+  for (const s of store.stock.filter(x => x.hh === h.id)) b.delete(ref("stock", s.id));
+  b.delete(ref("households", h.id));
+  write(b.commit());
+}
+
+/* Puts something in a fridge or bar (or replaces what's there). fields: count/low, size/left/spares, or out. */
+export function setStock(id, base, fields) { write(cloud.api.setDoc(ref("stock", id), { ...base, ...fields, ...stamp() })); }
+export const changeStock = (id, fields) => write(cloud.api.updateDoc(ref("stock", id), { ...fields, ...stamp() }));
+/* Adds to (or, with a negative n, takes from) a fridge count. Increments add up even when made offline on two phones. */
+export const addToFridge = (id, n) => changeStock(id, { count: cloud.api.increment(n) });
+export const removeStock = id => write(cloud.api.deleteDoc(ref("stock", id)));

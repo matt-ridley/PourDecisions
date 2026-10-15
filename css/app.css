@@ -248,6 +248,12 @@ a.member-row:active { background: var(--surface-2); }
 .ingredients b { color: var(--primary); white-space: nowrap; }
 .ingredients a { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .fold { display: grid; gap: 8px; }
+/* How full a bottle is: four bars and the level. */
+.gauge { display: inline-flex; align-items: flex-end; gap: 3px; flex: none; }
+.gauge i { width: 7px; height: 22px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); }
+.gauge i.on { background: var(--primary); border-color: var(--primary); }
+.gauge b { margin-left: 6px; min-width: 40px; text-align: right; }
+.chips.center { justify-content: center; }
 .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 32px; }
 .fold > summary::-webkit-details-marker { display: none; }
 .fold > summary::after { content: "+"; font: 700 20px/1 var(--f-display); color: var(--primary); margin-left: auto; }
