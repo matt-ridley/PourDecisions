@@ -431,3 +431,16 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .comment-del { min-height: 36px; padding: 0 10px; font-size: 14px; }
 .comment-form { display: flex; gap: 8px; align-items: flex-end; }
 .comment-form textarea { min-height: 44px; padding: 8px 12px; font-size: 16px; flex: 1; }
+
+/* Firsts, night recaps and who's out */
+.feed-card.first { border-color: var(--accent); }
+.feed-card.recap { background: linear-gradient(135deg, var(--surface) 60%, var(--primary-soft)); }
+.recap-icon { font-size: 30px; width: 36px; text-align: center; }
+.recap-people { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.recap-people .avatar.sm { border-color: var(--surface); margin-right: -8px; }
+.recap-people span { margin-left: 14px; }
+.recap-photo { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; display: block; }
+.out-now { display: flex; gap: 8px; overflow-x: auto; align-items: center; padding-bottom: 2px; scrollbar-width: none; }
+.out-label { font-weight: 800; font-size: 14px; white-space: nowrap; }
+.out-chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none; padding: 4px 12px 4px 4px;
+  border-radius: 99px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }

@@ -4,7 +4,8 @@ import { el, fill, avatar, fmtAgo, toast, confirmButton } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, deleteLog, toggleCheer, addComment, deleteComment } from "./cloud.js";
 import { itemById } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
-import { feedItems, filterFeed, hasOlder, sameHere, FEED_DAYS, postId, cheersOn, commentsOn, cleanComment, MAX_COMMENT } from "./feed.js";
+import { feedItems, filterFeed, hasOlder, sameHere, FEED_DAYS, postId, cheersOn, commentsOn, cleanComment, MAX_COMMENT,
+  topOfNight, outNow } from "./feed.js";
 import { groupRatings, starText, ratingOfLog } from "./ratepage.js";
 import { asItem, variantTitle } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
@@ -17,7 +18,7 @@ const SHOWN = 4; // drinks shown on a night's card before "Show the rest"
 /* Everything in the feed, worked out again only when the data behind it changes. */
 let memo = { key: [], items: [] };
 function allFeed() {
-  const key = [store.logs, store.ratings, store.drinks, store.places, store.variants];
+  const key = [store.logs, store.ratings, store.drinks, store.places, store.variants, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) memo = { key, items: feedItems({ logs: store.logs, ratings: groupRatings(), drinks: store.drinks, places: store.places }) };
   return memo.items;
 }
@@ -43,6 +44,7 @@ export function feedCard() {
       el("div", { class: "row spread" }, el("h3", { text: "The feed" }),
         el("button", { type: "button", class: "chip-btn tag", "aria-pressed": String(f.photos), onclick: () => { f.photos = !f.photos; draw(); } }, "📷 Photos")),
       el("div", { class: "feed-filters" }, who, cat),
+      outStrip(),
       items.length ? el("ul", { class: "feed-list" }, ...items.map(feedRow).filter(Boolean))
         : el("p", { class: "card muted center", text: f.who || f.cat || f.photos ? "Nothing matches in these days. Try other filters or Show more."
             : "Nothing in the feed yet. Log a drink and it shows up here for the group." }),
@@ -54,7 +56,8 @@ export function feedCard() {
 }
 
 function feedRow(it) {
-  const card = { session: sessionCard, review: reviewCard, variant: variantCard, house: houseCard, added: addedCard }[it.type];
+  const card = { session: sessionCard, review: reviewCard, variant: variantCard, house: houseCard, added: addedCard,
+    first: firstCard, recap: recapCard }[it.type];
   const li = card ? card(it) : null;
   if (li) li.append(reactions(it));
   return li;
@@ -166,4 +169,45 @@ function addedCard({ uid: id, drinkId, at }) {
   if (!i) return null;
   return el("li", { class: "card feed-card" },
     head(id, [who(id), " added ", el("a", { href: `#/drink/${i.id}`, text: i.title }), " to the list"], at));
+}
+
+/* ---------- Firsts, night recaps and who's out ---------- */
+const FIRST_ICON = { style: "🎉", country: "🌍", drinks: "🏅", styles: "🎨" };
+
+/* "Dave's first Islay Single Malt", "Sam's first drink from Scotland", "Matt has tried 50 different drinks". */
+function firstCard({ uid: id, at, what, label, logId }) {
+  const l = store.logs.find(x => x.id === logId);
+  const name = id === uid() ? "Your" : `${member(id).displayName}'s`;
+  const text = what === "style" ? [`${name} first `, el("b", { text: label })]
+    : what === "country" ? [`${name} first drink from `, el("b", { text: label })]
+    : [who(id), id === uid() ? " have tried " : " has tried ", el("b", { text: label })];
+  return el("li", { class: "card feed-card first" },
+    head(id, [`${FIRST_ICON[what]} `, ...text], at),
+    l ? el("a", { class: "item-row", href: `#/l/${l.id}` }, thumbBox(l), el("b", { class: "grow", text: titleOf(l) })) : null);
+}
+
+/* A night at one place with two or more people: who was there, the most-poured drink and the photos. */
+function recapCard(n) {
+  const place = placeName(n.placeId), top = topOfNight(n);
+  const topItem = top && itemById(top.kind, top.drinkId);
+  const photos = n.logs.filter(l => l.hasPhoto).slice(0, 3);
+  return el("li", { class: "card feed-card recap" },
+    el("div", { class: "feed-head" }, el("span", { class: "recap-icon", text: "🌙" }),
+      el("div", { class: "grow" }, el("p", {}, el("b", { text: `A night at ${place || "a place"}` })),
+        el("span", { class: "muted small", text: fmtAgo(n.at) }))),
+    el("div", { class: "recap-people" }, ...n.people.map(id => el("a", { href: id === uid() ? "#/me" : `#/u/${id}`, title: nameOf(id) }, avatar(member(id), "sm"))),
+      el("span", { class: "small", text: people(n.people) })),
+    el("p", { class: "small", text: [`${n.logs.length} drinks`, topItem ? `most poured: ${topItem.title}` : ""].filter(Boolean).join(" · ") }),
+    photos.length ? el("div", { class: "photo-grid" }, ...photos.map(l => el("a", { href: `#/l/${l.id}` }, thumbBox(l, "recap-photo")))) : null);
+}
+
+/* Who's out right now (logged in the last 2 hours), and where. Tap someone to see their drinks. */
+function outStrip() {
+  const out = outNow(store.logs, store.places, uid());
+  if (!out.length) return null;
+  return el("div", { class: "out-now", role: "list", "aria-label": "Out now" },
+    el("span", { class: "out-label", text: "🟢 Out now" }),
+    ...out.map(o => el("a", { class: "out-chip", role: "listitem", href: `#/u/${o.uid}` }, avatar(member(o.uid), "xs"),
+      el("span", {}, el("b", { text: member(o.uid).displayName }), placeName(o.placeId) ? ` at ${placeName(o.placeId)}` : "",
+        el("span", { class: "muted", text: ` · ${fmtAgo(o.at)}` })))));
 }

@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { setVariants, setFixes } from "../js/catalog.js";
 import { startRows, buildVariant } from "../js/variants.js";
-import { sessions, feedItems, filterFeed, hasOlder, houseChanges, sameHere, FEED_DAYS, postId, cheerId, cheersOn, commentsOn, cleanComment } from "../js/feed.js";
+import { sessions, feedItems, filterFeed, hasOlder, houseChanges, sameHere, FEED_DAYS, postId, cheerId, cheersOn, commentsOn, cleanComment,
+  firsts, recaps, outNow, topOfNight, countryOf, FIRSTS_AFTER } from "../js/feed.js";
+import { DRINKS } from "../js/catalog/drinks.js";
 
 afterEach(() => { setVariants([]); setFixes([]); });
 
@@ -117,4 +119,58 @@ test("cheers and comments on a post, oldest first; comments are tidied and cappe
   assert.equal(cleanComment("a\n\n\n\nb"), "a\n\nb");
   assert.equal(cleanComment("x".repeat(400)).length, 300);
   assert.equal(cleanComment("   "), "");
+});
+
+/* ---------- Firsts, recaps and who's out ---------- */
+
+// Real drinks for the firsts tests: n different lagers from Canada, then something new.
+const lagers = DRINKS.filter(d => d.style === "am-lager" && d.origin && d.origin.startsWith("CA")).slice(0, 12);
+const first = (uid, list, extra = {}) => list.map((d, k) => log(uid, d.id, now - (100 - k) * H, extra));
+
+test("firsts start after the first few drinks: a new style or a new country gets a post", () => {
+  const settle = first("a", lagers.slice(0, FIRSTS_AFTER));
+  assert.deepEqual(firsts(settle).filter(f => f.what === "style" || f.what === "country"), [], "nothing while settling in");
+  const scotch = DRINKS.find(d => d.style === "islay");
+  const out = firsts([...settle, log("a", scotch.id, now)]);
+  const mine = out.filter(f => f.logId === `a-${now}`).map(f => [f.what, f.label]);
+  assert.deepEqual(mine, [["style", "Islay Single Malt"], ["country", "Scotland"]]);
+  assert.equal(firsts([...settle, log("a", lagers[FIRSTS_AFTER].id, now)]).filter(f => f.at === now).length, 0, "another Canadian lager is nothing new");
+});
+
+test("milestones count variety: 10 different drinks, 10 different styles; repeats and volume don't count", () => {
+  const ten = first("a", lagers.slice(0, 10));
+  const m = firsts(ten).filter(f => f.what === "drinks");
+  assert.deepEqual(m.map(f => [f.n, f.label]), [[10, "10 different drinks"]]);
+  const same = Array.from({ length: 20 }, (_, k) => log("a", lagers[0].id, now - k * H));
+  assert.deepEqual(firsts(same).filter(f => f.what === "drinks"), [], "20 of the same drink is 1 different drink");
+  const styles = [...new Set(DRINKS.map(d => d.style))].slice(0, 10).map(st => DRINKS.find(d => d.style === st));
+  assert.ok(firsts(first("b", styles)).some(f => f.what === "styles" && f.n === 10));
+});
+
+test("a first from a drink kept off the feed counts but doesn't post", () => {
+  const settle = first("a", lagers.slice(0, FIRSTS_AFTER));
+  const scotch = DRINKS.find(d => d.style === "islay");
+  assert.deepEqual(firsts([...settle, log("a", scotch.id, now, { offFeed: true })]).filter(f => f.at === now), []);
+  assert.equal(countryOf("CA-ON"), "CA"); assert.equal(countryOf("GB-SCT"), "GB-SCT"); assert.equal(countryOf(""), null);
+});
+
+test("night recaps: two or more people at one place, once the night is over", () => {
+  const logs = [log("a", "bud-light", now - 10 * H, { placeId: "keg" }), log("b", "bud-light", now - 9 * H, { placeId: "keg" }),
+    log("a", "guinness-draught", now - 8 * H, { placeId: "keg" }), log("c", "bud-light", now - 8 * H, { placeId: "home" }),
+    log("b", "bud-light", now - 7.5 * H, { placeId: "keg", offFeed: true })];
+  const r = recaps(logs, [], now);
+  assert.equal(r.length, 1, "home had one person");
+  assert.deepEqual(r[0].people, ["a", "b"]); assert.equal(r[0].logs.length, 3, "the drink kept off the feed is left out");
+  assert.equal(r[0].start, now - 10 * H); assert.equal(r[0].at, now - 8 * H);
+  assert.deepEqual(topOfNight(r[0]), { kind: "drink", drinkId: "bud-light", count: 2 });
+  assert.equal(recaps(logs, [], now - 3 * H).length, 0, "not while the night is still going");
+  assert.equal(postId(r[0]), `n~${logs[0].id}`);
+  assert.equal(filterFeed([{ ...r[0] }], { now, who: "b" }).length, 1, "a recap shows when filtering by anyone who was there");
+});
+
+test("who's out: everyone else who logged in the last 2 hours, newest first, where they are", () => {
+  const logs = [log("a", "bud-light", now - 30 * 60000, { placeId: "keg" }), log("a", "bud-light", now - 90 * 60000, { placeId: "home" }),
+    log("b", "bud-light", now - 10 * 60000), log("c", "bud-light", now - 3 * H), log("me", "bud-light", now),
+    log("d", "bud-light", now - 5 * 60000, { offFeed: true })];
+  assert.deepEqual(outNow(logs, [], "me", now), [{ uid: "b", placeId: null, at: now - 10 * 60000 }, { uid: "a", placeId: "keg", at: now - 30 * 60000 }]);
 });
