@@ -256,6 +256,7 @@ a.member-row:active { background: var(--surface-2); }
 .gauge b { margin-left: 6px; min-width: 40px; text-align: right; }
 .chips.center { justify-content: center; }
 .stack.tight { gap: 4px; }
+.bar-photo { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; }
 .recap-lines { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 2px; }
 .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 32px; }
 .fold > summary::-webkit-details-marker { display: none; }

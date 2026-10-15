@@ -2,10 +2,14 @@
    Everyone can look at every household; only its members change it. The data rules are in stock.js. */
 import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field } from "./ui.js";
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
-  loadCooler, unloadCooler } from "./cloud.js";
-import { search, ingredientById, INGREDIENTS, normalize } from "./catalog.js";
+  loadCooler, unloadCooler, loadBarPhoto, setBarPhoto } from "./cloud.js";
+import { shrinkPhoto } from "./photo.js";
+import { sortByHave } from "./makeable.js";
+import { currentCovers } from "./makeablepage.js";
+import { search, ingredientById, INGREDIENTS, normalize, allItems } from "./catalog.js";
 import { drinkOne, giftable } from "./logpage.js";
-import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal } from "./stock.js";
+import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal,
+  menuOf, signatureOf, haveFromStock } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // Bottle sizes are always in ml or litres, as on the label.
@@ -27,13 +31,21 @@ export function renderBar(main, hhId, tab) {
   const fridge = stockIn(store.stock, h.id, "fridge"), bar = stockIn(store.stock, h.id, "bar"), cooler = stockIn(store.stock, h.id, "cooler");
   const base = `#/bar/${h.id}`;
 
+  const sig = signatureOf(h);
+  const photo = h.hasPhoto ? el("img", { class: "bar-photo", alt: `${h.name}` }) : null;
+  if (photo) loadBarPhoto(h.id).then(src => { if (src) photo.src = src; else photo.remove(); });
   fill(main,
     el("section", { class: "hero card" },
-      el("span", { class: "hero-icon", text: "🏠" }),
+      photo || el("span", { class: "hero-icon", text: "🏠" }),
       el("h2", { text: h.name }),
+      h.about ? el("p", { text: h.about }) : null,
+      sig ? el("p", {}, "⭐ Signature: ", el("a", { href: `#/${sig.kind === "cocktail" ? "recipe" : "drink"}/${sig.id}`, text: sig.title })) : null,
       el("div", { class: "chips center" }, ...memberList(h).map(id => el("a", { class: "chip-btn who", href: `#/u/${id}` },
         avatar(store.members.get(id), "xs"), memberName(id)))),
-      mine ? el("button", { class: "btn small", type: "button", text: "Household settings", onclick: () => settingsSheet(h) }) : null),
+      mine ? el("div", { class: "row center" },
+        el("button", { class: "btn small", type: "button", text: "Edit the bar's page", onclick: () => pageSheet(h) }),
+        el("button", { class: "btn small", type: "button", text: "Household settings", onclick: () => settingsSheet(h) })) : null),
+    menuCard(h, mine),
     el("div", { class: "seg", role: "tablist" },
       el("a", { class: "seg-link", href: `${base}/fridge`, "aria-selected": String(tab === "fridge"), text: `🧊 Fridge · ${fridge.reduce((n, s) => n + fridgeCount(s), 0)}` }),
       el("a", { class: "seg-link", href: `${base}/bar`, "aria-selected": String(tab === "bar"), text: `🍾 Bar · ${bar.length}` }),
@@ -89,6 +101,87 @@ export function renderBars(main) {
         el("span", { class: "chev", html: icon.chevron })));
     })) : el("p", { class: "card muted", text: "Nobody has set up a bar yet." }),
     mine ? null : el("a", { class: "btn primary block", href: "#/bar", text: "Start yours" }));
+}
+
+/* ---------- The bar's page: photo, about, signature drink and the menu ---------- */
+function menuCard(h, mine) {
+  const menu = menuOf(h, store.stock, currentCovers());
+  if (!menu.length && !mine) return null;
+  return el("section", { class: "card stack" },
+    el("div", { class: "row spread" }, el("h3", { text: "📜 The menu" }),
+      mine ? el("button", { class: "btn small", type: "button", text: menu.length ? "Edit" : "Make a menu", onclick: () => menuSheet(h) }) : null),
+    menu.length ? el("ul", { class: "item-list" }, ...menu.map(m => el("li", {}, el("a", { class: "item-row", href: `#/recipe/${m.item.id}` },
+      el("span", { class: "item-icon", text: "🍹" }),
+      el("span", { class: "grow" }, el("b", { text: m.item.title }),
+        el("span", { class: "muted small", text: m.missing.length ? `Out of ${m.missing.map(x => x.item).join(", ")} right now` : "✅ Can make now" })),
+      el("span", { class: "chev", html: icon.chevron })))))
+      : el("p", { class: "muted", text: "Pick the cocktails you serve. Guests will see what you can make right now." }));
+}
+
+/* Pick the menu: what the bar can make now first, plus anything already on it. */
+function menuSheet(h) {
+  const have = haveFromStock(store.stock, h.id, currentCovers());
+  const { now } = sortByHave(allItems().filter(i => i.kind === "cocktail"), have);
+  const pick = new Set(h.menu || []);
+  const extra = [...pick].filter(id => !now.some(r => r.item.id === id));
+  openSheet(box => {
+    const list = el("ul", { class: "item-list" });
+    const draw = () => fill(list, ...[...now.map(r => r.item.id), ...extra].map(id => {
+      const r = now.find(x => x.item.id === id), title = r ? r.item.title : (allItems().find(i => i.kind === "cocktail" && i.id === id) || { title: id }).title;
+      return el("li", {}, el("label", { class: "check" },
+        el("input", { type: "checkbox", checked: pick.has(id) ? true : null, onchange: e => { e.target.checked ? pick.add(id) : pick.delete(id); } }),
+        el("span", {}, el("b", { text: title }), r ? "" : el("span", { class: "muted small", text: " (can't make it right now)" }))));
+    }));
+    draw();
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: "📜 The menu" }),
+      el("p", { class: "hint", text: now.length ? `${now.length} cocktails you can make right now.` : "Nothing can be made from this bar yet: add bottles and mixers first." }),
+      now.length ? el("button", { class: "btn small", type: "button", text: "Tick everything we can make", onclick: () => { now.forEach(r => pick.add(r.item.id)); draw(); } }) : null,
+      list,
+      el("button", { class: "btn primary block", type: "button", text: "Save the menu", onclick: () => {
+        updateHousehold(h.id, { menu: [...pick].slice(0, 40) }); closeSheet(); toast("Menu saved 📜");
+      } }),
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
+}
+
+/* The bar's page: about, signature drink and photo. */
+function pageSheet(h) {
+  openSheet(box => {
+    const about = el("textarea", { rows: 3, maxlength: 200, placeholder: "e.g. Rye, records and a very good ice machine." , value: h.about || "" });
+    let sig = h.signature || "";
+    const sigLabel = el("p", { class: "muted" });
+    const drawSig = () => { const i = signatureOf({ signature: sig }); sigLabel.textContent = i ? `⭐ ${i.title}` : "None yet"; };
+    drawSig();
+    const q = el("input", { type: "search", class: "search-input", placeholder: "Search drinks and cocktails…", autocomplete: "off" });
+    const hits = el("ul", { class: "item-list" });
+    q.addEventListener("input", () => fill(hits, ...(q.value.trim() ? search(q.value).filter(i => i.kind === "drink" || i.kind === "cocktail").slice(0, 6) : [])
+      .map(i => el("li", {}, el("button", { type: "button", class: "item-row plain", onclick: () => { sig = `${i.kind}:${i.id}`; q.value = ""; fill(hits); drawSig(); } },
+        el("span", { class: "item-icon", text: i.category.icon }), el("b", { class: "grow", text: i.title }))))));
+    const photoIn = el("input", { type: "file", accept: "image/*", hidden: true });
+    photoIn.addEventListener("change", async () => {
+      const f = photoIn.files && photoIn.files[0];
+      photoIn.value = "";
+      if (!f) return;
+      try { const p = await shrinkPhoto(f); setBarPhoto(h.id, p.photo); toast("Photo saved 📷"); }
+      catch (e) { console.warn(e); toast("That photo couldn't be read. Try another one."); }
+    });
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: "The bar's page" }),
+      field("About the bar", about),
+      el("h3", { text: "Signature drink" }), sigLabel,
+      el("label", { class: "search" }, el("span", { html: icon.search }), q), hits,
+      sig ? el("button", { class: "btn small", type: "button", text: "No signature drink", onclick: () => { sig = ""; drawSig(); } }) : null,
+      el("h3", { text: "Photo" }),
+      el("div", { class: "row" },
+        el("button", { class: "btn", type: "button", text: h.hasPhoto ? "📷 Change the photo" : "📷 Add a photo", onclick: () => photoIn.click() }),
+        h.hasPhoto ? el("button", { class: "btn", type: "button", text: "Remove it", onclick: () => { setBarPhoto(h.id, null); closeSheet(); } }) : null),
+      photoIn,
+      el("button", { class: "btn primary block", type: "button", text: "Save", onclick: () => {
+        updateHousehold(h.id, { about: about.value.trim().slice(0, 200), signature: sig || cloud.api.deleteField() }); closeSheet();
+      } }),
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
 }
 
 /* ---------- The cooler ---------- */

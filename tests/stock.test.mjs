@@ -149,3 +149,14 @@ test("planning a night: everyone's bars together, and what to borrow from whom",
   const needs = borrowNeeds(sour, bars[0].have, bars);
   assert.deepEqual(needs.map(n => [n.line.ing.join(), n.from.map(b => b.hh)]), [["lemon-juice", ["h2"]], ["simple-syrup", ["h2"]]]);
 });
+
+import { menuOf, signatureOf } from "../js/stock.js";
+
+test("a bar's menu shows what it can make now, and its signature drink", () => {
+  const h = { id: "h1", menu: ["whisky-sour", "negroni", "not-a-cocktail"], signature: "cocktail:manhattan" };
+  const stock = [bottle("crown-royal-deluxe", 500), ing("lemon-juice"), ing("simple-syrup")];
+  const m = menuOf(h, stock, covers);
+  assert.deepEqual(m.map(x => [x.item.id, x.missing.length === 0]), [["whisky-sour", true], ["negroni", false]]);
+  assert.equal(signatureOf(h).id, "manhattan");
+  assert.equal(signatureOf({}), null);
+});

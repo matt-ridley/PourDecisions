@@ -264,9 +264,14 @@ service cloud.firestore {
     // members rename it, add people and leave. Everything in it is shared.
     function householdPath(id) { return /databases/$(database)/documents/households/$(id); }
     function inHousehold(id) { return isMember() && exists(householdPath(id)) && me() in get(householdPath(id)).data.members; }
+    // A bar's page: about, a signature drink ("kind:id"), the menu (cocktail ids) and whether it has a photo (the photo
+    // itself is in barphotos, so it isn't downloaded every time the app opens).
     function householdOk(d) {
-      return d.keys().hasOnly(["name", "members", "by", "at"])
+      return d.keys().hasOnly(["name", "members", "about", "signature", "menu", "hasPhoto", "by", "at"])
         && cleanName(d.name) && d.members is list && d.members.size() <= 10
+        && optText(d, "about", 200) && optText(d, "signature", 130)
+        && (!("menu" in d) || (d.menu is list && d.menu.size() <= 40))
+        && (!("hasPhoto" in d) || d.hasPhoto is bool)
         && d.by == me() && d.at is int;
     }
     match /households/{id} {
@@ -276,6 +281,15 @@ service cloud.firestore {
       // Its members change it (adding someone, or leaving). Admins can tidy one up too.
       allow update: if ((isMember() && me() in resource.data.members) || isAdmin()) && householdOk(request.resource.data);
       allow delete: if isMember() && (me() in resource.data.members || isAdmin());
+    }
+
+    match /barphotos/{id} {
+      allow get: if isMember();
+      allow create, update: if inHousehold(id)
+        && request.resource.data.keys().hasOnly(["src", "by", "at"]) && request.resource.data.by == me()
+        && request.resource.data.src is string && request.resource.data.src.size() <= 600000
+        && request.resource.data.src.matches("data:image/jpeg;base64,.*") && request.resource.data.at is int;
+      allow delete: if isMember() && (inHousehold(id) || isAdmin() || !exists(householdPath(id)));
     }
 
     // One document per thing in a household's fridge or bar; the id says which (household~where~kind~item).
