@@ -13,7 +13,7 @@ import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
 import { bellButton, renderAlerts } from "./alertspage.js";
 import { renderPost } from "./feedpage.js";
-import { renderBoard, renderPassport } from "./statspage.js";
+import { renderBoard, renderPassport, renderVs, renderCharts } from "./statspage.js";
 import { renderMake } from "./makepage.js";
 import { applyTheme } from "./theme.js";
 
@@ -42,6 +42,8 @@ const ROUTES = {
   alerts: { tab: null, live: true, render: renderAlerts },
   board: { tab: null, live: true, render: renderBoard }, // the variety board
   passport: { tab: null, live: true, render: renderPassport }, // #/passport/<styles|countries>/<uid>
+  vs: { tab: null, live: true, render: renderVs }, // head-to-head with a friend
+  charts: { tab: null, live: true, render: renderCharts }, // your own charts, only you
   post: { tab: null, live: true, render: renderPost }, // one feed post with its comments open (from an alert)
 };
 
