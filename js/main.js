@@ -18,6 +18,7 @@ import { renderMake } from "./makepage.js";
 import { renderMakeable } from "./makeablepage.js";
 import { renderBar, renderBars } from "./barpage.js";
 import { renderTab, renderGenerous } from "./tabpage.js";
+import { renderNights, renderNight, renderHost } from "./nightpage.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -42,6 +43,9 @@ const ROUTES = {
   bars: { tab: null, live: true, render: renderBars }, // every household
   tab: { tab: null, live: true, render: renderTab }, // the Tab: #/tab, #/tab/<uid>, #/tab/<a>/<b>
   generous: { tab: null, live: true, render: renderGenerous }, // Most Generous and Thirstiest: #/generous[/month]
+  nights: { tab: null, live: true, render: renderNights }, // Drink Nights
+  night: { tab: null, live: true, render: renderNight }, // a night: redraws as drinks come in
+  host: { tab: null, live: false, render: renderHost }, // hosting a night: not live, so picks aren't lost
   me: { tab: null, live: true, render: main => renderProfile(main) },
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
   admin: { tab: null, live: true, render: renderAdmin },

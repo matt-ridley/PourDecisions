@@ -4,6 +4,7 @@
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
 import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount } from "./stock.js";
+import { myLiveNight } from "./nights.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { ORIGINS } from "./catalog/drinks.js";
@@ -155,7 +156,8 @@ export function renderLogForm(main, item, editing = null) {
   const s = {
     size: editing ? editing.size : last && sizes.some(z => z.key === last.size) ? last.size : defaultSize(item),
     ml: editing ? editing.ml : null,
-    placeId: placeIdNow(editing ? editing.placeId : lastPlace(store.logs, uid())),
+    // Tonight's place: where your last drink was, or the place of the night you're at.
+    placeId: placeIdNow(editing ? editing.placeId : lastPlace(store.logs, uid()) || (myLiveNight(store.nights, store.logs, uid()) || {}).placeId),
     at: editing ? editing.at : null, // null = now
     notes: editing ? editing.notes || "" : "",
     pics: undefined, // undefined = unchanged, null = no photo, { photo, thumb } = new photo
