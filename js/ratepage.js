@@ -93,15 +93,23 @@ export function rateButton(item, cls = "btn block") {
 /* ---------- Home: "How was it?" ---------- */
 /* Drinks you logged today and haven't rated, with stars to tap right there. A tap opens the sheet with those stars,
    for flavours and a review (or just Save). */
+/* Home: one drink to rate at a time, so it never pushes the feed down. Skip moves to the next (until the app reopens). */
+const skipped = new Set();
 export function rateCard() {
-  const list = toRate(groupRatings(), store.logs, uid()).map(l => anyItem(...rateKey(l))).filter(Boolean).slice(0, 3);
+  const list = toRate(groupRatings(), store.logs, uid()).map(l => anyItem(...rateKey(l))).filter(Boolean)
+    .filter(i => !skipped.has(`${i.kind}|${i.id}`));
   if (!list.length) return null;
-  return el("section", { class: "card stack" },
-    el("h3", { text: "How was it?" }),
-    el("p", { class: "hint", text: "Rate what you've been drinking. Once per drink; change it any time." }),
-    el("ul", { class: "rate-list" }, ...list.map(i => el("li", { class: "stack-tight" },
-      el("a", { class: "rate-title", href: itemLink(i) }, el("span", { text: i.category.icon }), el("b", { text: i.title })),
-      starPicker(null, v => { if (v) rateSheet(i, v); }, { label: false })))));
+  const i = list[0];
+  const card = el("section", { class: "card stack-tight rate-card" },
+    el("div", { class: "row spread" },
+      el("h3", { text: list.length > 1 ? `How was it? · ${list.length}` : "How was it?" }),
+      el("button", { class: "btn small quiet", type: "button", text: "Skip", onclick: () => {
+        skipped.add(`${i.kind}|${i.id}`);
+        card.replaceWith(rateCard() || "");
+      } })),
+    el("a", { class: "rate-title", href: itemLink(i) }, el("span", { text: i.category.icon }), el("b", { text: i.title })),
+    starPicker(null, v => { if (v) rateSheet(i, v); }, { label: false }));
+  return card;
 }
 
 /* ---------- A drink's page: the group's ratings ---------- */

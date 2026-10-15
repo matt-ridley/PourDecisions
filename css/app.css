@@ -204,6 +204,9 @@ a.member-row:active { background: var(--surface-2); }
 .welcome { display: grid; gap: 8px; padding: 22px 18px; border-radius: var(--radius); background: var(--welcome); color: var(--welcome-ink); box-shadow: var(--shadow); }
 .welcome h2 { font-size: 30px; }
 .welcome > p:not(.eyebrow) { font-style: italic; opacity: .95; }
+.welcome.slim { gap: 2px; padding: 14px 18px; }
+.welcome.slim h2 { font-size: 22px; }
+.welcome.slim > p { font-size: 14px; }
 .hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
 .stat { display: grid; justify-items: center; padding: 10px 4px; border-radius: 14px; background: rgba(255, 255, 255, .16); text-align: center; }
 .stat b { font: 700 28px/1 var(--f-display); }
@@ -425,8 +428,8 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .mix-stats .stat span { color: var(--muted); }
 
 /* ---------- The feed ---------- */
-.feed-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
-.feed-filters select { min-height: 44px; font-size: 15px; padding: 6px 10px; }
+/* Same here: a small round + on a friend's drink (it logs the same drink for you, with Undo). */
+.btn.same-btn { width: 44px; min-height: 44px; padding: 0; border-radius: 50%; font-size: 22px; line-height: 1; }
 .feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .feed-card { display: grid; gap: 8px; padding: 14px; }
 .feed-card .item-list { padding: 0; }

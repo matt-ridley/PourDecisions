@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.18.0 (beta)
+**Current version:** 0.18.1 (beta)
 
 ## Features
 
@@ -45,8 +45,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **The feed.** The top of Home shows what everyone's pouring over the last week (**Show more** for older), newest first. It never shows amounts or standard drinks: how much is a personal stat.
   - **A night is one card:** someone's drinks at one place, each within 6 hours of the last, with their rating of each.
   - Also: written reviews, new cocktail variants, a new 👑 House Pour, and drinks added to the list.
-  - **Filters:** everyone or one person, a category, and photos only.
-  - **Same here:** tap it on a friend's drink to log the same thing for yourself, now (the same variant for a cocktail), with Undo.
+  - **Filter:** one button for everyone or one person, a category, and photos only. Filters in use show as chips; tap one to clear it.
+  - **Same here:** tap the round **+** on a friend's drink to log the same thing for yourself, now (the same variant for a cocktail), with Undo.
   - **Keep it off the feed:** a switch when logging (and on Make it). The drink still counts in your stats, but the group doesn't see it in the feed or on your profile.
   - Your own recent drinks, with **Another**, are on your profile.
   - **🔔 Alerts:** the bell in the header counts what's new: cheers and comments on your posts, replies on posts you commented on, friends making your cocktail variants or making a drink for you, ratings of your variants, and House Pours won or lost (the last 30 days). Opening it marks them seen on every phone. Each alert opens the post with its comments, and a drink's page shows the cheers and comments for its night. In the app only: true phone notifications would need a paid server.
@@ -211,7 +211,7 @@ Rules to follow from the start, so they never need fixing later:
 From a review of the whole app after the roadmap was done: fewer hidden pages, shorter screens, faster logging.
 
 1. ✅ **Getting around** (0.18.0): Bar and Us tabs, Settings off the profile, Back that goes one level up when there's nowhere to go back to, the bar page with what's in it first and hosting below, links grouped into one list.
-2. **Home and the feed** (0.18.1): a slimmer welcome, the feed on the first screen, a compact How was it?, fewer crown posts, one Filter button, tidier feed cards.
+2. ✅ **Home and the feed** (0.18.1): a slimmer welcome, the feed on the first screen, a compact How was it?, fewer crown posts, one Filter button, tidier feed cards.
 3. **Faster logging** (0.18.2): Log it always on screen, the extras folded away, one-tap Again, and your fridge on the Log screen.
 4. **Drinks** (0.18.3): more on a drink's page (add to your fridge or bar, want to try, give one), one place for what you have, and better search ranking.
 
@@ -384,6 +384,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.18.1** (2026-Oct-15): **Home and the feed.** A one-line hello instead of the big welcome, so the feed starts on the first screen. **How was it?** shows one drink at a time with **Skip** and how many are waiting. **Crowns** only post to the feed once they stick: a crown that changes hands again within 24 hours isn't posted (the latest change always is), so early back-and-forth doesn't fill the feed. One **Filter** button (whose drinks, what kind, photos only) with the filters in use shown as chips you can tap to clear. **Same here** is a small round **+** on a friend's drink. No new security rules.
 
 - **0.18.0** (2026-Oct-15): **Getting around.** Five tabs: Home, Drinks, Log, **Bar** (your fridge, bar and cooler, What can I make, the LCBO run, everyone's bars) and **Us** (Drink Nights, the variety board and crowns, the Tab, Most Generous, the group). **Settings** (⚙️ on your profile) now holds editing your profile, the look, units, System info, Group admin and signing out, so your profile is just you. **Back** goes to the page you came from, or one level up (drink › style › category) when the page was opened from an alert or a link. The bar page shows what's in it first, with hosting (Open the bar, the menu) below; guests still see the menu first. Home only shows Drink Nights when one is on. No new security rules.
 

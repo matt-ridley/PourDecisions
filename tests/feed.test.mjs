@@ -5,7 +5,7 @@ import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { setVariants, setFixes } from "../js/catalog.js";
 import { startRows, buildVariant } from "../js/variants.js";
 import { sessions, feedItems, filterFeed, hasOlder, houseChanges, sameHere, FEED_DAYS, postId, cheerId, cheersOn, commentsOn, cleanComment,
-  firsts, recaps, outNow, topOfNight, countryOf, FIRSTS_AFTER } from "../js/feed.js";
+  firsts, recaps, outNow, topOfNight, countryOf, FIRSTS_AFTER, settledCrowns, CROWN_SETTLE_MS } from "../js/feed.js";
 import { DRINKS } from "../js/catalog/drinks.js";
 
 afterEach(() => { setVariants([]); setFixes([]); });
@@ -182,4 +182,14 @@ test("crown changes passed in become feed posts with their own post id", () => {
   assert.equal(postId(crown), `c~globetrotter_${now - H}_a`);
   assert.equal(filterFeed(items, { now, who: "a" }).length, 1);
   assert.equal(filterFeed(items, { now, cat: "beer" }).length, 0);
+});
+
+test("crowns that swap back and forth stay out of the feed; ones that stick, and the latest, show", () => {
+  const H = 3600000, c = (crown, uid, at) => ({ type: "crown", crown, uid, at });
+  const changes = [c("explorer", "a", 0), c("explorer", "b", 2 * H), c("explorer", "a", 3 * H), c("explorer", "b", 3 * H + CROWN_SETTLE_MS),
+    c("hops", "a", H)];
+  const kept = settledCrowns(changes).map(x => `${x.crown}:${x.uid}:${x.at / H}`).sort();
+  // a at 3 h held it a full day (kept), b's latest is kept, the quick swaps at 0 and 2 h are not; hops has one change.
+  assert.deepEqual(kept, ["explorer:a:3", `explorer:b:${3 + CROWN_SETTLE_MS / H}`, "hops:a:1"].sort());
+  assert.equal(feedItems({ crowns: changes }).filter(i => i.type === "crown").length, 3);
 });
