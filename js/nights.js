@@ -53,3 +53,16 @@ export function perPerson(list) {
   for (const l of list) by.set(l.uid, (by.get(l.uid) || 0) + 1);
   return [...by].map(([uid, n]) => ({ uid, n })).sort((a, b) => b.n - a.n);
 }
+
+/* ---------- Group rounds ---------- */
+
+/* Drinks to offer for a round: what's been had tonight, most first (ties: most recent). [{ kind, drinkId, n }] */
+export function roundPicks(list) {
+  const by = new Map();
+  list.forEach((l, k) => {
+    if (l.kind !== "drink") return;
+    const p = by.get(l.drinkId) || { kind: l.kind, drinkId: l.drinkId, n: 0, last: 0 };
+    p.n++; p.last = k; by.set(l.drinkId, p);
+  });
+  return [...by.values()].sort((a, b) => b.n - a.n || b.last - a.last).map(({ last, ...p }) => p);
+}
