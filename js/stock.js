@@ -10,7 +10,7 @@
        bar drink:    size (bottle ml), left (ml in the open bottle), spares (sealed bottles of the same drink)
        ingredient:   out (true = ran out; kept on the list so it's easy to restock)
      by and at: who changed it last, and when. */
-import { itemById, ingredientById, ingredientsOf } from "./catalog.js";
+import { itemById, ingredientById, ingredientsOf, missingFor } from "./catalog.js";
 import { expandHave } from "./makeable.js";
 
 export const RELOADS = [1, 6, 12, 15, 24, 30];
@@ -157,3 +157,14 @@ export const combinedHave = bars => new Set(bars.flatMap(b => [...b.have]));
 export const borrowNeeds = (recipe, baseHave, bars) => recipe.ingredients
   .filter(x => !x.optional && !x.ing.every(id => (ingredientById(id) || {}).pantry) && !x.ing.some(id => baseHave.has(id)))
   .map(x => ({ line: x, from: bars.filter(b => x.ing.some(id => b.have.has(id))) }));
+
+/* ---------- A bar's page ---------- */
+/* The menu: the cocktails a household picked, each with what's missing right now (none = can make it). Cocktails no
+   longer in the list are left out. [{ item, missing: [line] }] */
+export const menuOf = (h, stock, covers) => {
+  const have = haveFromStock(stock, h.id, covers);
+  return (h.menu || []).map(id => itemById("cocktail", id)).filter(Boolean).map(item => ({ item, missing: missingFor(item.data, have) }));
+};
+
+/* A signature drink stored as "kind:id" (a drink or a cocktail), or null. */
+export const signatureOf = h => { if (!h.signature) return null; const [kind, ...id] = h.signature.split(":"); return itemById(kind, id.join(":")); };

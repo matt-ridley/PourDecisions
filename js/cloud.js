@@ -666,3 +666,19 @@ export function addBring(night, by, text, n) {
 }
 export const setArrived = (id, arrived) => write(cloud.api.updateDoc(ref("bring", id), { arrived, at: Date.now() }));
 export const removeBring = id => write(cloud.api.deleteDoc(ref("bring", id)));
+
+/* A bar's photo: kept in its own document (barphotos/{household}), loaded only when its page is open. */
+const barPhotoCache = new Map();
+export function loadBarPhoto(hh) {
+  if (!barPhotoCache.has(hh)) barPhotoCache.set(hh, cloud.api.getDoc(ref("barphotos", hh))
+    .then(s => s.exists() ? s.data().src : null).catch(() => { barPhotoCache.delete(hh); return null; }));
+  return barPhotoCache.get(hh);
+}
+/* Sets (a data URL) or removes (null) a bar's photo. */
+export function setBarPhoto(hh, src) {
+  barPhotoCache.delete(hh);
+  const b = cloud.api.writeBatch(cloud.db);
+  if (src) b.set(ref("barphotos", hh), { src, by: uid(), at: Date.now() }); else b.delete(ref("barphotos", hh));
+  b.update(ref("households", hh), { hasPhoto: !!src, ...stamp() });
+  write(b.commit());
+}

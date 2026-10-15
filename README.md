@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.16.0 (beta)
+**Current version:** 0.16.1 (beta)
 
 ## Features
 
@@ -82,6 +82,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🎁 Give one:** next to Drink one on the fridge, bar and your cooler. Pick a friend: it's logged for them, comes out of your stock and goes on the Tab. When logging, **Who's it for?** does the same for any drink. The friend gets an alert, the feed shows who it was from, and the giver can delete it.
   - **🍾 Killed the bottle:** the pour that empties a bottle gets the credit (the maker, for a drink made for someone else), and a spare is opened for the rest. Each profile has a wall of the bottles they finished.
   - **Running low:** the 🔔 alerts tell everyone in the household when a fridge drink reaches its warning, a bottle is down to ¼ or empty with no spare, or an ingredient is marked out.
+  - **The bar's page:** a photo, a line about the bar and a **⭐ signature drink** (Edit the bar's page), and **📜 the menu**: the cocktails you serve, picked from what you can make (Tick everything we can make), each showing whether it can be made right now.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
 - **🎉 Drink Nights.** **Host a night** from Home: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
   - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
@@ -182,7 +183,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **Morning-after recap:** private, on Home until noon the next morning (and an alert): what you drank, standard drinks, and what you gave away and were given. "If you don't remember, the app will."
 
 **D. The bartender**
-- ✅ **Planning a night** (0.16.0). Next: your bar's page (0.16.1), Bar Menu / Order up (0.16.2) and the LCBO run (0.16.3).
+- ✅ **Planning a night** (0.16.0) and ✅ **your bar's page** (0.16.1). Next: Bar Menu / Order up (0.16.2) and the LCBO run (0.16.3).
 - **Decided:** served orders go on the Tab (whoever serves gave it); ordering only while the bar is open (the household opens it, or a hosted night there is on); the LCBO run is shared by the phone's share sheet and is the same for everyone in the household (it's worked out from the stock); starred cocktails are each person's.
 - ✅ **What can I make** (0.12.0, from a checklist; from your bar once milestone A is built).
 - **Planning a night:** put everyone coming's bars together to see what the group could make, then agree who brings what (feeds the bring list).
@@ -288,6 +289,7 @@ npm run deploy:rules
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
 - Bring lists are stored in `bring` (night, who's bringing it, what, how many, arrived).
 - Drink Nights are stored in `nights` (host, name, place, start, optional end, who's there). Their drinks aren't marked on the logs: they're worked out from who's there and when.
+- A bar's page (about, signature drink, menu) is on its household's document; its photo is in `barphotos` (same id), so it isn't downloaded every time the app opens.
 - Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar|cooler~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
@@ -367,6 +369,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.16.1** (2026-Oct-15): The bartender, part 2: **your bar's page**. A photo, a line about the bar and a ⭐ signature drink, and 📜 **the menu**: the cocktails you serve, picked from what you can make right now (or tick everything), each marked ✅ Can make now or with what you're out of. **Changed `firestore.rules`** (bar page fields on households, new `barphotos`): publish them before merging.
 
 - **0.16.0** (2026-Oct-15): The bartender, part 1: **🍸 planning a night**. A night's page links to **What can we make**: every guest's bar and fridge together, with what to borrow from whose bar for each cocktail, an **Ask** button for the host that adds it to the bring list, and cocktails nobody can make yet for one missing thing. Roadmap: the bartender's decisions. No new security rules.
 

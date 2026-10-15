@@ -1,7 +1,7 @@
 // Rules for households and their fridge and bar: everyone can look, only a household's members change its stock.
 import { test, before, after, beforeEach } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { doc, getDocs, collection, setDoc, updateDoc, deleteDoc, increment } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, setDoc, updateDoc, deleteDoc, increment } from "firebase/firestore";
 import { startEnv, seedGroup, as } from "./helpers.mjs";
 
 let env;
@@ -129,4 +129,20 @@ test("a drink from a friend's cooler goes on the Tab: given by whoever loaded it
   await assertSucceeds(updateDoc(doc(friend, "logs/c1"), { disputed: true, editedAt: Date.now() }), "the receiver can dispute it");
   await assertFails(updateDoc(doc(as(env, "member"), "logs/c1"), { disputed: false, editedAt: Date.now() }), "the giver can't undo a dispute");
   await assertFails(updateDoc(doc(friend, `stock/${COOLER}`), { loadedBy: "member2", by: "member2", at: Date.now() }), "friends can't claim the cooler");
+});
+
+test("a bar's page: about, signature, menu and a photo kept in its own document", async () => {
+  await seedHouse();
+  const db = as(env, "member"), friend = as(env, "member2");
+  await assertSucceeds(updateDoc(doc(db, "households/h1"), { about: "Rye and records.", signature: "cocktail:manhattan",
+    menu: ["manhattan", "old-fashioned"], hasPhoto: true, by: "member", at: Date.now() }));
+  await assertFails(updateDoc(doc(db, "households/h1"), { about: "x".repeat(201), by: "member", at: Date.now() }));
+  await assertFails(updateDoc(doc(friend, "households/h1"), { about: "Mine now", by: "member2", at: Date.now() }));
+  const photo = by => ({ src: "data:image/jpeg;base64,AAAA", by, at: Date.now() });
+  await assertSucceeds(setDoc(doc(db, "barphotos/h1"), photo("member")));
+  await assertFails(setDoc(doc(friend, "barphotos/h1"), photo("member2")), "only the household");
+  await assertFails(setDoc(doc(db, "barphotos/h1"), { ...photo("member"), src: "data:image/png;base64,AAAA" }), "jpeg only");
+  await assertSucceeds(getDoc(doc(friend, "barphotos/h1")), "everyone can see it");
+  await assertFails(deleteDoc(doc(friend, "barphotos/h1")));
+  await assertSucceeds(deleteDoc(doc(db, "barphotos/h1")));
 });
