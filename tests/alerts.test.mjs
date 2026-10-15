@@ -88,3 +88,10 @@ test("a friend giving you a drink is an alert; giving one yourself isn't", () =>
     { id: "g2", uid: "dave", givenBy: "me", at: now - H, kind: "drink", drinkId: "molson-canadian" }];
   assert.deepEqual(kinds(alertsFor("me", { logs, now })), [["given", "dave"]]);
 });
+
+test("the giver hears when a drink they gave is disputed", () => {
+  const logs = [{ id: "d1", uid: "dave", givenBy: "me", disputed: true, at: now - 2 * H, editedAt: now - H, kind: "drink", drinkId: "molson-canadian" }];
+  const list = alertsFor("me", { logs, now });
+  assert.deepEqual(list.map(a => [a.kind, a.from.join(), a.at]), [["disputed", "dave", now - H]]);
+  assert.ok(!alertsFor("dave", { logs, now }).some(a => a.kind === "disputed"));
+});

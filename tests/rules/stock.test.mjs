@@ -113,3 +113,20 @@ test("anyone in the group can take a drink from a cooler, but only its household
   await assertFails(updateDoc(doc(as(env, "stranger"), COOLER), { count: increment(-1), by: "stranger", at: Date.now() }));
 });
 
+
+test("a drink from a friend's cooler goes on the Tab: given by whoever loaded it, checked against the cooler", async () => {
+  await seedHouse();
+  const COOLER = "h1~cooler~drink~molson-canadian";
+  await assertSucceeds(setDoc(doc(as(env, "member"), `stock/${COOLER}`), { hh: "h1", where: "cooler", kind: "drink", item: "molson-canadian",
+    count: 6, loadedBy: "member", by: "member", at: Date.now() }));
+  const log = extra => ({ uid: "member2", kind: "drink", drinkId: "molson-canadian", title: "Molson Canadian", style: "am-lager", size: "can",
+    ml: 355, abv: 5, at: Date.now(), createdAt: Date.now(), hasPhoto: false, ...extra });
+  const friend = as(env, "member2");
+  await assertSucceeds(setDoc(doc(friend, "logs/c1"), log({ from: COOLER, givenBy: "member" })));
+  await assertFails(setDoc(doc(friend, "logs/c2"), log({ from: COOLER, givenBy: "owner" })), "only the one who loaded it");
+  await assertFails(setDoc(doc(friend, "logs/c3"), log({ givenBy: "member" })), "needs the cooler it came from");
+  await assertFails(setDoc(doc(friend, "logs/c4"), log({ from: "h1~fridge~drink~molson-canadian", givenBy: "member" })), "a cooler, not a fridge");
+  await assertSucceeds(updateDoc(doc(friend, "logs/c1"), { disputed: true, editedAt: Date.now() }), "the receiver can dispute it");
+  await assertFails(updateDoc(doc(as(env, "member"), "logs/c1"), { disputed: false, editedAt: Date.now() }), "the giver can't undo a dispute");
+  await assertFails(updateDoc(doc(friend, `stock/${COOLER}`), { loadedBy: "member2", by: "member2", at: Date.now() }), "friends can't claim the cooler");
+});

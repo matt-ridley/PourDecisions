@@ -10,6 +10,7 @@ import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
 import { householdOf, stockIn, fridgeCount, emptiesOf } from "./stock.js";
 import { itemById } from "./catalog.js";
+import { tabLine } from "./tabpage.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
   ...options.map(([k, text]) => el("button", { type: "button", "aria-pressed": String(current === k), text, onclick: () => pick(k) })));
@@ -37,6 +38,9 @@ export function renderProfile(main, id) {
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
     barLink(m.id, mine),
+    mine ? el("a", { class: "card admin-link", href: "#/tab" }, el("span", { class: "item-icon", text: "🧾" }),
+      el("div", { class: "grow" }, el("b", { text: "The Tab" }), el("p", { class: "muted small", text: "Who owes whom a drink" })),
+      el("span", { class: "chev", html: icon.chevron })) : tabLine(m.id),
     emptiesCard(m.id),
     varietyCard(m.id),
     mine ? tryNextCard() : null,

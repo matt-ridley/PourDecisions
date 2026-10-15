@@ -17,6 +17,7 @@ import { renderBoard, renderPassport, renderVs, renderCharts } from "./statspage
 import { renderMake } from "./makepage.js";
 import { renderMakeable } from "./makeablepage.js";
 import { renderBar, renderBars } from "./barpage.js";
+import { renderTab } from "./tabpage.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost. */
@@ -39,6 +40,7 @@ const ROUTES = {
   makeable: { tab: "drinks", sub: true, live: true, render: renderMakeable }, // what can I make: #/makeable[/<household or "list">]
   bar: { tab: null, live: true, render: renderBar }, // a household's fridge and bar: #/bar[/<household>/<fridge|bar>]
   bars: { tab: null, live: true, render: renderBars }, // every household
+  tab: { tab: null, live: true, render: renderTab }, // the Tab: #/tab, #/tab/<uid>, #/tab/<a>/<b>
   me: { tab: null, live: true, render: main => renderProfile(main) },
   u: { tab: null, live: true, render: (main, id) => renderProfile(main, id) },
   admin: { tab: null, live: true, render: renderAdmin },
