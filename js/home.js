@@ -8,6 +8,7 @@ import { CATEGORIES } from "./catalog/styles.js";
 import { allItems, itemById } from "./catalog.js";
 import { rateCard } from "./ratepage.js";
 import { feedCard } from "./feedpage.js";
+import { boardTeaser } from "./statspage.js";
 import { recentVariants, variantTitle, makeLogs } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
 
@@ -30,11 +31,8 @@ export function renderHome(main) {
     isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
       el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
       el("span", { class: "chip gold", text: String(toCheck().length) })) : null,
+    boardTeaser(),
     feedCard(),
-    el("section", { class: "card stack" },
-      el("h3", { text: "Coming up" }),
-      el("ul", { class: "todo" },
-        el("li", {}, el("b", { text: "Variety stats. " }), "Distinct drinks, styles and countries on your profile."))),
     el("section", { class: "card stack" },
       el("h3", { text: "The group" }),
       el("ul", { class: "member-list" }, ...members.map(m => el("li", {},
