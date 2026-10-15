@@ -94,6 +94,13 @@ test("a drink made for you is yours to edit; the maker can delete it but not edi
   await assertSucceeds(deleteDoc(doc(as(env, "member"), "logs/a")));
 });
 
+test("a log can be kept off the feed (true or false only), and changed later", async () => {
+  const db = as(env, "member");
+  await assertSucceeds(setDoc(doc(db, "logs/a"), log("member", { offFeed: true })));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { offFeed: "yes" })));
+  await assertSucceeds(updateDoc(doc(db, "logs/a"), { offFeed: deleteField(), editedAt: Date.now() }));
+});
+
 test("members rate a variant like a drink, one rating each", async () => {
   const rating = uid => ({ uid, kind: "variant", drinkId: ID, title: "Whisky Sour · Dillon's Rye Whisky", rating: 4.5, at: Date.now() });
   await assertSucceeds(setDoc(doc(as(env, "member"), `ratings/member_variant_${ID}`), rating("member")));

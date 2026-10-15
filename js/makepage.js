@@ -33,6 +33,7 @@ export function renderMake(main, id, fromId) {
     glass: (start && start.glass) || recipe.glass,
     garnish: start && "garnish" in start ? start.garnish : recipe.garnish || "",
     drinkers: [me], servings: 0, // 0 = one per person drinking
+    offFeed: false, // your own drink only; drinks made for friends are theirs to show
   };
   if (start) {
     s.slots = s.slots.map(r => {
@@ -265,7 +266,8 @@ export function renderMake(main, id, fromId) {
     if (v && !rawItem("variant", v.id)) saveVariant(v.id, variantDoc(v, me, now));
     const variant = have ? { ...have.data, id: have.id } : v;
     const placeId = lastPlace(store.logs, me);
-    const logs = makeLogs({ recipe, variant, drinkers: s.drinkers, me, at: now, placeId: placeId ? (resolvePlace(store.places, placeId) || { id: placeId }).id : null });
+    const logs = makeLogs({ recipe, variant, drinkers: s.drinkers, me, at: now, placeId: placeId ? (resolvePlace(store.places, placeId) || { id: placeId }).id : null })
+      .map(f => f.uid === me && s.offFeed ? { ...f, offFeed: true } : f);
     // The photo goes with your own drink only: a friend couldn't delete their log if it carried your photo.
     const ids = logs.map(f => saveLog(f, f.uid === me ? pics : null));
     const title = variant ? variantTitle(recipe, variant) : recipe.name;
@@ -297,5 +299,8 @@ export function renderMake(main, id, fromId) {
     summary,
     el("section", { class: "card stack" }, el("h3", { text: "Photo" }), photoBox, photoIn,
       el("p", { class: "hint", text: "Optional. It goes with your own drink and shows on the variant's page." })),
+    el("section", { class: "card stack" }, el("label", { class: "check" },
+      el("input", { type: "checkbox", onchange: e => { s.offFeed = e.target.checked; } }), el("span", {}, "🙈 Keep my drink off the feed")),
+      el("p", { class: "hint", text: "Your drink still counts in your stats. The group just doesn't see it in the feed or on your profile." })),
     msg, saveBtn);
 }

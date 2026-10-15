@@ -74,7 +74,7 @@ service cloud.firestore {
     // variantId points at the cocktail variant made (variants below); drinkId stays the original cocktail.
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy"])
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed"])
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -89,6 +89,7 @@ service cloud.firestore {
         && optText(d, "notes", 500)
         && (!("tags" in d) || (d.tags is list && d.tags.size() <= 5))
         && optText(d, "placeId", 40)
+        && (!("offFeed" in d) || d.offFeed is bool)
         && (!("variantId" in d) || (d.kind == "cocktail" && d.variantId is string && d.variantId.size() > 0 && d.variantId.size() <= 120))
         && (!("editedAt" in d) || d.editedAt is int);
     }

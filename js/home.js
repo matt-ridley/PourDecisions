@@ -6,18 +6,15 @@ import { toCheck } from "./moderation.js";
 import { TAGLINE } from "./config.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { allItems, itemById } from "./catalog.js";
-import { logRow } from "./logpage.js";
 import { rateCard } from "./ratepage.js";
+import { feedCard } from "./feedpage.js";
 import { recentVariants, variantTitle, makeLogs } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
-
-const RECENT = 6;
 
 export function renderHome(main) {
   const me = store.me || {};
   const members = [...store.members.values()].filter(m => !m.suspended).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
   const styles = CATEGORIES.reduce((n, c) => n + c.families.reduce((t, f) => t + f.styles.length, 0), 0);
-  const mine = store.logs.filter(l => l.uid === uid()).sort((a, b) => b.at - a.at);
   fill(main,
     el("section", { class: "welcome" },
       el("p", { class: "eyebrow", text: "Cheers" }),
@@ -33,16 +30,11 @@ export function renderHome(main) {
     isAdmin() && toCheck().length ? el("a", { class: "card admin-link", href: "#/catalog" },
       el("div", { class: "grow" }, el("b", { text: "New drinks to check" }), el("p", { class: "muted small", text: "Members added drinks to the list. Have a look." })),
       el("span", { class: "chip gold", text: String(toCheck().length) })) : null,
-    el("section", { class: "card stack" },
-      el("h3", { text: "Your recent drinks" }),
-      mine.length
-        ? el("ul", { class: "item-list" }, ...mine.slice(0, RECENT).map(l => logRow(l, { another: true })))
-        : el("p", { class: "muted", text: "Nothing logged yet. Tap Log to add your first drink." }),
-      el("a", { class: "btn primary block", href: "#/log", text: "Log a drink" })),
+    feedCard(),
     el("section", { class: "card stack" },
       el("h3", { text: "Coming up" }),
       el("ul", { class: "todo" },
-        el("li", {}, el("b", { text: "The feed. " }), "See what everyone's pouring."),
+        el("li", {}, el("b", { text: "Cheers and comments. " }), "React to what everyone's pouring."),
         el("li", {}, el("b", { text: "Variety stats. " }), "Distinct drinks, styles and countries on your profile."))),
     el("section", { class: "card stack" },
       el("h3", { text: "The group" }),
