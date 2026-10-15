@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.10.2 (beta)
+**Current version:** 0.10.3 (beta)
 
 ## Features
 
@@ -35,6 +35,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Same here:** tap it on a friend's drink to log the same thing for yourself, now (the same variant for a cocktail), with Undo.
   - **Keep it off the feed:** a switch when logging (and on Make it). The drink still counts in your stats, but the group doesn't see it in the feed or on your profile.
   - Your own recent drinks, with **Another**, are on your profile.
+  - **🔔 Alerts:** the bell in the header counts what's new: cheers and comments on your posts, replies on posts you commented on, friends making your cocktail variants or making a drink for you, ratings of your variants, and House Pours won or lost (the last 30 days). Opening it marks them seen on every phone. Each alert opens the post with its comments, and a drink's page shows the cheers and comments for its night. In the app only: true phone notifications would need a paid server.
   - **Firsts and milestones** post themselves: 🎉 a first style ("Dave's first Islay Single Malt") and 🌍 a first country ("first drink from Scotland"), once someone has logged their first 5 drinks, and 🏅 🎨 milestones for variety, never volume: 10, 25, 50, 100... different drinks, and 10, 25, 50... different styles. Provinces count as Canada; Scotland, England, Wales and Northern Ireland count on their own.
   - **🌙 Night recaps:** when two or more people had drinks at the same place in a night, a recap card appears once it's over (6 hours after the last drink): who was there, how many drinks, the most poured and the photos.
   - **🟢 Out now:** a strip at the top shows who has logged a drink in the last 2 hours, and where.
@@ -88,11 +89,11 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
    - ✅ **Make it** (0.9.1): follow the recipe with a bottle picker and amount stepper on each ingredient, add or remove ingredients, change the glass or garnish, an optional name, and batches (×2, ×4, a pitcher). **Bartender mode:** big text, a checkbox per step and the screen kept awake. **Make it for someone:** log it for another member, with you as the maker.
    - ✅ **Variants in the catalogue** (0.9.2): the variant count on each cocktail, a Variants list on its page, and a page per variant showing what's different from the original. **Remix** someone's variant (it shows what it was remixed from). **Make it again** from Home.
    - ✅ **Ratings, crown and stats** (0.9.3): rate variants (separate from the original's stars), top variants, a **House Pour** crown for the group's best-rated variant of each cocktail, **Compare** two variants side by side, a photo per variant, and mixologist stats on profiles (variants created, made by others, average rating).
-4. **The feed.** What everyone's pouring, at the top of Home. It's worked out from what every phone already has, so it costs no extra reads. It never shows amounts: how much is a personal stat.
+4. ✅ **The feed** (0.10.0 to 0.10.3). What everyone's pouring, at the top of Home. It's worked out from what every phone already has, so it costs no extra reads. It never shows amounts: how much is a personal stat.
    - ✅ **Feed core** (0.10.0): each night at a place as one card per person, written reviews, new cocktail variants, House Pour changes and drinks added to the list. Filters (who, category, photos only), **Same here** on a friend's drink, **Keep it off the feed** when logging, and Show more.
    - ✅ **Cheers and comments** (0.10.1): a 🍻 Cheers on any post (showing who cheered) and short comments underneath. Delete your own; admins can delete any comment.
    - ✅ **Firsts, recaps and who's out** (0.10.2): automatic posts for firsts and variety milestones ("Dave's first Islay Single Malt", "Sam has tried 100 different drinks"), a recap card when a night at a place ends, and a strip showing who's out right now and where.
-   - **Alerts** (0.10.3): a bell in the header for cheers and comments on your drinks, friends making your variants, and House Pours won or lost. In the app only: true phone notifications need a paid server.
+   - ✅ **Alerts** (0.10.3): a bell in the header for cheers and comments on your drinks, friends making your variants, and House Pours won or lost. In the app only: true phone notifications need a paid server.
 5. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
 
 ### After the core: the bar, the fridge and the tab
@@ -221,6 +222,7 @@ npm run deploy:rules
 - Admins' fixes to built-in drinks (`fixes`, only the fields that differ) and their new or renamed styles (`styles`) are stored there too, and laid over the built-in list by the app.
 - Ratings are stored in `ratings`, one document per person per drink (id `uid_kind_drinkId`). A cocktail variant is rated with kind `variant`.
 - Cheers are stored in `cheers`, one per person per post (id `post|uid`), and comments in `comments`. A post id names what's cheered: `s~` a night (its first drink's log id), `r~` a review, `v~` a variant, `h~` a House Pour, `a~` a drink added to the list, `n~` a night recap (its first drink's log id), `f~` a first or milestone (`<log id>_<what>`). Each also keeps `to`, whoever the post is about, for their alerts.
+- When you last opened your alerts is kept on your member document (`alertsSeenAt`), so it's the same on every phone. Alerts themselves are worked out on the phone from what it already has.
 - A log kept off the feed has `offFeed: true`. It still counts in its owner's stats.
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
@@ -303,6 +305,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.10.3** (2026-Oct-14): The feed, part 4: alerts. A 🔔 bell in the header counts what's new for you: cheers and comments on your posts, replies on posts you commented on, friends making your variants or a drink for you, ratings of your variants, and House Pours won or lost. Opening Alerts marks them seen on every phone, and each one opens its post with the comments. A drink's page shows the cheers and comments for its night. This finishes roadmap step 4. No new security rules.
 - **0.10.2** (2026-Oct-14): The feed, part 3. Firsts and milestones post themselves: a first style or country (after someone's first 5 drinks) and variety milestones (10, 25, 50... different drinks or styles; never volume). A night recap appears when two or more people drank at the same place, once the night is over: who, how many, the most poured and photos. **Out now** shows who has logged in the last 2 hours, and where. Recaps and firsts can be cheered and commented on. **Changed `firestore.rules`** (two new post kinds): publish them before merging.
 - **0.10.1** (2026-Oct-14): The feed, part 2: 🍻 Cheers on any post (tap again to take it back), showing who said cheers, and 💬 comments under any post. Comments can't be edited; whoever wrote one, or an admin, can delete it. **New `firestore.rules`: publish them before merging.**
 - **0.10.0** (2026-Oct-14): The feed, part 1. The top of Home now shows what everyone's pouring this week: each night at a place as one card per person, written reviews, new cocktail variants, House Pour changes and drinks added to the list, with filters (who, category, photos only) and Show more. **Same here** logs a friend's drink for you in one tap. **Keep it off the feed** when logging or making a cocktail: it still counts in your stats. Your recent drinks moved to your profile. No amounts in the feed. **New `firestore.rules`: publish them before merging.**
