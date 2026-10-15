@@ -8,8 +8,10 @@
      variant  a new cocktail variant someone made: { variantId, base }
      house    a variant became its cocktail's House Pour: { variantId, base }
      added    a drink a member added to the list: { drinkId }
+     first    a first or a milestone: { what: "style" | "country" | "drinks" | "styles", label, n?, logId }
+     recap    a night at one place with two or more people, once it's over: { people, placeId, logs, start }
    Logs kept off the feed (offFeed) never show. The feed never shows amounts: how much is a personal stat. */
-import { itemById, resolveId } from "./catalog.js";
+import { itemById, resolveId, originName } from "./catalog.js";
 import { resolvePlace, SAME_NIGHT_MS } from "./logs.js";
 import { rankVariants, madeVariants, asItem } from "./variants.js";
 
@@ -59,7 +61,7 @@ export function houseChanges(logs, ratings) {
 
 /* Everything in the feed, newest first. `ratings` is everyone's ratings (ratings.allRatings); `drinks` the drinks
    members added (store.drinks). */
-export function feedItems({ logs = [], ratings = [], drinks = [], places = [] }) {
+export function feedItems({ logs = [], ratings = [], drinks = [], places = [], now = Date.now() }) {
   const items = [...sessions(logs, places)];
   for (const r of ratings) if (!r.fromLog && r.review) items.push({ type: "review", uid: r.uid, at: r.at, rating: r });
   const bases = new Set(logs.filter(l => l.variantId).map(l => (itemById("variant", l.variantId) || {}).base).filter(Boolean));
@@ -68,6 +70,7 @@ export function feedItems({ logs = [], ratings = [], drinks = [], places = [] })
   }
   items.push(...houseChanges(logs, ratings));
   for (const d of drinks) if (!d.mergedInto && d.by && d.at) items.push({ type: "added", uid: d.by, at: d.at, drinkId: d.id });
+  items.push(...firsts(logs), ...recaps(logs, places, now));
   return items.sort((a, b) => b.at - a.at);
 }
 
@@ -79,6 +82,8 @@ function categoriesOf(item) {
   if (item.type === "review") return [cat(item.rating.kind, item.rating.drinkId)];
   if (item.type === "variant" || item.type === "house") return ["cocktail"];
   if (item.type === "added") return [cat("drink", item.drinkId)];
+  if (item.type === "first") return [item.cat];
+  if (item.type === "recap") return item.logs.map(l => cat(l.kind, l.drinkId));
   return [];
 }
 
@@ -87,7 +92,7 @@ function categoriesOf(item) {
 export function filterFeed(items, { who = "", cat = "", photos = false, days = FEED_DAYS, now = Date.now() } = {}) {
   const from = now - days * DAY, out = [];
   for (const it of items) {
-    if (it.at < from || (who && it.uid !== who)) continue;
+    if (it.at < from || (who && (it.type === "recap" ? !it.people.includes(who) : it.uid !== who))) continue;
     if (it.type === "session" && (cat || photos)) {
       const logs = it.logs.filter(l => (!photos || l.hasPhoto) && (!cat || categoriesOf({ type: "session", logs: [l] })[0] === cat));
       if (logs.length) out.push({ ...it, logs });
@@ -129,6 +134,8 @@ export function postId(item) {
     case "variant": return `v~${item.variantId}`;
     case "house": return `h~${item.variantId}`;
     case "added": return `a~${item.drinkId}`;
+    case "first": return `f~${item.logId}_${item.what}`;
+    case "recap": return `n~${item.logs[item.logs.length - 1].id}`;
     default: return "";
   }
 }
@@ -144,3 +151,93 @@ export const commentsOn = (comments, post) => comments.filter(c => c.post === po
 
 export const MAX_COMMENT = 300;
 export const cleanComment = s => String(s || "").trim().replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").slice(0, MAX_COMMENT);
+
+/* ---------- Firsts and milestones ---------- */
+// Firsts start counting after someone's first few drinks, so a new member's first week isn't all "first lager".
+export const FIRSTS_AFTER = 5;
+// Milestones are about variety, never volume: different drinks and different styles tried.
+export const DRINK_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000];
+export const STYLE_MILESTONES = [10, 25, 50, 75, 100, 150, 200];
+
+/* Where a drink is from, as a country: Canadian provinces count as Canada; Scotland, England, Wales and Northern
+   Ireland count as their own. */
+export const countryOf = code => !code ? null : code.startsWith("CA-") ? "CA" : code;
+
+/* Everyone's firsts and milestones, from their logs in time order: a first style or a first country (after their
+   first FIRSTS_AFTER drinks), and 10, 25, 50... different drinks or styles tried. Drinks kept off the feed count
+   toward them but don't post. [{ type: "first", uid, at, logId, what, label, n?, cat }] */
+export function firsts(logs) {
+  const out = [], by = new Map();
+  for (const l of [...logs].sort((a, b) => a.at - b.at)) {
+    const item = itemById(l.kind, l.drinkId);
+    if (!item || !item.style) continue;
+    if (!by.has(l.uid)) by.set(l.uid, { n: 0, drinks: new Set(), styles: new Set(), countries: new Set() });
+    const me = by.get(l.uid), post = (what, label, n) => {
+      if (!l.offFeed) out.push({ type: "first", uid: l.uid, at: l.at, logId: l.id, what, label, cat: item.category.id, ...(n ? { n } : {}) });
+    };
+    const settled = me.n >= FIRSTS_AFTER;
+    me.n++;
+    const key = `${l.kind}:${item.id}`, country = l.kind === "drink" ? countryOf(item.data.origin) : null;
+    if (!me.styles.has(item.style.id)) {
+      me.styles.add(item.style.id);
+      if (STYLE_MILESTONES.includes(me.styles.size)) post("styles", `${me.styles.size} different styles`, me.styles.size);
+      else if (settled) post("style", item.style.name);
+    }
+    if (country && !me.countries.has(country)) {
+      me.countries.add(country);
+      if (settled) post("country", originName(country) || country);
+    }
+    if (!me.drinks.has(key)) {
+      me.drinks.add(key);
+      if (DRINK_MILESTONES.includes(me.drinks.size)) post("drinks", `${me.drinks.size} different drinks`, me.drinks.size);
+    }
+  }
+  return out;
+}
+
+/* ---------- Night recaps and who's out ---------- */
+/* Nights at one place with two or more people, once they're over (6 hours after the last drink): who was there,
+   every drink (newest first) and when it started. Drinks kept off the feed are left out.
+   [{ type: "recap", uid (whoever logged first), people, placeId, logs, start, at (the last drink) }] */
+export function recaps(logs, places = [], now = Date.now()) {
+  const out = [], at = new Map();
+  for (const l of logs.filter(l => !l.offFeed && l.placeId).sort((a, b) => a.at - b.at)) {
+    const place = placeKey(places, l.placeId);
+    const cur = at.get(place);
+    if (cur && l.at - cur.at < SAME_NIGHT_MS) { cur.logs.unshift(l); cur.at = l.at; continue; }
+    const night = { type: "recap", placeId: place, logs: [l], start: l.at, at: l.at };
+    at.set(place, night);
+    out.push(night);
+  }
+  return out.filter(n => now - n.at >= SAME_NIGHT_MS).map(n => {
+    const people = [...new Set([...n.logs].reverse().map(l => l.uid))];
+    return { ...n, uid: people[0], people };
+  }).filter(n => n.people.length >= 2);
+}
+
+/* A recap's top drink: the one logged most that night (ties: the first one had). { kind, drinkId, count } or null. */
+export function topOfNight(night) {
+  const counts = new Map();
+  for (const l of [...night.logs].reverse()) {
+    const k = `${l.kind}|${resolveId(l.kind, l.drinkId)}`;
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const [k, count] = [...counts].sort((a, b) => b[1] - a[1])[0] || [];
+  if (!k || count < 2) return null;
+  const [kind, drinkId] = k.split("|");
+  return { kind, drinkId, count };
+}
+
+// "Out now" is anyone who logged something in the last 2 hours.
+export const OUT_NOW_MS = 2 * 3600000;
+
+/* Who's out right now: everyone else whose latest drink (not kept off the feed) was in the last 2 hours, and where.
+   Newest first: [{ uid, placeId, at }] */
+export function outNow(logs, places, me, now = Date.now()) {
+  const latest = new Map();
+  for (const l of logs) {
+    if (l.offFeed || l.uid === me || l.at > now || now - l.at > OUT_NOW_MS) continue;
+    if (!latest.has(l.uid) || latest.get(l.uid).at < l.at) latest.set(l.uid, l);
+  }
+  return [...latest.values()].sort((a, b) => b.at - a.at).map(l => ({ uid: l.uid, placeId: placeKey(places, l.placeId) || null, at: l.at }));
+}

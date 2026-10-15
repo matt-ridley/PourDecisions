@@ -34,7 +34,7 @@ export function renderHome(main) {
     el("section", { class: "card stack" },
       el("h3", { text: "Coming up" }),
       el("ul", { class: "todo" },
-        el("li", {}, el("b", { text: "Firsts and night recaps. " }), "Your firsts, milestones and how the night went."),
+        el("li", {}, el("b", { text: "Alerts. " }), "A bell for cheers, comments and your variants."),
         el("li", {}, el("b", { text: "Variety stats. " }), "Distinct drinks, styles and countries on your profile."))),
     el("section", { class: "card stack" },
       el("h3", { text: "The group" }),
