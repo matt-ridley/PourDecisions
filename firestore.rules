@@ -232,9 +232,10 @@ service cloud.firestore {
 
     // ---------- Cheers and comments on feed posts ----------
     // A post id names what's cheered: s~<log> (a night), r~<rating>, v~<variant>, h~<variant>, a~<drink>,
-    // n~<log> (a night recap), f~<log>_<what> (a first or milestone), c~<crown>_<at>_<uid> (a crown changing hands).
+    // n~<log> (a night recap), f~<log>_<what> (a first or milestone), c~<crown>_<at>_<uid> (a crown changing hands),
+    // d~<night> (a Drink Night's recap).
     // `to` is whoever the post is about, for their alerts.
-    function postOk(p) { return p is string && p.size() > 2 && p.size() <= 160 && p.matches("[srvhanfc]~.+"); }
+    function postOk(p) { return p is string && p.size() > 2 && p.size() <= 160 && p.matches("[srvhanfcd]~.+"); }
     match /cheers/{id} {
       allow read: if isMember();
       // One per person per post (id = post|uid); taken back by deleting it.

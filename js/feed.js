@@ -11,10 +11,13 @@
      first    a first or a milestone: { what: "style" | "country" | "drinks" | "styles", label, n?, logId }
      recap    a night at one place with two or more people, once it's over: { people, placeId, logs, start }
      crown    a crown changed hands: { crown, from, value } (see crowns.js; passed in as `crowns`)
+     night    a hosted Drink Night that's over: { nightId, name, people, logs } (see nights.js; passed in as `nights`).
+              Its drinks don't also make a same-place recap.
    Logs kept off the feed (offFeed) never show. The feed never shows amounts: how much is a personal stat. */
 import { itemById, resolveId, originName } from "./catalog.js";
 import { resolvePlace, SAME_NIGHT_MS } from "./logs.js";
 import { rankVariants, madeVariants, asItem } from "./variants.js";
+import { nightItems } from "./nights.js";
 
 export const FEED_DAYS = 7;
 const DAY = 86400000;
@@ -62,7 +65,7 @@ export function houseChanges(logs, ratings) {
 
 /* Everything in the feed, newest first. `ratings` is everyone's ratings (ratings.allRatings); `drinks` the drinks
    members added (store.drinks). */
-export function feedItems({ logs = [], ratings = [], drinks = [], places = [], crowns = [], now = Date.now() }) {
+export function feedItems({ logs = [], ratings = [], drinks = [], places = [], crowns = [], nights = [], now = Date.now() }) {
   const items = [...sessions(logs, places)];
   for (const r of ratings) if (!r.fromLog && r.review) items.push({ type: "review", uid: r.uid, at: r.at, rating: r });
   const bases = new Set(logs.filter(l => l.variantId).map(l => (itemById("variant", l.variantId) || {}).base).filter(Boolean));
@@ -71,7 +74,8 @@ export function feedItems({ logs = [], ratings = [], drinks = [], places = [], c
   }
   items.push(...houseChanges(logs, ratings));
   for (const d of drinks) if (!d.mergedInto && d.by && d.at) items.push({ type: "added", uid: d.by, at: d.at, drinkId: d.id });
-  items.push(...firsts(logs), ...recaps(logs, places, now), ...crowns);
+  const hosted = nightItems(nights, logs, now), inNight = new Set(hosted.flatMap(n => n.logs.map(l => l.id)));
+  items.push(...firsts(logs), ...recaps(logs, places, now).filter(r => !r.logs.some(l => inNight.has(l.id))), ...hosted, ...crowns);
   return items.sort((a, b) => b.at - a.at);
 }
 
@@ -84,7 +88,7 @@ function categoriesOf(item) {
   if (item.type === "variant" || item.type === "house") return ["cocktail"];
   if (item.type === "added") return [cat("drink", item.drinkId)];
   if (item.type === "first") return [item.cat];
-  if (item.type === "recap") return item.logs.map(l => cat(l.kind, l.drinkId));
+  if (item.type === "recap" || item.type === "night") return item.logs.map(l => cat(l.kind, l.drinkId));
   return [];
 }
 
@@ -93,7 +97,7 @@ function categoriesOf(item) {
 export function filterFeed(items, { who = "", cat = "", photos = false, days = FEED_DAYS, now = Date.now() } = {}) {
   const from = now - days * DAY, out = [];
   for (const it of items) {
-    if (it.at < from || (who && (it.type === "recap" ? !it.people.includes(who) : it.uid !== who))) continue;
+    if (it.at < from || (who && (it.type === "recap" || it.type === "night" ? !it.people.includes(who) : it.uid !== who))) continue;
     if (it.type === "session" && (cat || photos)) {
       const logs = it.logs.filter(l => (!photos || l.hasPhoto) && (!cat || categoriesOf({ type: "session", logs: [l] })[0] === cat));
       if (logs.length) out.push({ ...it, logs });
@@ -138,6 +142,7 @@ export function postId(item) {
     case "first": return `f~${item.logId}_${item.what}`;
     case "recap": return `n~${item.logs[item.logs.length - 1].id}`;
     case "crown": return `c~${item.crown}_${item.at}_${item.uid}`;
+    case "night": return `d~${item.nightId}`;
     default: return "";
   }
 }

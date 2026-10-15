@@ -12,6 +12,7 @@ import { lastPlace, resolvePlace } from "./logs.js";
 import { titleOf, thumbBox } from "./logpage.js";
 import { groupCrowns } from "./statspage.js";
 import { CROWN_INDEX } from "./crowns.js";
+import { nightRecap } from "./nights.js";
 
 // Filters last for this session: who ("" = everyone), category, photos only, and how many days back.
 const f = { who: "", cat: "", photos: false, days: FEED_DAYS };
@@ -20,9 +21,9 @@ const SHOWN = 4; // drinks shown on a night's card before "Show the rest"
 /* Everything in the feed, worked out again only when the data behind it changes. */
 let memo = { key: [], items: [] };
 function allFeed() {
-  const key = [store.logs, store.ratings, store.drinks, store.places, store.variants, Math.floor(Date.now() / 600000)];
+  const key = [store.logs, store.ratings, store.drinks, store.places, store.variants, store.nights, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) {
-    memo = { key, items: feedItems({ logs: store.logs, ratings: groupRatings(), drinks: store.drinks, places: store.places, crowns: groupCrowns().changes }) };
+    memo = { key, items: feedItems({ logs: store.logs, ratings: groupRatings(), drinks: store.drinks, places: store.places, crowns: groupCrowns().changes, nights: store.nights }) };
   }
   return memo.items;
 }
@@ -61,7 +62,7 @@ export function feedCard() {
 
 function feedRow(it) {
   const card = { session: sessionCard, review: reviewCard, variant: variantCard, house: houseCard, added: addedCard,
-    first: firstCard, recap: recapCard, crown: crownCard }[it.type];
+    first: firstCard, recap: recapCard, crown: crownCard, night: nightFeedCard }[it.type];
   const li = card ? card(it) : null;
   if (li) li.append(reactions(it));
   return li;
@@ -202,6 +203,31 @@ function recapCard(n) {
     el("div", { class: "recap-people" }, ...n.people.map(id => el("a", { href: id === uid() ? "#/me" : `#/u/${id}`, title: nameOf(id) }, avatar(member(id), "sm"))),
       el("span", { class: "small", text: people(n.people) })),
     el("p", { class: "small", text: [`${n.logs.length} drinks`, topItem ? `most poured: ${topItem.title}` : ""].filter(Boolean).join(" · ") }),
+    photos.length ? el("div", { class: "photo-grid" }, ...photos.map(l => el("a", { href: `#/l/${l.id}` }, thumbBox(l, "recap-photo")))) : null);
+}
+
+/* A hosted Drink Night that's over: the recap (top drink, bottles killed, most generous, first to tap out, Nightcap).
+   No drinks per person here: that's on the night's own page. */
+function nightFeedCard(it) {
+  const n = store.nights.find(x => x.id === it.nightId);
+  if (!n) return null;
+  const r = nightRecap(n, store.logs.filter(l => !l.offFeed)), title = (k, id) => (itemById(k, id) || { title: "a drink" }).title;
+  const photos = it.logs.filter(l => l.hasPhoto).slice(0, 3);
+  const lines = [
+    `${r.total} drinks`,
+    r.top ? `most poured: ${title(r.top.kind, r.top.drinkId)}` : "",
+    r.killed.length ? `🍾 killed: ${r.killed.map(k => title("drink", k.drinkId)).join(", ")}` : "",
+    r.generous ? `🎁 most generous: ${nameOf(r.generous.uid)}` : "",
+    r.firstOut ? `😴 first to tap out: ${nameOf(r.firstOut.uid)}` : "",
+    r.nightcap ? `🌙 Nightcap: ${nameOf(r.nightcap.uid)}` : "",
+  ].filter(Boolean);
+  return el("li", { class: "card feed-card recap" },
+    el("div", { class: "feed-head" }, el("span", { class: "recap-icon", text: "🎉" }),
+      el("div", { class: "grow" }, el("p", {}, el("a", { href: `#/night/${n.id}` }, el("b", { text: n.name }))),
+        el("span", { class: "muted small", text: `Hosted by ${nameOf(n.host)} · ${fmtAgo(it.at)}` }))),
+    el("div", { class: "recap-people" }, ...it.people.map(id => el("a", { href: id === uid() ? "#/me" : `#/u/${id}`, title: nameOf(id) }, avatar(member(id), "sm"))),
+      el("span", { class: "small", text: people(it.people) })),
+    el("ul", { class: "recap-lines small" }, ...lines.map(t => el("li", { text: t }))),
     photos.length ? el("div", { class: "photo-grid" }, ...photos.map(l => el("a", { href: `#/l/${l.id}` }, thumbBox(l, "recap-photo")))) : null);
 }
 
