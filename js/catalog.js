@@ -128,6 +128,16 @@ export function search(query, { category = null, items = visible } = {}) {
   return hits.sort((a, b) => { const x = key.get(a), y = key.get(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || x[3] - y[3]; });
 }
 
+/* The Catalogue's filters: f = { cat, from: "" | "on" | "ca" | "import", fresh, rated }. `had` and `rated` are sets of
+   "kind:id" (what you've logged, what the group has rated). Cocktails have no origin, so a Where from filter leaves them out. */
+export function filterItems(items, f, { had = new Set(), rated = new Set() } = {}) {
+  const from = { on: o => o === "CA-ON", ca: o => o.startsWith("CA"), import: o => !o.startsWith("CA") }[f.from];
+  return items.filter(i => (!f.cat || (i.category && i.category.id === f.cat))
+    && (!from || (i.data.origin && from(i.data.origin)))
+    && (!f.fresh || !had.has(`${i.kind}:${i.id}`))
+    && (!f.rated || rated.has(`${i.kind}:${i.id}`)));
+}
+
 /* A category's families and styles, each with the catalog items in it (empty styles included). */
 export function browse(categoryId, items = visible) {
   const cat = CATEGORIES.find(c => c.id === categoryId);

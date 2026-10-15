@@ -8,7 +8,7 @@ import { renderAdmin } from "./admin.js";
 import { renderCatalogAdmin } from "./moderation.js";
 import { renderHome } from "./home.js";
 import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
-import { drinksParent, renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient, renderVariant, renderCompare } from "./drinks.js";
+import { drinksParent, renderDrinks, renderCatalogue, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient, renderVariant, renderCompare } from "./drinks.js";
 import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
 import { bellButton, renderAlerts } from "./alertspage.js";
@@ -32,7 +32,8 @@ const ROUTES = {
   l: { tab: null, live: true, render: renderLogDetail },
   edit: { tab: null, live: false, render: renderLogEdit },
   make: { tab: null, live: false, render: renderMake }, // not live: a friend's new log mustn't reset what you're making
-  drinks: { tab: "drinks", live: false, render: renderDrinks },
+  drinks: { tab: "drinks", live: true, render: renderDrinks },
+  catalogue: { tab: "drinks", sub: true, live: false, render: renderCatalogue }, // search, filters, browse
   // Drink list pages redraw when admins fix or merge something (they have no boxes to type in).
   cat: { tab: "drinks", sub: true, live: true, render: renderCategory },
   style: { tab: "drinks", sub: true, live: true, render: renderStyle },
