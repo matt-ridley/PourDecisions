@@ -133,3 +133,19 @@ test("putting the cooler away sends what's left back to the fridge and never cou
   assert.deepEqual(lowStock(stock, "h1").map(s => s.where), ["fridge"]);
   assert.deepEqual(stockIn(stock, "h1", "cooler").map(s => s.item).sort(), ["molson-canadian", "molson-canadian-67"]);
 });
+
+import { nightBars, combinedHave, borrowNeeds } from "../js/stock.js";
+import { itemById as cocktailOf } from "../js/catalog.js";
+
+test("planning a night: everyone's bars together, and what to borrow from whom", () => {
+  const hs = [{ id: "h1", name: "Mine", members: ["me"] }, { id: "h2", name: "Dave's", members: ["dave", "sue"] }];
+  const stock = [bottle("bourbon-x", 500, { item: "crown-royal-deluxe", id: stockId("h1", "bar", "drink", "crown-royal-deluxe") }),
+    { ...ing("lemon-juice"), hh: "h2", id: stockId("h2", "bar", "ing", "lemon-juice") }, { ...ing("simple-syrup"), hh: "h2", id: stockId("h2", "bar", "ing", "simple-syrup") }];
+  const bars = nightBars(stock, hs, ["me", "dave", "sue", "nobody"], covers);
+  assert.deepEqual(bars.map(b => [b.hh, b.people]), [["h1", ["me"]], ["h2", ["dave", "sue"]]]);
+  const all = combinedHave(bars);
+  assert.ok(all.has("rye") && all.has("lemon-juice"));
+  const sour = cocktailOf("cocktail", "whisky-sour").data;
+  const needs = borrowNeeds(sour, bars[0].have, bars);
+  assert.deepEqual(needs.map(n => [n.line.ing.join(), n.from.map(b => b.hh)]), [["lemon-juice", ["h2"]], ["simple-syrup", ["h2"]]]);
+});

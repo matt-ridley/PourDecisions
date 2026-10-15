@@ -134,3 +134,26 @@ export const coolerTotal = (stock, hh) => stock.filter(s => s.hh === hh && s.whe
 /* Putting the cooler away: each drink left in it goes back in the fridge (n), and every cooler entry is cleared. */
 export const unloadMoves = (stock, hh) => stock.filter(s => s.hh === hh && s.where === "cooler")
   .map(s => ({ cooler: s, fridgeId: stockId(hh, "fridge", s.kind, s.item), n: fridgeCount(s) }));
+
+/* ---------- Planning a night: everyone's bars together ---------- */
+
+/* The households of the people at a night (each once), with what each has. [{ hh, people: [uid], have: Set }] */
+export function nightBars(stock, households, guests, covers) {
+  const out = new Map();
+  for (const g of guests) {
+    const h = householdOf(households, g);
+    if (!h) continue;
+    if (!out.has(h.id)) out.set(h.id, { hh: h.id, name: h.name, people: [], have: haveFromStock(stock, h.id, covers) });
+    out.get(h.id).people.push(g);
+  }
+  return [...out.values()];
+}
+
+/* Everything the bars together have. */
+export const combinedHave = bars => new Set(bars.flatMap(b => [...b.have]));
+
+/* What a recipe needs from someone else's bar: the lines the base bar (the host's) doesn't cover, each with the bars
+   that do. Optional lines and kitchen basics are never needed. [{ line, from: [bar] }] */
+export const borrowNeeds = (recipe, baseHave, bars) => recipe.ingredients
+  .filter(x => !x.optional && !x.ing.every(id => (ingredientById(id) || {}).pantry) && !x.ing.some(id => baseHave.has(id)))
+  .map(x => ({ line: x, from: bars.filter(b => x.ing.some(id => b.have.has(id))) }));

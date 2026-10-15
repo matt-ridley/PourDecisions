@@ -3,9 +3,11 @@
 import { el, fill, icon, avatar, fmtDate, fmtAgo, toast, confirmButton, field, openSheet, closeSheet } from "./ui.js";
 import { store, uid, memberName, isAdmin, createNight, updateNight, joinNight, leaveNight, deleteNight, addPlace,
   addBring, setArrived, removeBring } from "./cloud.js";
-import { search, itemById } from "./catalog.js";
+import { search, itemById, allItems } from "./catalog.js";
+import { sortByHave } from "./makeable.js";
+import { currentCovers } from "./makeablepage.js";
 import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks, bringFor, nightRecap, mornings } from "./nights.js";
-import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
+import { householdOf, sourcesFor, levelText, fridgeCount, nightBars, combinedHave, borrowNeeds } from "./stock.js";
 import { placesByUse, resolvePlace, findPlace, cleanPlaceName, logStd } from "./logs.js";
 import { logRow, giftable, roundOf } from "./logpage.js";
 
@@ -125,6 +127,9 @@ export function renderNight(main, id) {
       n.end != null ? el("p", { class: "muted small", text: `Ended ${fmtDate(n.end)}` }) : null,
       el("div", { class: "chips center" }, ...(n.guests || []).map(g => el("a", { class: "chip-btn who", href: g === me ? "#/me" : `#/u/${g}` }, avatar(member(g), "xs"), member(g).displayName))),
       !here && st.state !== "over" ? el("button", { class: "btn primary", type: "button", text: "🙋 I'm here", onclick: () => { joinNight(n.id); toast("You're in. Drinks you log now count for the night."); } }) : null),
+    st.state !== "over" ? el("a", { class: "card admin-link", href: `#/plan/${n.id}` }, el("span", { class: "item-icon", text: "🍸" }),
+      el("div", { class: "grow" }, el("b", { text: "What can we make" }), el("p", { class: "muted small", text: "Everyone's bars together, and who could bring what" })),
+      el("span", { class: "chev", html: icon.chevron })) : null,
     st.state === "over" ? recapCard(n) : null,
     st.state === "over" && here ? morningCard(n) : null,
     here && st.state !== "over" ? roundCard(n, list) : null,
@@ -143,6 +148,52 @@ export function renderNight(main, id) {
       host && n.end != null ? el("button", { class: "btn block", type: "button", text: "Keep it going (take the end time off)", onclick: () => updateNight(n.id, { end: null }) }) : null,
       here && !host ? el("button", { class: "btn quiet block", type: "button", text: "Leave this night", onclick: () => leaveNight(n.id) }) : null,
       host || isAdmin() ? confirmButton("Delete this night", "Tap again to delete (the drinks stay)", () => { deleteNight(n.id); location.hash = "#/nights"; }, "btn danger block") : null));
+}
+
+/* ---------- Planning a night ---------- */
+/* #/plan/<night>: What can I make, from every guest's bar and fridge together. Cocktails the host's bar can't make on its
+   own say what to borrow and from whom, and the host can ask them to bring it (it goes on the bring list). */
+export function renderPlan(main, id) {
+  const n = store.nights.find(x => x.id === id);
+  if (!n) return fill(main, el("div", { class: "card" }, el("p", { text: "That night isn't here any more." })));
+  const cov = currentCovers(), bars = nightBars(store.stock, store.households, n.guests || [], cov);
+  const baseId = n.hh || (householdOf(store.households, n.host) || {}).id, base = bars.find(b => b.hh === baseId);
+  const all = combinedHave(bars), host = n.host === uid();
+  const { now, one } = sortByHave(allItems().filter(i => i.kind === "cocktail"), all);
+  const asked = new Set(store.bring.filter(b => b.night === n.id).map(b => b.text.toLowerCase()));
+  const askButton = (need, bar) => {
+    const who = bar.people[0], text = need.line.item.replace(/ \(optional\)$/, "");
+    return asked.has(text.toLowerCase()) ? el("span", { class: "chip", text: "On the bring list" })
+      : el("button", { class: "btn small", type: "button", text: `Ask ${member(who).displayName}`, onclick: () => {
+          addBring(n.id, who, text); toast(`Added to the bring list: ${member(who).displayName} brings ${text}`);
+        } });
+  };
+  const nowRow = r => {
+    const needs = base ? borrowNeeds(r.item.data, base.have, bars.filter(b => b !== base)) : [];
+    return el("li", { class: "stack tight" },
+      el("a", { class: "item-row", href: `#/recipe/${r.item.id}` }, el("span", { class: "item-icon", text: r.item.category.icon }),
+        el("span", { class: "grow" }, el("b", { text: r.item.title }),
+          el("span", { class: "muted small", text: needs.length ? `Borrow: ${needs.map(x => `${x.line.item} (${x.from.map(b => b.name).join(" or ")})`).join(", ")}` : base ? `All at ${base.name}` : "" })),
+        el("span", { class: "chev", html: icon.chevron })),
+      host && needs.length ? el("div", { class: "row" }, ...needs.map(x => askButton(x, x.from[0]))) : null);
+  };
+  fill(main,
+    el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {},
+      el("li", {}, el("a", { href: `#/night/${n.id}`, text: n.name })),
+      el("li", {}, el("span", { "aria-current": "page", text: "What can we make" })))),
+    el("h2", { class: "page-title", text: "🍸 What can we make" }),
+    el("section", { class: "card stack" },
+      el("p", {}, bars.length ? `From ${bars.map(b => b.name).join(", ")} together.` : "Nobody coming has a bar & fridge set up yet."),
+      el("p", { class: "hint", text: host ? "Cocktails that need something from a guest's bar say what to borrow. Ask them to bring it, and it goes on the bring list." : "Cocktails that need something from someone's bar say what to borrow." })),
+    el("section", { class: "card stack" },
+      el("h3", { text: `✅ Can make together · ${now.length}` }),
+      now.length ? el("ul", { class: "item-list" }, ...now.map(nowRow)) : el("p", { class: "muted", text: "Nothing yet. Missing 1 shows what's closest." })),
+    one.length ? el("section", { class: "card stack" },
+      el("h3", { text: `🛒 Nobody has 1 thing · ${one.length}` }),
+      el("ul", { class: "item-list" }, ...one.slice(0, 40).map(r => el("li", {}, el("a", { class: "item-row", href: `#/recipe/${r.item.id}` },
+        el("span", { class: "item-icon", text: r.item.category.icon }),
+        el("span", { class: "grow" }, el("b", { text: r.item.title }), el("span", { class: "muted small", text: `Someone needs to buy: ${r.missing[0].item}` })),
+        el("span", { class: "chev", html: icon.chevron })))))) : null);
 }
 
 /* ---------- Recaps ---------- */

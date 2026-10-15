@@ -22,7 +22,7 @@ function saveTicked(set) {
 
 // Which ingredients cover which depends on the drink list, so it's worked out again only when the list changes.
 let coverFor = null, covers = null;
-function currentCovers() {
+export function currentCovers() {
   const items = allItems();
   if (coverFor !== items) { coverFor = items; covers = coverMap(items.filter(i => i.kind === "drink").map(i => i.data)); }
   return covers;
