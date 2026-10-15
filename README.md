@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.18.1 (beta)
+**Current version:** 0.18.2 (beta)
 
 ## Features
 
@@ -23,12 +23,13 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **✉️ Email an invite (owner).** From Group admin: writes the invite in the owner's own email app, with what the app is, installing it on iPhone and Android, signing up and the invite code. It comes from their address and needs no email service.
 - **Profiles.** Each member has a name, an optional hometown and a favourite drink.
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
-- **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal.
+- **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal. The form shows how much and where; who it's for, when, notes and photo, and keeping it off the feed are under **More options** (with a line saying what they're set to), and **Log it** stays on screen above the tabs.
   - **How much:** sizes that fit the drink (Bottle 341 ml, Can, Tall can, Pint for beer; Single, Shot, Double for spirits; Glass and Bottle for wine; One or Double for a cocktail) or any amount. It shows the standard drinks as you pick. A cocktail's size and strength come from its recipe.
   - **Where:** pick from the group's shared places (yours come first) or add a new one. Logging again the same night suggests the same place.
   - **When:** now, or earlier for a drink you forgot to log.
   - **Notes and a photo:** both optional, about this pour or this night. The photo is shrunk on the phone; lists show a small copy and the full one loads only when the log is opened.
-  - **Another one:** your recent drinks on Home have an **Another** button that logs the same drink again in one tap (with Undo).
+  - **Again:** your recent drinks on the Log screen (each cocktail variant on its own) have an **Again** button that logs the same drink again in one tap: same size, same variant, same place if it's the same night (with Undo).
+  - **From home:** the Log screen also lists what's in your cooler and fridge, with **Drink one** to log it and take it out of stock in one tap.
   - **Never lost without a word:** every log is kept on the phone until the group has it. Home shows drinks waiting for signal, and if the server ever refuses one it says why, with **Try again** and **Discard**.
   - **Your logs:** open any log to see it, edit it, log another or delete it. Admins can delete anyone's log. Profiles show each member's recent drinks, and each drink's page shows how many times you've had it.
 - **Variety.** The group competes on variety, never volume.
@@ -69,7 +70,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **The group's variants.** Each cocktail in the list shows how many variants the group has made ("Whisky Sour · 3 variants"), and its page lists them, most made first. Only variants someone has logged count, so an undone one doesn't.
   - **A variant's page:** its recipe with the changed rows marked and anything left out listed, what's different from the original, its strength, who has made it and how often, what it was remixed from, and its remixes. Its maker (or an admin) can name or rename it.
   - **Make this one:** opens Make it with the variant's bottles and amounts. Make it as it is, or change anything and it's saved as your remix, linked back to the one it came from.
-  - **Make it again:** Home lists your latest variants with an **Again** button that logs the same drink in one tap (with Undo).
+  - **Make it again:** your latest variants are in **Having another?** on the Log screen, with **Again** to log the same drink in one tap (with Undo).
   - A cocktail log's page links to its variant and shows who made it, when a friend made it for you.
   - **Ratings:** each variant is rated on its own (stars, flavours and a review, once per person), separately from the original cocktail's stars. **How was it?** on Home asks about the variant you made. Variants show in **Top rated** among the cocktails.
   - **👑 House Pour:** the group's best-rated variant of each cocktail (at least 2 ratings, so nobody crowns their own) wears the crown, is listed first, and is named on the cocktail's page. Ties go to more ratings, then the older variant.
@@ -212,7 +213,7 @@ From a review of the whole app after the roadmap was done: fewer hidden pages, s
 
 1. ✅ **Getting around** (0.18.0): Bar and Us tabs, Settings off the profile, Back that goes one level up when there's nowhere to go back to, the bar page with what's in it first and hosting below, links grouped into one list.
 2. ✅ **Home and the feed** (0.18.1): a slimmer welcome, the feed on the first screen, a compact How was it?, fewer crown posts, one Filter button, tidier feed cards.
-3. **Faster logging** (0.18.2): Log it always on screen, the extras folded away, one-tap Again, and your fridge on the Log screen.
+3. ✅ **Faster logging** (0.18.2): Log it always on screen, the extras folded away, one-tap Again, and your fridge on the Log screen.
 4. **Drinks** (0.18.3): more on a drink's page (add to your fridge or bar, want to try, give one), one place for what you have, and better search ranking.
 
 ### Backlog
@@ -384,6 +385,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.18.2** (2026-Oct-15): **Faster logging.** **Log it** stays on screen just above the tabs. The form shows how much and where (and from home, when the drink is in your fridge, bar or cooler); who it's for, when, notes and photo, and off the feed fold under **More options**, with a line saying what they're set to (open when editing or paying one back). The Log screen's recent drinks have **Again** (one tap, with Undo; each cocktail variant listed on its own), which replaces Make it again on Home, and a **From home** list of your cooler and fridge with **Drink one**. Opening the app straight onto Log now fills in your recent drinks as they load. No new security rules.
 
 - **0.18.1** (2026-Oct-15): **Home and the feed.** A one-line hello instead of the big welcome, so the feed starts on the first screen. **How was it?** shows one drink at a time with **Skip** and how many are waiting. **Crowns** only post to the feed once they stick: a crown that changes hands again within 24 hours isn't posted (the latest change always is), so early back-and-forth doesn't fill the feed. One **Filter** button (whose drinks, what kind, photos only) with the filters in use shown as chips you can tap to clear. **Same here** is a small round **+** on a friend's drink. No new security rules.
 

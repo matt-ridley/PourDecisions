@@ -3,7 +3,7 @@
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
-import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount, onHand } from "./stock.js";
+import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount, onHand, stockIn } from "./stock.js";
 import { myLiveNight } from "./nights.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
@@ -145,7 +145,7 @@ export function renderLog(main, kind, id) {
     query = box.value;
     if (!query.trim()) return fill(results, recent.length ? el("section", { class: "card stack" },
       el("h3", { text: "Having another?" }),
-      el("ul", { class: "item-list" }, ...recent.map(l => pickRow(itemOf(l), l)).filter(Boolean))) : null);
+      el("ul", { class: "item-list" }, ...recent.map(againRow).filter(Boolean))) : null, fromHomeCard());
     const hits = search(query);
     fill(results,
       hits.length ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(i => pickRow(i))) : null,
@@ -156,11 +156,42 @@ export function renderLog(main, kind, id) {
   };
   box.addEventListener("input", draw);
   draw();
+  // Focus the box when the page opens, not on every redraw (that would pop the keyboard back up).
+  const old = main.querySelector(".log-search"), refocus = !old || document.activeElement === old;
+  box.classList.add("log-search");
   fill(main,
     el("h2", { class: "page-title", text: "What are you drinking?" }),
     el("label", { class: "search" }, el("span", { html: icon.search }), box),
     results);
-  if (!query) box.focus({ preventScroll: true });
+  if (!query && refocus) box.focus({ preventScroll: true });
+}
+
+/* A recent drink: tap it for the form, or Again to log the same again now (same size, variant and place). */
+function againRow(l) {
+  const i = itemOf(l);
+  if (!i) return null;
+  return el("li", { class: "log-row" },
+    el("a", { class: "item-row grow", href: l.variantId ? `#/make/${i.id}/${l.variantId}` : `#/log/${i.kind}/${i.id}` },
+      el("span", { class: "item-icon", text: i.category.icon }),
+      el("span", { class: "grow" }, el("b", { text: titleOf(l) }), el("span", { class: "muted small", text: `Last: ${fmtVolume(l.ml, getUnits())} · ${fmtAgo(l.at)}` }))),
+    el("button", { class: "btn small", type: "button", text: "Again", "aria-label": `Another ${titleOf(l)}`, onclick: () => anotherOne(l) }));
+}
+
+/* What's in your cooler and fridge, to drink one in a tap (it comes out of stock, with Undo). */
+function fromHomeCard() {
+  const hh = myHousehold();
+  if (!hh) return null;
+  const list = [...stockIn(store.stock, hh.id, "cooler"), ...stockIn(store.stock, hh.id, "fridge")]
+    .filter(e => e.kind === "drink" && e.thing.item && fridgeCount(e) > 0).slice(0, 8);
+  if (!list.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: "From home" }),
+    el("ul", { class: "item-list" }, ...list.map(e => el("li", { class: "log-row" },
+      el("a", { class: "item-row grow", href: `#/log/drink/${e.thing.item.id}` },
+        el("span", { class: "item-icon", text: e.thing.item.category.icon }),
+        el("span", { class: "grow" }, el("b", { text: e.thing.title }), el("span", { class: "muted small", text: sourceLabel(e) }))),
+      el("button", { class: "btn small", type: "button", text: "Drink one", "aria-label": `Drink one: ${e.thing.title}`,
+        onclick: () => { drinkOne(e.thing.item, e); } })))));
 }
 
 function pickRow(i, last) {
@@ -231,9 +262,9 @@ export function renderLogForm(main, item, editing = null) {
     value: toLocalInput(s.at || Date.now()) });
   const whenRow = el("div", { class: "stack", hidden: !editing }, whenIn);
   const nowBtn = el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.at), hidden: !!editing,
-    onclick: () => { s.at = null; whenRow.hidden = true; nowBtn.setAttribute("aria-pressed", "true"); earlierBtn.setAttribute("aria-pressed", "false"); } }, "Now");
+    onclick: () => { s.at = null; whenRow.hidden = true; nowBtn.setAttribute("aria-pressed", "true"); earlierBtn.setAttribute("aria-pressed", "false"); drawMore(); } }, "Now");
   const earlierBtn = el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!!s.at), hidden: !!editing,
-    onclick: () => { whenIn.max = toLocalInput(Date.now()); whenRow.hidden = false; nowBtn.setAttribute("aria-pressed", "false"); earlierBtn.setAttribute("aria-pressed", "true"); whenIn.focus(); } }, "Earlier…");
+    onclick: () => { whenIn.max = toLocalInput(Date.now()); whenRow.hidden = false; nowBtn.setAttribute("aria-pressed", "false"); earlierBtn.setAttribute("aria-pressed", "true"); drawMore(); whenIn.focus(); } }, "Earlier…");
 
   // Notes
   const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
@@ -254,10 +285,10 @@ export function renderLogForm(main, item, editing = null) {
   const friends = editing ? [] : giftable();
   const toBox = el("div", { class: "chips", role: "group", "aria-label": "Who's it for" });
   const drawTo = () => fill(toBox,
-    el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.to), onclick: () => { s.to = null; drawTo(); } }, "Me"),
+    el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.to), onclick: () => { s.to = null; drawToAndMore(); } }, "Me"),
     ...friends.map(m => el("button", { type: "button", class: "chip-btn who", "aria-pressed": String(s.to === m.id),
-      onclick: () => { s.to = m.id; drawTo(); } }, avatar(m, "xs"), m.displayName)));
-  drawTo();
+      onclick: () => { s.to = m.id; drawToAndMore(); } }, avatar(m, "xs"), m.displayName)));
+  const drawToAndMore = () => { drawTo(); drawMore(); };
 
   // Keep it off the feed
   const offIn = el("input", { type: "checkbox", checked: editing && editing.offFeed ? true : null });
@@ -267,32 +298,52 @@ export function renderLogForm(main, item, editing = null) {
   const photoBox = el("div", { class: "photo-pick" });
   const drawPhoto = (src) => fill(photoBox, src
     ? el("div", { class: "photo-preview" }, el("img", { src, alt: "Your photo" }),
-        el("button", { class: "btn small", type: "button", text: "Remove", onclick: () => { s.pics = null; drawPhoto(null); } }))
+        el("button", { class: "btn small", type: "button", text: "Remove", onclick: () => { s.pics = null; drawPhoto(null); drawMore(); } }))
     : el("button", { class: "btn block", type: "button", onclick: () => photoIn.click() }, "📷 Add a photo"));
   photoIn.addEventListener("change", async () => {
     const f = photoIn.files && photoIn.files[0];
     photoIn.value = "";
     if (!f) return;
-    try { s.pics = await shrinkPhoto(f); drawPhoto(s.pics.thumb); }
+    try { s.pics = await shrinkPhoto(f); drawPhoto(s.pics.thumb); drawMore(); }
     catch (e) { console.warn(e); toast("That photo couldn't be read. Try another one."); }
   });
   drawPhoto(null);
   if (editing && editing.hasPhoto) loadThumb(editing.id).then(src => { if (src && s.pics === undefined) drawPhoto(src); });
 
+  // The extras (who it's for, when, notes and photo, off the feed) fold away under More options, with a line saying what
+  // they're set to. Open when editing, or when it's already for a friend (Pay one back).
+  const moreLine = el("span", { class: "muted small" });
+  const more = el("details", { class: "card fold", open: editing || s.to ? "" : null },
+    el("summary", {}, el("span", { class: "grow stack-tight" }, el("b", { text: "More options" }), moreLine)),
+    friends.length ? el("div", { class: "stack" }, el("h3", { text: "Who's it for?" }), toBox,
+      el("p", { class: "hint", text: "Giving it to a friend logs it for them and puts it on the Tab: they owe you one." })) : null,
+    editing ? null : el("div", { class: "stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
+    el("div", { class: "stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
+    el("div", { class: "stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
+      el("p", { class: "hint", text: "Your drink still counts in your stats. The group just doesn't see it in the feed or on your profile." })));
+  function drawMore() {
+    moreLine.textContent = [
+      s.to ? `🎁 For ${memberName(s.to)}` : friends.length ? "For me" : "",
+      editing ? "" : whenRow.hidden ? "Now" : "Earlier",
+      notesIn.value.trim() ? "Notes" : "", s.pics || (editing && editing.hasPhoto && s.pics === undefined) ? "Photo" : "",
+      offIn.checked ? "🙈 Off the feed" : "",
+    ].filter(Boolean).join(" · ");
+  }
+  notesIn.addEventListener("input", drawMore);
+  offIn.addEventListener("change", drawMore);
+  drawTo(); drawMore();
+
   const msg = el("p", { class: "msg err", role: "alert" });
   const save = el("button", { class: "btn primary block", type: "submit", text: editing ? "Save changes" : `Log it ${item.category.icon}` });
   const form = el("form", { class: "stack" },
     el("section", { class: "card stack" }, el("h3", { text: "How much?" }), sizeBox, otherRow, stdLine),
-    friends.length ? el("section", { class: "card stack" }, el("h3", { text: "Who's it for?" }), toBox,
-      el("p", { class: "hint", text: "Giving it to a friend logs it for them and puts it on the Tab: they owe you one." })) : null,
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
     homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home or a cooler?" }), fromBox,
       el("p", { class: "hint", text: "Takes it out of the fridge or cooler, or the amount out of the bottle in your bar." })) : null,
-    el("section", { class: "card stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
-    el("section", { class: "card stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
-    el("section", { class: "card stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
-      el("p", { class: "hint", text: "Your drink still counts in your stats. The group just doesn't see it in the feed or on your profile." })),
-    msg, save);
+    editing ? el("section", { class: "card stack" }, el("h3", { text: "When" }), whenRow) : null,
+    more,
+    // Log it stays on screen above the tabs, however far down the form you are.
+    el("div", { class: "sticky-save" }, msg, save));
 
   form.addEventListener("submit", e => {
     e.preventDefault();
