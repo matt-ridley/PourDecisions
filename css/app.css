@@ -66,6 +66,7 @@ button { cursor: pointer; touch-action: manipulation; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .row > .btn { flex: 1 1 0; min-width: 0; }
 .row.spread { justify-content: space-between; }
+.row.center { justify-content: center; }
 .row.spread > .btn { flex: 0 0 auto; }
 
 /* ---------- Header ---------- */

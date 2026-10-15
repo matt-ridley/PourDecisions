@@ -287,7 +287,7 @@ export function randomCode() {
 /* ---------- Logging drinks ---------- */
 const newId = name => cloud.api.doc(cloud.api.collection(cloud.db, name)).id;
 const clip = (v, n) => String(v || "").trim().slice(0, n);
-const OPTIONAL = ["rating", "notes", "tags", "placeId", "offFeed"];
+const OPTIONAL = ["rating", "notes", "tags", "placeId", "offFeed", "disputed"];
 
 /* The fields a log may have. Empty optional fields are left out rather than saved blank. */
 function cleanLog(f) {
@@ -301,6 +301,7 @@ function cleanLog(f) {
   if (f.variantId) log.variantId = f.variantId;
   if (f.madeBy) log.madeBy = f.madeBy;
   if (f.givenBy) log.givenBy = f.givenBy;
+  if (f.disputed) log.disputed = true;
   if (f.offFeed) log.offFeed = true;
   if (f.from) log.from = clip(f.from, 200);
   if (f.killed && f.killed.length) log.killed = f.killed.slice(0, 20);
@@ -332,7 +333,7 @@ function sendEntry(e) {
 export function saveLog(fields, pics = null) {
   const id = newId("logs"), now = Date.now();
   const forSomeone = (fields.madeBy || fields.givenBy) && fields.uid && fields.uid !== uid();
-  const log = { ...cleanLog(forSomeone ? { ...fields, ...(fields.madeBy ? { madeBy: uid(), givenBy: null } : { givenBy: uid() }) } : { ...fields, madeBy: null, givenBy: null }),
+  const log = { ...cleanLog(forSomeone ? { ...fields, ...(fields.madeBy ? { madeBy: uid(), givenBy: null } : { givenBy: uid() }) } : { ...fields, madeBy: null, givenBy: typeof fields.givenBy === "string" && fields.givenBy !== uid() ? fields.givenBy : null }),
     uid: forSomeone ? fields.uid : uid(), createdAt: now, hasPhoto: !!pics };
   const entry = { id, log, thumb: pics && pics.thumb, photo: pics && pics.photo, state: "sending", savedAt: now };
   outboxPut(entry).then(refreshOutbox).then(() => sendEntry(entry));
@@ -616,7 +617,7 @@ export function loadCooler(hh, picks) {
   for (const { entry, n } of picks.filter(p => p.n > 0)) {
     b.update(ref("stock", entry.id), { count: increment(-n), ...stamp() });
     b.set(ref("stock", stockId(hh, "cooler", entry.kind, entry.item)),
-      { hh, where: "cooler", kind: entry.kind, item: entry.item, count: increment(n), ...stamp() }, { merge: true });
+      { hh, where: "cooler", kind: entry.kind, item: entry.item, count: increment(n), loadedBy: uid(), ...stamp() }, { merge: true });
   }
   write(b.commit());
 }

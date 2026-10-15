@@ -72,12 +72,14 @@ service cloud.firestore {
     // Times are phone-clock epoch ms. A log can't be dated in the future (10 minutes of clock slack), or before 2020.
     // uid is who drank it. madeBy is who made it, when someone made a cocktail for someone else: they log it for them.
     // variantId points at the cocktail variant made (variants below); drinkId stays the original cocktail.
-    // givenBy is who gave it, when someone gave a drink to someone else (the Tab): they log it for them.
+    // givenBy is who gave it, when someone gave a drink to someone else (the Tab): they log it for them. A drink taken
+    // from a friend's cooler is logged by the drinker, with givenBy the friend who loaded the cooler. disputed: the
+    // receiver said "That's not right", which takes it off the Tab.
     // from is the stock entry it came out of (a fridge or bar, see stock below); killed lists the bottles (drink ids)
     // this pour emptied, for the wall of empties.
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed", "givenBy"])
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed", "givenBy", "disputed"])
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
@@ -95,8 +97,16 @@ service cloud.firestore {
         && (!("offFeed" in d) || d.offFeed is bool)
         && optText(d, "from", 200)
         && (!("killed" in d) || (d.killed is list && d.killed.size() > 0 && d.killed.size() <= 20))
+        && (!("disputed" in d) || d.disputed is bool)
         && (!("variantId" in d) || (d.kind == "cocktail" && d.variantId is string && d.variantId.size() > 0 && d.variantId.size() <= 120))
         && (!("editedAt" in d) || d.editedAt is int);
+    }
+
+    // A drink from a cooler that `who` loaded (the log's from is that cooler's stock id).
+    function fromCoolerOf(d, who) {
+      return ("from" in d) && d.from is string && exists(/databases/$(database)/documents/stock/$(d.from))
+        && get(/databases/$(database)/documents/stock/$(d.from)).data.where == "cooler"
+        && get(/databases/$(database)/documents/stock/$(d.from)).data.get("loadedBy", "") == who;
     }
 
     match /logs/{id} {
@@ -106,7 +116,8 @@ service cloud.firestore {
         && (("madeBy" in request.resource.data)
             ? request.resource.data.madeBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid))
             : ("givenBy" in request.resource.data)
-            ? request.resource.data.givenBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid))
+            ? (request.resource.data.givenBy == me() && request.resource.data.uid != me() && exists(memberPath(request.resource.data.uid)))
+              || (request.resource.data.uid == me() && request.resource.data.givenBy != me() && fromCoolerOf(request.resource.data, request.resource.data.givenBy))
             : request.resource.data.uid == me());
       // The drinker edits it; who drank it, who made it and who gave it never change.
       allow update: if isMember() && resource.data.uid == me() && logOk(request.resource.data)
@@ -268,7 +279,7 @@ service cloud.firestore {
 
     // One document per thing in a household's fridge or bar; the id says which (household~where~kind~item).
     function stockOk(id, d) {
-      return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "by", "at"])
+      return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "loadedBy", "by", "at"])
         && d.hh is string && d.where in ["fridge", "bar", "cooler"] && d.kind in ["drink", "ing"]
         && d.item is string && d.item.size() > 0 && d.item.size() <= 80
         && id == d.hh + "~" + d.where + "~" + d.kind + "~" + d.item
@@ -280,6 +291,7 @@ service cloud.firestore {
         && (!("left" in d) || (d.left is number && d.left >= -5000 && d.left <= 5000))
         && (!("spares" in d) || (d.spares is int && d.spares >= 0 && d.spares <= 100))
         && (!("out" in d) || d.out is bool)
+        && optText(d, "loadedBy", 128)
         && d.by == me() && d.at is int;
     }
     match /stock/{id} {

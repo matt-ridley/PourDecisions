@@ -76,6 +76,9 @@ function fromHome(fields, entry) {
   const t = entry && takeOut(entry, { ml: fields.ml, n: 1 });
   if (!t) return () => {};
   fields.from = entry.id;
+  // A drink from a friend's cooler is on the Tab: whoever loaded it gave it to you (not when it's your own household's).
+  if (entry.where === "cooler" && !fields.uid && entry.loadedBy && entry.loadedBy !== uid() && entry.hh !== (myHousehold() || {}).id)
+    fields.givenBy = entry.loadedBy;
   if (t.killed) fields.killed = [fields.drinkId];
   return t.undo;
 }
@@ -398,6 +401,7 @@ export function renderLogDetail(main, id) {
     variant && item ? ["Variant", el("a", { href: `#/v/${variant.id}`, text: variantTitle(item.data, variant.data) })] : null,
     log.madeBy ? ["Made by", log.madeBy === uid() ? "You" : memberName(log.madeBy)] : null,
     log.givenBy ? ["🎁 Given by", log.givenBy === uid() ? "You" : memberName(log.givenBy)] : null,
+    log.disputed ? ["❌ Disputed", "Not on the Tab"] : null,
     ["How much", `${fmtVolume(log.ml, getUnits())} at ${log.abv}% (${stdText(std)})`],
     log.placeId ? ["Where", placeName(log.placeId) || "A place that was removed"] : null,
     log.from ? ["From", fromText(log.from)] : null,
@@ -421,6 +425,14 @@ export function renderLogDetail(main, id) {
       mineLog && item ? rateButton(item) : null,
       mineLog ? el("button", { class: "btn primary block", type: "button", text: "Another one", onclick: () => { anotherOne(log); location.hash = "#/home"; } }) : null,
       mineLog ? el("a", { class: "btn block", href: `#/edit/${log.id}`, text: "Edit" }) : null,
+      // Given to you by someone else: say if it's wrong (it comes off the Tab), or put it back.
+      mineLog && (log.givenBy || log.madeBy) && (log.givenBy || log.madeBy) !== uid()
+        ? log.disputed
+          ? el("button", { class: "btn block", type: "button", text: "Put it back on the Tab", onclick: () => { updateLog(log.id, { disputed: false }); toast("Back on the Tab."); } })
+          : confirmButton("❌ That's not right", "Tap again: it comes off the Tab", () => {
+              updateLog(log.id, { disputed: true }); toast(`Off the Tab. ${memberName(log.givenBy || log.madeBy)} will see it.`);
+            }, "btn block")
+        : null,
       mineLog || isAdmin() ? confirmButton(mineLog ? "Delete this log" : "Delete this log (admin)", "Tap again to delete", () => {
         deleteLog(log.id); toast("Deleted."); history.back();
       }, "btn danger block") : null));
