@@ -33,3 +33,23 @@ test("open tabs across the group are never combined or passed on", () => {
 test("history between two people, newest first, with disputed drinks kept", () => {
   assert.deepEqual(historyOf(logs, "me", "dave").map(l => l.id), ["6", "3", "2", "1"]);
 });
+
+import { generosity, monthStart } from "../js/tab.js";
+import { crownHistory } from "../js/crowns.js";
+
+test("Most Generous counts drinks given; Thirstiest is who received the most more than they gave", () => {
+  const { generous, thirstiest } = generosity(logs);
+  assert.deepEqual(generous.map(x => [x.id, x.given]), [["me", 3], ["sam", 1], ["dave", 1]]);
+  assert.deepEqual(thirstiest.map(x => [x.id, x.net]), [["dave", 2]]);
+  assert.deepEqual(generosity(logs, 4).generous.map(x => x.id), ["me", "sam"], "only since a time");
+  assert.equal(new Date(monthStart(new Date(2026, 9, 15, 13).getTime())).getDate(), 1);
+});
+
+test("the Most Generous crown goes to whoever passes 3 drinks given first, and disputed drinks don't count", () => {
+  const gift = (id, from, to, at, extra = {}) => ({ id, uid: to, givenBy: from, kind: "drink", drinkId: "molson-canadian", at, ...extra });
+  const gl = [gift("a", "me", "dave", 1), gift("b", "me", "dave", 2), gift("c", "dave", "me", 3), gift("d", "me", "sam", 4, { disputed: true }),
+    gift("e", "me", "sam", 5), gift("f", "dave", "sam", 6), gift("g", "dave", "sam", 7), gift("h", "dave", "me", 8)];
+  const { holders, changes } = crownHistory(gl);
+  assert.deepEqual(changes.filter(c => c.crown === "most-generous").map(c => [c.uid, c.at]), [["me", 5], ["dave", 8]]);
+  assert.equal(holders.get("most-generous").uid, "dave");
+});

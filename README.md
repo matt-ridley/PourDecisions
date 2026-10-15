@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.14.1 (beta)
+**Current version:** 0.14.2 (beta)
 
 ## Features
 
@@ -34,7 +34,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Variety board:** everyone by score (Home shows the top three).
   - **🎫 Style passport:** every style by category and family, stamped ✓ once tried, with who in the group tried it first. Tap a style for its drinks. Anyone's passport can be opened from their profile.
   - **🌍 Country passport:** every country in the list with its flag (Scotland, England and Wales get theirs), stamped once tried, with how many drinks in the list come from there and who in the group tried it first.
-  - **👑 Crowns:** one holder at a time, for the most variety in one thing: 🧭 Explorer (top score), 🌍 Globetrotter (countries), 🎨 Style Hunter (styles), 🔥 Peat Freak (Islay and peated whiskies), 🍺 Hop Head (IPAs), 🥃 Dram Master (whiskies), 🍷 Sommelier (wines), 🍹 Mixologist (different cocktails made, for anyone) and 🍁 True North (Canadian drinks). Each needs a minimum, and moves only when someone strictly passes the holder, so a tie keeps it where it is. The board lists every crown and holder, profiles and board rows show the crowns held, and a change of hands is posted to the feed and sent as an alert.
+  - **👑 Crowns:** one holder at a time, for the most variety in one thing: 🧭 Explorer (top score), 🌍 Globetrotter (countries), 🎨 Style Hunter (styles), 🔥 Peat Freak (Islay and peated whiskies), 🍺 Hop Head (IPAs), 🥃 Dram Master (whiskies), 🍷 Sommelier (wines), 🍹 Mixologist (different cocktails made, for anyone), 🍁 True North (Canadian drinks) and 🎁 Most Generous (drinks given on the Tab). Each needs a minimum, and moves only when someone strictly passes the holder, so a tie keeps it where it is. The board lists every crown and holder, profiles and board rows show the crowns held, and a change of hands is posted to the feed and sent as an alert.
   - **⚔️ Head-to-head:** from a friend's profile, the two of you side by side: scores, and the styles and countries you've both tried, only you, and only them.
   - **📊 Your charts** (only you): drinks by month for the last year, drinks by category, your favourite styles and your top rated. Tap or hover a bar for its numbers.
   - **✨ Try next:** on your profile and passport, styles you haven't had that the group likes (best rated first, then the most tried), each with a drink to try.
@@ -86,6 +86,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **🧾 The Tab.** Who owes whom a drink, from your profile. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
   - **You and everyone:** "Dave owes you 2", "You owe Sam 1", with what each of you gave. **Around the group** shows everyone else's open tabs: everyone can see every balance.
   - **Between two people:** every drink either way, and **🎁 Give them one** to pay it back (the log form opens with them picked). Friends' profiles show the balance between you.
+  - **🎁 Most Generous & 🥵 Thirstiest:** boards of who gave the most drinks, and who received the most more than they gave, all time or this month (from the Tab or the Variety board). The top giver of all time holds the **🎁 Most Generous** crown.
   - **❌ That's not right:** on a drink someone gave you. It comes off the Tab (the giver gets an alert), and **Put it back on the Tab** undoes it.
 - **🍸 What can I make.** From the Drinks tab or a bar: from what's in your bar (spirits, liqueurs, mixers, juices, syrups, bitters, fruit and the rest, with a box to find one quickly), and the cocktails sort into **Can make now**, **Missing 1** (with what's missing) and **Missing 2 or more**.
   - **A bottle counts for the broader ingredient too:** Rye also makes anything that asks for Whisky, and Crown Royal counts as Rye, Canadian whisky and Whisky. Kitchen basics (sugar, salt, water) are assumed, and optional extras never count as missing.
@@ -150,7 +151,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **Coolers:** for a night out, load a cooler from your fridge. Drinks then come out of the cooler (anyone in the group can take one), and whatever's left goes back into the fridge afterwards.
 
 **B. The Tab**
-- ✅ **Give a drink** (0.14.0) and ✅ **the Tab** (0.14.1). Next: **Most Generous** (0.14.2: boards and a crown).
+- ✅ **Give a drink** (0.14.0), ✅ **the Tab** (0.14.1) and ✅ **Most Generous** (0.14.2). This finishes milestone B.
 - **What goes on the Tab:** drinks given (Give one, or Who's it for? when logging), cocktails made for someone (the maker gave it), and drinks a friend takes from your cooler (whoever loaded it gave it).
 - **Give a drink:** pick a person. The drink is logged for them, comes out of your fridge, bar or cooler, and goes on the Tab. When it comes from a shared household fridge, the person who hands it over is the giver.
 - **Every drink counts as 1**, whatever it is.
@@ -351,6 +352,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.14.2** (2026-Oct-15): The Tab, part 3, finishing milestone B: **🎁 Most Generous** (most drinks given) and **🥵 Thirstiest** (received the most more than they gave) boards, all time or this month, from the Tab and the Variety board. A tenth crown, **🎁 Most Generous**, for the most drinks given all time (at least 3), with a feed post and alerts when it changes hands. Disputed drinks don't count. No new security rules.
 
 - **0.14.1** (2026-Oct-15): The Tab, part 2: **🧾 the Tab**. Your balance with everyone ("Dave owes you 2") and the group's open tabs, every drink between two people, and **Give them one** to pay it back. Friends' profiles show the balance between you. A drink from a friend's cooler now counts as given by whoever loaded it. **❌ That's not right** on a drink someone gave you takes it off the Tab and alerts the giver. **Changed `firestore.rules`** (cooler drinks given by the loader, `disputed`, `loadedBy`): publish them before merging.
 

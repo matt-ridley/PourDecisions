@@ -11,8 +11,8 @@ const ipas = DRINKS.filter(d => /ipa/.test(d.style) && d.style !== "ipl").slice(
 const islays = DRINKS.filter(d => d.style === "islay").slice(0, 3);
 const fromCountries = codes => codes.map(c => DRINKS.find(d => d.origin === c)).filter(Boolean);
 
-test("nine crowns, each with a name, an icon and a minimum", () => {
-  assert.equal(CROWNS.length, 9);
+test("ten crowns, each with a name, an icon and a minimum", () => {
+  assert.equal(CROWNS.length, 10);
   for (const c of CROWNS) assert.ok(c.id && c.icon && c.name && c.about && c.min >= 1, c.id);
 });
 

@@ -48,3 +48,19 @@ export function openTabs(logs) {
 /* The drinks between a and b, either way, newest first, disputed ones included (marked) so the history is complete. */
 export const historyOf = (logs, a, b) => logs.filter(l => { const g = giverOf(l); return g && g !== l.uid && ((g === a && l.uid === b) || (g === b && l.uid === a)); })
   .sort((x, y) => y.at - x.at);
+
+/* Generosity since a time (0 = all time): each person's drinks given and received on the Tab. Most Generous: most given
+   (ties: fewest received). Thirstiest: received the most more than they gave (ties: most received). */
+export function generosity(logs, since = 0) {
+  const by = new Map(), p = id => { if (!by.has(id)) by.set(id, { id, given: 0, received: 0 }); return by.get(id); };
+  for (const g of giftsIn(logs)) if (g.log.at >= since) { p(g.from).given++; p(g.to).received++; }
+  const all = [...by.values()];
+  return {
+    generous: all.filter(x => x.given > 0).sort((a, b) => b.given - a.given || a.received - b.received),
+    thirstiest: all.map(x => ({ ...x, net: x.received - x.given })).filter(x => x.net > 0)
+      .sort((a, b) => b.net - a.net || b.received - a.received),
+  };
+}
+
+/* The start of this month, on the phone's clock. */
+export const monthStart = (now = Date.now()) => { const d = new Date(now); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };

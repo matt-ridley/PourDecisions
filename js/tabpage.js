@@ -2,7 +2,7 @@
    people: everyone can see every balance). The logic is in tab.js. */
 import { el, fill, avatar, icon } from "./ui.js";
 import { store, uid, memberName } from "./cloud.js";
-import { balancesFor, openTabs, pair, historyOf } from "./tab.js";
+import { balancesFor, openTabs, pair, historyOf, generosity, monthStart } from "./tab.js";
 import { logRow, giveNext } from "./logpage.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -34,6 +34,9 @@ export function renderTab(main, a, b) {
   fill(main,
     el("h2", { class: "page-title", text: "🧾 The Tab" }),
     el("p", { class: "hint", text: "Every drink counts as 1, each pair of people has its own tab, and it's paid back in drinks." }),
+    el("a", { class: "card admin-link", href: "#/generous" }, el("span", { class: "item-icon", text: "🎁" }),
+      el("div", { class: "grow" }, el("b", { text: "Most Generous & Thirstiest" }), el("p", { class: "muted small", text: "Who gives the most, and who's most in the red" })),
+      el("span", { class: "chev", html: icon.chevron })),
     el("section", { class: "card stack" },
       el("h3", { text: "You and everyone" }),
       mine.length ? el("ul", { class: "item-list" }, ...mine.map(t => el("li", {}, el("a", { class: "item-row", href: `#/tab/${t.id}` },
@@ -74,4 +77,32 @@ function renderPair(main, a, b) {
         if (l.disputed) row.querySelector(".muted").append(" · ❌ disputed, not on the tab");
         return row;
       })) : el("p", { class: "muted", text: "Nothing yet." })));
+}
+
+/* #/generous[/month]: Most Generous (most drinks given) and Thirstiest (received the most more than they gave). */
+export function renderGenerous(main, when) {
+  const month = when === "month", { generous, thirstiest } = generosity(store.logs, month ? monthStart() : 0);
+  const board = (rows, value, meta) => el("ol", { class: "item-list board" }, ...rows.map(r => el("li", {},
+    el("a", { class: "item-row", href: r.id === uid() ? "#/me" : `#/u/${r.id}` },
+      avatar(member(r.id), "sm"),
+      el("span", { class: "grow" }, el("b", { text: nameOf(r.id) }), el("span", { class: "muted small", text: meta(r) })),
+      el("b", { class: "board-score", text: String(value(r)) })))));
+  fill(main,
+    el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {},
+      el("li", {}, el("a", { href: "#/tab", text: "The Tab" })),
+      el("li", {}, el("span", { "aria-current": "page", text: "Most Generous" })))),
+    el("h2", { class: "page-title", text: "🎁 Most Generous" }),
+    el("div", { class: "seg", role: "tablist" },
+      el("a", { class: "seg-link", href: "#/generous", "aria-selected": String(!month), text: "All time" }),
+      el("a", { class: "seg-link", href: "#/generous/month", "aria-selected": String(month), text: "This month" })),
+    el("section", { class: "card stack" },
+      el("h3", { text: "🎁 Most Generous" }),
+      el("p", { class: "hint", text: "Most drinks given to friends. All time, the top giver holds the 👑 Most Generous crown." }),
+      generous.length ? board(generous, r => r.given, r => `gave ${plural(r.given, "drink")} · got ${r.received}`)
+        : el("p", { class: "muted", text: month ? "Nobody has given a drink this month yet." : "Nobody has given a drink yet." })),
+    el("section", { class: "card stack" },
+      el("h3", { text: "🥵 Thirstiest" }),
+      el("p", { class: "hint", text: "Received the most more than they gave. Time to buy a round." }),
+      thirstiest.length ? board(thirstiest, r => r.net, r => `got ${plural(r.received, "drink")} · gave ${r.given}`)
+        : el("p", { class: "muted", text: "Nobody is in the red. Everyone's even or ahead." })));
 }
