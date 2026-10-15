@@ -37,6 +37,7 @@ export const store = {
   comments: [],           // comments on feed posts
   households: [],         // people who share a fridge and a bar (see stock.js)
   stock: [],              // what's in every household's fridge and bar, one document per thing
+  nights: [],             // Drink Nights (see nights.js)
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -131,7 +132,7 @@ function refreshMemberListeners() {
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = [];
+  store.households = []; store.stock = []; store.nights = [];
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -155,6 +156,7 @@ function refreshMemberListeners() {
   list("comments", l => { store.comments = l; });
   list("households", l => { store.households = l; });
   list("stock", l => { store.stock = l; });
+  list("nights", l => { store.nights = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -172,7 +174,7 @@ function stopListeners() {
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = [];
+  store.households = []; store.stock = []; store.nights = [];
 }
 
 function syncError(e) {
@@ -631,3 +633,25 @@ export function unloadCooler(hh) {
   }
   write(b.commit());
 }
+
+/* ---------- Drink Nights (see nights.js) ---------- */
+/* A new night with you as host (and there). f: { name, start, placeId?, hh?, guests: [uid] }. Returns its id straight away. */
+export function createNight(f) {
+  const id = newId("nights"), me = uid();
+  const d = { name: cleanName(f.name) || "Drink night", host: me, start: Math.round(f.start), guests: [...new Set([me, ...(f.guests || [])])], ...stamp() };
+  if (f.placeId) d.placeId = f.placeId;
+  if (f.hh) d.hh = f.hh;
+  write(cloud.api.setDoc(ref("nights", id), d));
+  return id;
+}
+/* The host's changes: name, guests, end (null takes it away). */
+export function updateNight(id, f) {
+  const u = { ...f, ...stamp() };
+  if ("name" in f) u.name = cleanName(f.name) || "Drink night";
+  if (f.end === null) u.end = cloud.api.deleteField();
+  write(cloud.api.updateDoc(ref("nights", id), u));
+}
+/* "I'm here", or leaving a night you're at. */
+export const joinNight = id => write(cloud.api.updateDoc(ref("nights", id), { guests: cloud.api.arrayUnion(uid()), ...stamp() }));
+export const leaveNight = id => write(cloud.api.updateDoc(ref("nights", id), { guests: cloud.api.arrayRemove(uid()), ...stamp() }));
+export const deleteNight = id => write(cloud.api.deleteDoc(ref("nights", id)));

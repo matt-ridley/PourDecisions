@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.14.2 (beta)
+**Current version:** 0.15.0 (beta)
 
 ## Features
 
@@ -83,6 +83,9 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🍾 Killed the bottle:** the pour that empties a bottle gets the credit (the maker, for a drink made for someone else), and a spare is opened for the rest. Each profile has a wall of the bottles they finished.
   - **Running low:** the 🔔 alerts tell everyone in the household when a fridge drink reaches its warning, a bottle is down to ¼ or empty with no spare, or an ingredient is marked out.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
+- **🎉 Drink Nights.** **Host a night** from Home: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
+  - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
+  - **Tonight** on Home shows nights that are on or start within 12 hours, and logging a drink during a night you're at picks its place.
 - **🧾 The Tab.** Who owes whom a drink, from your profile. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
   - **You and everyone:** "Dave owes you 2", "You owe Sam 1", with what each of you gave. **Around the group** shows everyone else's open tabs: everyone can see every balance.
   - **Between two people:** every drink either way, and **🎁 Give them one** to pay it back (the log form opens with them picked). Friends' profiles show the balance between you.
@@ -162,13 +165,16 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **No confirming:** a drink given counts straight away. The person receiving gets an alert and can tap **That's not right**, which takes it off the Tab and tells the giver.
 
 **C. Drink Nights**
+- ✅ **Hosting a night** (0.15.0). Next: group rounds (0.15.1), the bring list (0.15.2), recaps and the morning-after recap (0.15.3).
+- **Joining:** the host invites people, and anyone else in the group can tap **I'm here**.
 - Host, place, who's there and start time. The end time is optional: with none, the night ends with the last drink logged, which is marked as the **Nightcap**.
 - At home (the host's fridge and bar), out with coolers, or both.
 - Drinks logged during the night by people who are there attach to it automatically.
 - **Group log:** a round for everyone in one tap. It logs a drink for each person, takes the drinks out of the host's fridge or someone's cooler, and adds them to the Tab.
-- **Bring list:** a potluck list of who's bringing what. Drinks people bring go into the night's pool and onto the Tab when they're handed out.
+- **Bring list:** a plan of who's bringing what, ticked off when it arrives. Drinks people bring go in their cooler, so handing them out uses the cooler and goes on the Tab.
 - **Recap:** total drinks, drinks per person, top drink, bottles killed, what got emptied, bottle levels before and after, most generous, first to tap out and who had the Nightcap. Posted to the feed.
-- **Morning-after recap:** the next morning, what you drank, standard drinks, and what you gave away and were given. "If you don't remember, the app will."
+- **First to tap out** in the recap, from everyone's last drink.
+- **Morning-after recap:** private, on Home until noon the next morning (and an alert): what you drank, standard drinks, and what you gave away and were given. "If you don't remember, the app will."
 
 **D. The bartender**
 - ✅ **What can I make** (0.12.0, from a checklist; from your bar once milestone A is built).
@@ -273,6 +279,7 @@ npm run deploy:rules
 - A drink from home has `from` (the stock document it came out of), and a pour that emptied bottles has `killed` (their drink ids).
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
+- Drink Nights are stored in `nights` (host, name, place, start, optional end, who's there). Their drinks aren't marked on the logs: they're worked out from who's there and when.
 - Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar|cooler~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
 - The built-in drink list ships with the app, so it costs nothing to store and works offline.
@@ -352,6 +359,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.15.0** (2026-Oct-15): Drink Nights, part 1: **🎉 hosting a night**. Host from Home (name, now or later, place, at your place or out, who's coming); anyone else can tap **I'm here**. Drinks logged by people who are there attach to the night by themselves, it ends with the **🌙 Nightcap** (or when the host ends it), **Tonight** on Home shows what's on, and a drink logged during your night picks its place. **New `firestore.rules`** (`nights`): publish them before merging.
 
 - **0.14.2** (2026-Oct-15): The Tab, part 3, finishing milestone B: **🎁 Most Generous** (most drinks given) and **🥵 Thirstiest** (received the most more than they gave) boards, all time or this month, from the Tab and the Variety board. A tenth crown, **🎁 Most Generous**, for the most drinks given all time (at least 3), with a feed post and alerts when it changes hands. Disputed drinks don't count. No new security rules.
 

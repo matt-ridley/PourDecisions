@@ -304,6 +304,30 @@ service cloud.firestore {
       allow delete: if isMember() && (inHousehold(resource.data.hh) || isAdmin());
     }
 
+    // ---------- Drink Nights (see js/nights.js) ----------
+    // The host sets it up and invites people; anyone else in the group can add or take themselves off ("I'm here").
+    // Drinks attach by themselves (who's there and when), so logs don't change.
+    function nightOk(d) {
+      return d.keys().hasOnly(["name", "host", "placeId", "hh", "start", "end", "guests", "by", "at"])
+        && cleanName(d.name) && d.host is string
+        && optText(d, "placeId", 40) && optText(d, "hh", 40)
+        && d.start is int && (!("end" in d) || (d.end is int && d.end >= d.start))
+        && d.guests is list && d.guests.size() <= 50
+        && d.by == me() && d.at is int;
+    }
+    match /nights/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && nightOk(request.resource.data) && request.resource.data.host == me()
+        && me() in request.resource.data.guests;
+      // The host changes anything (but who hosts); anyone else only adds or removes themselves.
+      allow update: if isMember() && nightOk(request.resource.data) && !changed().hasAny(["host"]) && (
+        resource.data.host == me()
+        || (changed().hasOnly(["guests", "by", "at"])
+            && (request.resource.data.guests.toSet() == resource.data.guests.toSet().union([me()].toSet())
+                || request.resource.data.guests.toSet() == resource.data.guests.toSet().difference([me()].toSet()))));
+      allow delete: if isMember() && (resource.data.host == me() || isAdmin());
+    }
+
     // ---------- Catalogue moderation ----------
     // Corrections to built-in drinks (doc id = the built-in drink's id), laid over the list by the app. Only the
     // fields that differ are stored. mergedInto points a duplicate at the drink to keep.
