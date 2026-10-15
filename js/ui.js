@@ -125,6 +125,18 @@ export function confirmButton(label, armedLabel, run, cls = "btn danger") {
   return b;
 }
 
+/* Links to other pages, as rows in one card: [{ icon, title, sub, href }]. Empty rows are skipped. */
+export function linkList(rows, title) {
+  rows = rows.filter(Boolean);
+  if (!rows.length) return null;
+  return el("section", { class: "card stack" }, title ? el("h3", { text: title }) : null,
+    el("ul", { class: "item-list" }, ...rows.map(r => el("li", {}, el("a", { class: "item-row", href: r.href },
+      el("span", { class: "item-icon", text: r.icon }),
+      el("span", { class: "grow" }, el("b", { text: r.title }), r.sub ? el("span", { class: "muted small", text: r.sub }) : null),
+      r.chip || null,
+      el("span", { class: "chev", html: icon.chevron }))))));
+}
+
 /* A labelled form field. */
 export function field(label, input, hint) {
   return el("label", { class: "field" }, el("span", { class: "field-label", text: label }), input,
@@ -145,5 +157,8 @@ export const icon = {
   search: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'),
   shield: svg('<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>'),
   chevron: svg('<path d="m9 6 6 6-6 6"/>', 2.5),
+  bar: svg('<path d="M4 4h16l-8 9z"/><path d="M12 13v7M8 20h8"/>'),
+  us: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17.5 14.5a4.5 4.5 0 0 1 4 5.5"/>'),
+  gear: svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>'),
   bell: svg('<path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
 };

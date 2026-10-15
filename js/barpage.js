@@ -1,6 +1,6 @@
 /* The bar and the fridge: #/bar (yours), #/bar/<household>/<fridge|bar|cooler>, and #/bars (every household).
    Everyone can look at every household; only its members change it. The data rules are in stock.js. */
-import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field } from "./ui.js";
+import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field, linkList } from "./ui.js";
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
   loadCooler, unloadCooler, loadBarPhoto, setBarPhoto, placeOrder, cancelOrder, serveOrder } from "./cloud.js";
 import { barIsOpen, orderable, queueOf, ordersBy, orderItem } from "./orders.js";
@@ -44,17 +44,12 @@ export function renderBar(main, hhId, tab) {
       sig ? el("p", {}, "⭐ Signature: ", el("a", { href: `#/${sig.kind === "cocktail" ? "recipe" : "drink"}/${sig.id}`, text: sig.title })) : null,
       el("div", { class: "chips center" }, ...memberList(h).map(id => el("a", { class: "chip-btn who", href: `#/u/${id}` },
         avatar(store.members.get(id), "xs"), memberName(id)))),
-      barIsOpen(h, store.nights, store.logs) ? el("span", { class: "chip gold", text: "🟢 Open for orders" }) : null,
-      mine ? el("div", { class: "row center" },
-        el("button", { class: "btn small", type: "button", text: h.open ? "Close the bar" : "🟢 Open the bar", onclick: () => {
-          updateHousehold(h.id, { open: !h.open }); toast(h.open ? "Bar closed." : "Bar open: guests can order from the menu 🛎️");
-        } }),
-        el("button", { class: "btn small", type: "button", text: "Edit the bar's page", onclick: () => pageSheet(h) }),
-        el("button", { class: "btn small", type: "button", text: "Household settings", onclick: () => settingsSheet(h) })) : null),
+      barIsOpen(h, store.nights, store.logs) ? el("span", { class: "chip gold", text: "🟢 Open for orders" }) : null),
     mine ? queueCard(h) : null,
     barIsOpen(h, store.nights, store.logs) ? orderCard(h) : null,
     myOrdersCard(h),
-    menuCard(h, mine),
+    // Guests come for the menu, so it's first for them; the household sees what it has first and hosting below.
+    mine ? null : menuCard(h, mine),
     el("div", { class: "seg", role: "tablist" },
       el("a", { class: "seg-link", href: `${base}/fridge`, "aria-selected": String(tab === "fridge"), text: `🧊 Fridge · ${fridge.reduce((n, s) => n + fridgeCount(s), 0)}` }),
       el("a", { class: "seg-link", href: `${base}/bar`, "aria-selected": String(tab === "bar"), text: `🍾 Bar · ${bar.length}` }),
@@ -62,13 +57,22 @@ export function renderBar(main, hhId, tab) {
     tab === "fridge" ? fridgeCard(h, fridge, mine) : tab === "bar" ? barCards(h, bar, mine) : coolerCard(h, cooler, fridge, mine),
     mine && tab !== "cooler" ? el("button", { class: "btn primary block", type: "button", html: icon.plus, onclick: () => addSheet(h, tab) },
       tab === "fridge" ? "Add to the fridge" : "Add to the bar") : null,
-    mine ? (n => el("a", { class: "card admin-link", href: "#/run" }, el("span", { class: "item-icon", text: "🛒" }),
-      el("div", { class: "grow" }, el("b", { text: "LCBO run" }), el("p", { class: "muted small", text: n ? `${n} thing${n === 1 ? "" : "s"} to pick up` : "Nothing to pick up right now" })),
-      el("span", { class: "chev", html: icon.chevron })))(runList(store.stock, h, [...store.members.values()], currentCovers()).length) : null,
-    el("a", { class: "card admin-link", href: `#/makeable/${h.id}` },
-      el("span", { class: "item-icon", text: "🍸" }),
-      el("div", { class: "grow" }, el("b", { text: "What can I make here" }), el("p", { class: "muted small", text: "Cocktails from this bar and fridge" })),
-      el("span", { class: "chev", html: icon.chevron })),
+    linkList([
+      { icon: "🍸", title: mine ? "What can I make" : "What can I make here", sub: "Cocktails from this bar and fridge", href: `#/makeable/${h.id}` },
+      mine ? (n => ({ icon: "🛒", title: "LCBO run", sub: n ? `${n} thing${n === 1 ? "" : "s"} to pick up` : "Nothing to pick up right now", href: "#/run" }))(
+        runList(store.stock, h, [...store.members.values()], currentCovers()).length) : null,
+    ]),
+    mine ? el("section", { class: "card stack" },
+      el("h3", { text: "🛎️ Hosting" }),
+      el("p", { class: "muted small", text: h.open ? "The bar is open: guests can order from your menu."
+        : "Open the bar and guests can order from your menu. It's open during a night you host here, too." }),
+      el("button", { class: "btn block", type: "button", text: h.open ? "Close the bar" : "🟢 Open the bar", onclick: () => {
+        updateHousehold(h.id, { open: !h.open }); toast(h.open ? "Bar closed." : "Bar open: guests can order from the menu 🛎️");
+      } })) : null,
+    mine ? menuCard(h, mine) : null,
+    mine ? el("div", { class: "row" },
+      el("button", { class: "btn grow", type: "button", text: "Edit the bar's page", onclick: () => pageSheet(h) }),
+      el("button", { class: "btn grow", type: "button", html: icon.gear, "aria-label": "Household settings", onclick: () => settingsSheet(h) }, "Household")) : null,
     allLink());
 }
 

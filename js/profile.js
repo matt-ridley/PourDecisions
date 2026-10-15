@@ -1,5 +1,5 @@
-/* Profile: your own (with edit, look, units and sign out) or another member's. */
-import { el, field, avatar, fmtDay, openSheet, closeSheet, icon, fill } from "./ui.js";
+/* Profile: your own or another member's (#/me, #/u/<id>), and your settings (#/settings: edit, look, units, sign out). */
+import { el, field, avatar, fmtDay, openSheet, closeSheet, icon, fill, linkList } from "./ui.js";
 import { store, uid, isAdmin, updateMe, signOut, syncStatus } from "./cloud.js";
 import { VERSION, APP_NAME } from "./config.js";
 import { THEMES, getTheme, setTheme } from "./theme.js";
@@ -27,7 +27,8 @@ export function renderProfile(main, id) {
       m.hometown ? el("p", { class: "muted", text: `📍 ${m.hometown}` }) : null,
       m.favourite ? el("p", { class: "muted", text: `❤️ ${m.favourite}` }) : null,
       el("p", { class: "muted small", text: `Joined ${fmtDay(m.joinedAt || Date.now())}` }),
-      store.group && (store.group.admins || []).includes(m.id) ? el("span", { class: "chip gold", text: store.group.ownerUid === m.id ? "Group owner" : "Admin" }) : null));
+      store.group && (store.group.admins || []).includes(m.id) ? el("span", { class: "chip gold", text: store.group.ownerUid === m.id ? "Group owner" : "Admin" }) : null),
+    mine ? el("a", { class: "icon-btn profile-gear", href: "#/settings", "aria-label": "Settings", html: icon.gear }) : null);
 
   // Someone else's drinks kept off the feed stay off their profile too.
   const theirs = store.logs.filter(l => l.uid === m.id && (mine || !l.offFeed)).sort((a, b) => b.at - a.at);
@@ -37,41 +38,44 @@ export function renderProfile(main, id) {
       el("h3", { text: `Recent drinks${mine && theirs.length ? ` (${theirs.length} logged)` : ""}` }),
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
-    barLink(m.id, mine),
-    mine ? el("a", { class: "card admin-link", href: "#/tab" }, el("span", { class: "item-icon", text: "🧾" }),
-      el("div", { class: "grow" }, el("b", { text: "The Tab" }), el("p", { class: "muted small", text: "Who owes whom a drink" })),
-      el("span", { class: "chev", html: icon.chevron })) : tabLine(m.id),
+    // Your own bar and the Tab have tabs of their own (Bar, Us); a friend's profile links to theirs.
+    mine ? null : barLink(m.id),
+    mine ? null : tabLine(m.id),
     emptiesCard(m.id),
     varietyCard(m.id),
     mine ? tryNextCard() : null,
     mine ? volumeCard() : null,
     mixologistCard(m.id)].filter(Boolean);
 
-  if (mine) {
-    parts.push(el("section", { class: "card stack" },
-      el("h3", { text: "Your profile" }),
-      el("button", { class: "btn", type: "button", text: "Edit name, hometown and favourite", onclick: editSheet })));
+  if (mine) parts.push(el("a", { class: "btn block", href: "#/settings", html: icon.gear }, "Settings"));
+  fill(main, ...parts);
+}
 
-    const redraw = () => renderProfile(main, id);
-    parts.push(el("section", { class: "card stack" },
+/* #/settings: your name and details, the look, units, System info, Group admin and signing out. */
+export function renderSettings(main) {
+  const redraw = () => renderSettings(main);
+  fill(main,
+    el("h2", { class: "page-title", text: "Settings" }),
+    el("section", { class: "card stack" },
+      el("h3", { text: "Your profile" }),
+      el("button", { class: "btn", type: "button", text: "Edit name, hometown and favourite", onclick: editSheet })),
+    el("section", { class: "card stack" },
       el("h3", { text: "Look" }),
       seg("Theme", THEMES, getTheme(), k => { setTheme(k); redraw(); }),
       el("p", { class: "hint", text: "Happy Hour is bright and sunny. Last Call is the dark bar. Auto follows the phone's light or dark setting." }),
       el("h3", { text: "Units" }),
       seg("Units", [["oz", "Ounces (oz)"], ["ml", "Millilitres (ml)"]], getUnits(), k => { setUnits(k); redraw(); }),
-      el("p", { class: "hint", text: "Used for drink sizes and cocktail recipes. Saved on this phone." })));
-
-    parts.push(el("section", { class: "stack" },
+      el("p", { class: "hint", text: "Used for drink sizes and cocktail recipes. Saved on this phone." })),
+    el("section", { class: "stack" },
       el("a", { class: "btn block", href: "#/system", html: icon.glass }, "System info"),
       isAdmin() ? el("a", { class: "btn block", href: "#/admin", html: icon.shield }, "Group admin") : null,
-      el("button", { class: "btn quiet block", type: "button", text: "Sign out", onclick: confirmSignOut })));
-  }
-
-  parts.push(el("footer", { class: "credit" },
-    el("span", { text: `${APP_NAME} v${VERSION}${VERSION.startsWith("0.") ? " (beta)" : ""}` }),
-    el("span", { text: "Built by Matt Ridley" })));
-  fill(main, ...parts);
+      el("button", { class: "btn quiet block", type: "button", text: "Sign out", onclick: confirmSignOut })),
+    credit());
 }
+
+const credit = () => el("footer", { class: "credit" },
+  el("span", { text: `${APP_NAME} v${VERSION}${VERSION.startsWith("0.") ? " (beta)" : ""}` }),
+  el("span", { text: "Built by Matt Ridley" }));
 
 function editSheet() {
   openSheet(box => {
@@ -120,17 +124,13 @@ function emptiesCard(id) {
     all.length > 24 ? el("p", { class: "muted small", text: `And ${all.length - 24} more.` }) : null);
 }
 
-/* Your bar and fridge (or a start button), or the household someone else is in. */
-function barLink(id, mine) {
+/* The household a friend is in, with what's in it. */
+function barLink(id) {
   const h = householdOf(store.households, id);
-  if (!h && !mine) return null;
-  const f = h ? stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0) : 0;
-  const b = h ? stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length : 0;
-  return el("a", { class: "card admin-link", href: h ? `#/bar/${h.id}/fridge` : "#/bar" },
-    el("span", { class: "item-icon", text: "🏠" }),
-    el("div", { class: "grow" }, el("b", { text: h ? h.name : "Your bar & fridge" }),
-      el("p", { class: "muted small", text: h ? `${f} in the fridge · ${b} bottle${b === 1 ? "" : "s"} in the bar` : "Keep track of what you have and see what you can make" })),
-    el("span", { class: "chev", html: icon.chevron }));
+  if (!h) return null;
+  const f = stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0);
+  const b = stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length;
+  return linkList([{ icon: "🏠", title: h.name, sub: `${f} in the fridge · ${b} bottle${b === 1 ? "" : "s"} in the bar`, href: `#/bar/${h.id}/fridge` }]);
 }
 
 /* Cocktails made, variants created, how often friends made them, how they're rated, and House Pours held. */

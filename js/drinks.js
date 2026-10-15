@@ -1,7 +1,7 @@
 /* The Drinks tab: search the catalog, or drill down Category > Family > Style > drink, each page with a short
    description and breadcrumbs back up. Also a cocktail recipe and a recipe ingredient's page.
    A level with only one choice is skipped: Rosé goes straight to its drinks, Non-alcoholic straight to its styles. */
-import { el, fill, icon, fmtDay, fmtAgo, avatar, openSheet, closeSheet, toast } from "./ui.js";
+import { el, fill, icon, fmtDay, fmtAgo, avatar, openSheet, closeSheet, toast, linkList } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
@@ -26,7 +26,7 @@ export function renderDrinks(main) {
   const results = el("div", { class: "stack" });
   const draw = () => {
     query = box.value;
-    if (!query.trim()) return fill(results, makeableLink(), topLink(), categoryGrid());
+    if (!query.trim()) return fill(results, quickLinks(), categoryGrid());
     const hits = search(query);
     fill(results, hits.length
       ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(itemRow))
@@ -41,22 +41,13 @@ export function renderDrinks(main) {
     results);
 }
 
-/* The group's top-rated list, once anything is rated. */
-function topLink() {
+/* What can I make, and the group's top-rated list once anything is rated. */
+function quickLinks() {
   const n = new Set(groupRatings().map(r => `${r.kind}|${r.drinkId}`)).size;
-  if (!n) return null;
-  return el("a", { class: "card admin-link", href: "#/top" },
-    el("span", { class: "item-icon", text: "🏆" }),
-    el("div", { class: "grow" }, el("b", { text: "Top rated" }), el("p", { class: "muted small", text: `The group's favourites · ${n} drink${n === 1 ? "" : "s"} rated` })),
-    el("span", { class: "chev", html: icon.chevron }));
-}
-
-/* What can I make, from what you've ticked as on hand. */
-function makeableLink() {
-  return el("a", { class: "card admin-link", href: "#/makeable" },
-    el("span", { class: "item-icon", text: "🍸" }),
-    el("div", { class: "grow" }, el("b", { text: "What can I make" }), el("p", { class: "muted small", text: "Tick what's in your bar and see which cocktails you can mix" })),
-    el("span", { class: "chev", html: icon.chevron }));
+  return linkList([
+    { icon: "🍸", title: "What can I make", sub: "Cocktails from your bar, or from what you tick", href: "#/makeable" },
+    n ? { icon: "🏆", title: "Top rated", sub: `The group's favourites · ${n} drink${n === 1 ? "" : "s"} rated`, href: "#/top" } : null,
+  ]);
 }
 
 function categoryGrid() {
@@ -106,6 +97,17 @@ function styleTrail(styleId) {
   if (!soloFamily(cat) && s.family.styles.length > 1) parts.push([s.family.name, `#/cat/${cat.id}/${s.family.id}`]);
   parts.push([s.style.name, `#/style/${styleId}`]);
   return parts;
+}
+
+/* Where Back goes on a Drinks page when there's no earlier page in the app to go back to: one level up. */
+export function drinksParent(name, arg, arg2) {
+  const up = (kind, id) => { const i = itemById(kind, id); return i ? `#/style/${i.style.id}` : "#/drinks"; };
+  if (name === "cat") return arg2 ? `#/cat/${arg}` : "#/drinks";
+  if (name === "style") { const t = styleTrail(arg); return t.length > 1 ? t[t.length - 2][1] : "#/drinks"; }
+  if (name === "drink") return up("drink", arg);
+  if (name === "recipe") return up("cocktail", arg);
+  if (name === "v") { const v = itemById("variant", arg); return v ? `#/recipe/${v.base}` : "#/drinks"; }
+  return "#/drinks";
 }
 
 const pageHead = (emoji, title, about) => el("section", { class: "level-head" },

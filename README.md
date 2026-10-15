@@ -6,10 +6,11 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.17.0 (beta)
+**Current version:** 0.18.0 (beta)
 
 ## Features
 
+- **Getting around.** Five tabs at the bottom: **Home** (the feed), **Drinks** (the list), **Log** (the big button), **Bar** (your fridge, bar and cooler, What can I make, the LCBO run and everyone's bars) and **Us** (Drink Nights, the variety board and crowns, the Tab, Most Generous and the group). Your picture at the top opens your profile, and the ⚙️ on it opens **Settings** (your name, the look, units, System info, Group admin and signing out). **Back** goes to the page you came from, or one level up when you opened a page straight from an alert or a link.
 - **Accounts for friends only.** Friends create an account with their email and a password, confirm they're of legal drinking age, then join with the group's invite code. Nobody else can see anything.
 - **Group owner and admins.** Whoever sets up the group owns it. The owner can make other members admins. Admins can change the invite code, rename the group, and pause or remove members.
 - **Keeping the drink list tidy (admins).** **Group admin › Drink list** (and a reminder on Home) shows:
@@ -76,7 +77,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Photos:** add an optional photo when you make it. It goes with your own drink, and the variant's page shows the latest photos.
   - **Mixologist stats** on each profile: cocktails made, variants created, times friends made them, the average rating they get, and House Pours held.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
-- **🏠 Your bar & fridge.** From your profile. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
+- **🏠 Your bar & fridge.** The **Bar** tab. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
   - **🧊 Fridge:** beer, cider and cans, counted. **−** and **+** on each, and tap one to **reload** (+1, 6, 12, 15, 24 or 30), set a **running low** warning, empty it or remove it. The most recently changed come first. Counts add up correctly even when two phones change them with no signal.
   - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
   - **Drinks come out as you have them:** **Drink one** on a fridge drink (or **Pour one** on a bottle) logs it for you in its usual size and takes it out. Logging a drink you have at home asks **From home?** (picked for you unless you're somewhere), and **Make it** lists your own bottles first and takes what you pour out of them (a beer per serving from the fridge for a Boilermaker). Undo puts it back.
@@ -88,7 +89,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🛎️ Order up:** **Open the bar** (or host a night there) and guests can order from its menu, or a drink from the fridge or cooler, with a note. The household gets an alert and an **Orders** queue: **Serve** opens Make it with the guest picked (or hands over the drink), it's logged for them and goes on the Tab, and they get a "served" alert. **No** turns it down; a guest can take back an order that's still waiting.
   - **🛒 LCBO run:** your household's shopping list, the same for everyone in it: fridge drinks at their warning, bottles at ¼ or empty with no spare, ingredients marked out, and the one thing missing for cocktails anyone in the household **☆ starred** (on a recipe). **Got it** puts it back in the fridge or bar, and **Share** sends the list with the phone's share sheet.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
-- **🎉 Drink Nights.** **Host a night** from Home: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
+- **🎉 Drink Nights.** **Host a night** from the **Us** tab: a name, now or later, a place, whether it's at your place (your fridge and bar), and who's coming. Anyone else in the group can tap **I'm here**.
   - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
   - **🍻 Round:** on a night you're at, pick a drink (tonight's favourites come first) and who's having one. It logs one for each: yours is yours, everyone else's is on you (the Tab). It comes out of your cooler, fridge or a bar bottle if you pick one. **🔁 Same again** pours the last round again. Undo takes the whole round back.
   - **📝 Bring list:** who's bringing what (with how many), ticked off when it arrives. Add your own; the host can add for anyone there. Drinks to share go in your cooler, so friends can grab one and it goes on the Tab.
@@ -96,7 +97,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🌙 The recap**, once a night is over: drinks (and per person, on the night's page only), most poured, bottles killed, what was poured from the bar (and the level now), what came out of fridges and coolers, the most generous, the first to tap out and the Nightcap. It's posted to the feed (without the per-person numbers), where it can be cheered and commented on, and it replaces the automatic same-place recap for those drinks.
   - **☀️ The morning after:** a private card on Home until noon the next day (and an alert) for each night you drank at: your drinks, standard drinks, and what you gave and were given.
   - **Tonight** on Home shows nights that are on or start within 12 hours, and logging a drink during a night you're at picks its place.
-- **🧾 The Tab.** Who owes whom a drink, from your profile. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
+- **🧾 The Tab.** Who owes whom a drink, on the **Us** tab. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
   - **You and everyone:** "Dave owes you 2", "You owe Sam 1", with what each of you gave. **Around the group** shows everyone else's open tabs: everyone can see every balance.
   - **Between two people:** every drink either way, and **🎁 Give them one** to pay it back (the log form opens with them picked). Friends' profiles show the balance between you.
   - **🎁 Most Generous & 🥵 Thirstiest:** boards of who gave the most drinks, and who received the most more than they gave, all time or this month (from the Tab or the Variety board). The top giver of all time holds the **🎁 Most Generous** crown.
@@ -107,7 +108,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🛒 Best buy:** the single bottle or ingredient that would add the most cocktails, with which ones.
   - Cocktails you can make show **✅ Can make** in lists, and a recipe's page says what you're missing.
   - **From:** your bar & fridge (the default once you have one), anyone else's, or a checklist you tick by hand (saved on this phone, for a bar that isn't in the app).
-- **Ounces or millilitres.** Pick oz or ml on your profile (saved per phone). Used for drink sizes and cocktail recipes.
+- **Ounces or millilitres.** Pick oz or ml in Settings (saved per phone). Used for drink sizes and cocktail recipes.
 - **The drink list.** Search, or drill down one level at a time: Drinks › Whisky › Scotch › Islay Single Malt › the bottle. Every category, family and style has its own page with a short description, and breadcrumbs at the top lead back up. A level with only one choice is skipped (Rosé opens its drinks straight away).
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
   - **Drinks:** about 1,580 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (540), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
@@ -116,7 +117,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Ingredients:** tap an ingredient in a recipe to see which drinks in the list count as it (any Canadian rye counts as "Rye") and the other cocktails that use it. Each drink's page lists the cocktails you can use it in.
   - The list sticks to drinks known to be real, so it doesn't have every craft beer. Members add what's missing when they log it.
 - **Status light.** A small ball on the glass at the top shows the connection: green = connected, pulsing green = syncing, blue = offline, red = a sync problem. On inner pages the glass turns into Back, and the ball stays on it.
-- **System info.** Tap the glass (or **System info** on your profile) to see the connection in words (since when, the last sync, drinks and changes still waiting to send), the app version with **Check for an update**, whether the app is installed and ready offline, and this phone (space used, whether its saved data is protected, and the look).
+- **System info.** Tap the glass (or **System info** in Settings) to see the connection in words (since when, the last sync, drinks and changes still waiting to send), the app version with **Check for an update**, whether the app is installed and ready offline, and this phone (space used, whether its saved data is protected, and the look).
 - **Works offline.** After the first sign-in the app opens with no signal. The drink list is built in, so it's always there. With a weak signal it waits a few seconds, then opens from the copy saved on the phone. If it ever fails to start, it says so with a Reload button and details to screenshot, not a blank screen.
 
 ## Roadmap
@@ -204,6 +205,15 @@ Rules to follow from the start, so they never need fixing later:
 - Listeners load only what a screen needs. Once loading the whole history costs too much, older years get packed into an archive.
 - A change that needs new security rules goes out with them: publish the rules before (or right when) merging, or phones show a sync problem.
 - Still open in Lunker League, so worth trying to solve here: in a dead zone, sign-in checks the account over the network at start-up and can show "Loading…" for up to 30 seconds.
+
+### Easier to use
+
+From a review of the whole app after the roadmap was done: fewer hidden pages, shorter screens, faster logging.
+
+1. ✅ **Getting around** (0.18.0): Bar and Us tabs, Settings off the profile, Back that goes one level up when there's nowhere to go back to, the bar page with what's in it first and hosting below, links grouped into one list.
+2. **Home and the feed** (0.18.1): a slimmer welcome, the feed on the first screen, a compact How was it?, fewer crown posts, one Filter button, tidier feed cards.
+3. **Faster logging** (0.18.2): Log it always on screen, the extras folded away, one-tap Again, and your fridge on the Log screen.
+4. **Drinks** (0.18.3): more on a drink's page (add to your fridge or bar, want to try, give one), one place for what you have, and better search ranking.
 
 ### Backlog
 
@@ -365,7 +375,7 @@ node tools/make-icons.mjs
 
 ## Versioning
 
-The version number is the `VERSION` constant in [`js/config.js`](js/config.js), shown at the bottom of your profile. It follows `major.minor.patch`:
+The version number is the `VERSION` constant in [`js/config.js`](js/config.js), shown at the bottom of Settings. It follows `major.minor.patch`:
 
 - **Major** for a big change in how the app works.
 - **Minor** for each new feature.
@@ -374,6 +384,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.18.0** (2026-Oct-15): **Getting around.** Five tabs: Home, Drinks, Log, **Bar** (your fridge, bar and cooler, What can I make, the LCBO run, everyone's bars) and **Us** (Drink Nights, the variety board and crowns, the Tab, Most Generous, the group). **Settings** (⚙️ on your profile) now holds editing your profile, the look, units, System info, Group admin and signing out, so your profile is just you. **Back** goes to the page you came from, or one level up (drink › style › category) when the page was opened from an alert or a link. The bar page shows what's in it first, with hosting (Open the bar, the menu) below; guests still see the menu first. Home only shows Drink Nights when one is on. No new security rules.
 
 - **0.17.0** (2026-Oct-15): The last of roadmap step 1. **📊 Free-plan meters** on System info and Group admin: estimated storage out of the free 1 GB (and how many more drinks fit, photos included), and what an app open on a new phone costs against the free plan's daily reads and monthly downloads. **✉️ Email an invite** for the group owner: opens their email app with the whole invite (what the app is, installing it on iPhone and Android, signing up, the code). No new security rules.
 
