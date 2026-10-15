@@ -4,7 +4,7 @@
    Bartender mode shows the recipe in big text with a checkbox per line and keeps the screen awake.
    Starting from a variant (/<variant>) fills in its bottles and amounts: change anything and the new one is a remix of it. */
 import { el, fill, icon, toast, openSheet, closeSheet, avatar } from "./ui.js";
-import { store, uid, memberName, saveLog, deleteLog, saveVariant, takeOut } from "./cloud.js";
+import { store, uid, memberName, saveLog, deleteLog, saveVariant, takeOut, serveOrder } from "./cloud.js";
 import { householdOf, sourcesFor, makePours, levelText, fridgeCount } from "./stock.js";
 import { ML_PER_OZ } from "./units.js";
 import { itemById, rawItem, drinksFor, ingredientById, ingredientsOf, search, normalize, INGREDIENTS } from "./catalog.js";
@@ -19,6 +19,10 @@ const GLASSES = [...new Set(COCKTAILS.map(c => c.glass))].sort();
 const SERVINGS = [[1, "1"], [2, "×2"], [4, "×4"], [8, "Pitcher (8)"]];
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/* Serving a Bar Menu order: the next Make it of that cocktail is for the guest who ordered it, and marks it served. */
+let forOrder = null;
+export const makeForOrder = order => { forOrder = order; };
 
 export function renderMake(main, id, fromId) {
   const item = itemById("cocktail", id);
@@ -37,6 +41,9 @@ export function renderMake(main, id, fromId) {
     drinkers: [me], servings: 0, // 0 = one per person drinking
     offFeed: false, // your own drink only; drinks made for friends are theirs to show
   };
+  const order = forOrder && forOrder.item === recipe.id ? forOrder : null;
+  forOrder = null;
+  if (order) s.drinkers = [order.by];
   if (start) {
     s.slots = s.slots.map(r => {
       const v = start.ingredients.find(x => x.slot === r.slot);
@@ -285,6 +292,7 @@ export function renderMake(main, id, fromId) {
     if (killed.length) { const k = logs.findIndex(f => f.uid === me); logs[k < 0 ? 0 : k].killed = killed; }
     // The photo goes with your own drink only: a friend couldn't delete their log if it carried your photo.
     const ids = logs.map(f => saveLog(f, f.uid === me ? pics : null));
+    if (order) serveOrder(order.id, ids[0]);
     const title = variant ? variantTitle(recipe, variant) : recipe.name;
     const done = ids.length > 1 ? `${title} logged for ${plural(ids.length, "person", "people")} 🍹` : `${title} logged 🍹`;
     toast(killed.length ? `${done} You killed the bottle! 🍾` : done,

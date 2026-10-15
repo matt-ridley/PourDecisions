@@ -2,7 +2,9 @@
    Everyone can look at every household; only its members change it. The data rules are in stock.js. */
 import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field } from "./ui.js";
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
-  loadCooler, unloadCooler, loadBarPhoto, setBarPhoto } from "./cloud.js";
+  loadCooler, unloadCooler, loadBarPhoto, setBarPhoto, placeOrder, cancelOrder, serveOrder } from "./cloud.js";
+import { barIsOpen, orderable, queueOf, ordersBy, orderItem } from "./orders.js";
+import { makeForOrder } from "./makepage.js";
 import { shrinkPhoto } from "./photo.js";
 import { sortByHave } from "./makeable.js";
 import { currentCovers } from "./makeablepage.js";
@@ -42,9 +44,16 @@ export function renderBar(main, hhId, tab) {
       sig ? el("p", {}, "⭐ Signature: ", el("a", { href: `#/${sig.kind === "cocktail" ? "recipe" : "drink"}/${sig.id}`, text: sig.title })) : null,
       el("div", { class: "chips center" }, ...memberList(h).map(id => el("a", { class: "chip-btn who", href: `#/u/${id}` },
         avatar(store.members.get(id), "xs"), memberName(id)))),
+      barIsOpen(h, store.nights, store.logs) ? el("span", { class: "chip gold", text: "🟢 Open for orders" }) : null,
       mine ? el("div", { class: "row center" },
+        el("button", { class: "btn small", type: "button", text: h.open ? "Close the bar" : "🟢 Open the bar", onclick: () => {
+          updateHousehold(h.id, { open: !h.open }); toast(h.open ? "Bar closed." : "Bar open: guests can order from the menu 🛎️");
+        } }),
         el("button", { class: "btn small", type: "button", text: "Edit the bar's page", onclick: () => pageSheet(h) }),
         el("button", { class: "btn small", type: "button", text: "Household settings", onclick: () => settingsSheet(h) })) : null),
+    mine ? queueCard(h) : null,
+    barIsOpen(h, store.nights, store.logs) ? orderCard(h) : null,
+    myOrdersCard(h),
     menuCard(h, mine),
     el("div", { class: "seg", role: "tablist" },
       el("a", { class: "seg-link", href: `${base}/fridge`, "aria-selected": String(tab === "fridge"), text: `🧊 Fridge · ${fridge.reduce((n, s) => n + fridgeCount(s), 0)}` }),
@@ -95,12 +104,76 @@ export function renderBars(main) {
       const f = stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0);
       const b = stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length;
       return el("li", {}, el("a", { class: "item-row", href: `#/bar/${h.id}/fridge` },
-        el("span", { class: "item-icon", text: "🏠" }),
+        el("span", { class: "item-icon", text: barIsOpen(h, store.nights, store.logs) ? "🟢" : "🏠" }),
         el("span", { class: "grow" }, el("b", { text: h.name }),
           el("span", { class: "muted small", text: `${peopleText(h)} · ${plural(f, "in the fridge", "in the fridge")} · ${plural(b, "bottle")}` })),
         el("span", { class: "chev", html: icon.chevron })));
     })) : el("p", { class: "card muted", text: "Nobody has set up a bar yet." }),
     mine ? null : el("a", { class: "btn primary block", href: "#/bar", text: "Start yours" }));
+}
+
+/* ---------- Bar Menu / Order up (see orders.js) ---------- */
+/* The household's queue: what's been ordered, oldest first. Serve makes it (Make it, with the guest picked) or hands
+   it over from the fridge or cooler; either way it's logged for the guest and goes on the Tab. */
+function queueCard(h) {
+  const q = queueOf(store.orders, h.id);
+  if (!q.length) return null;
+  return el("section", { class: "card stack problem" },
+    el("h3", { text: `🛎️ Orders · ${q.length}` }),
+    el("ul", { class: "item-list" }, ...q.map(o => {
+      const item = orderItem(o);
+      return el("li", { class: "make-row" },
+        avatar(store.members.get(o.by) || { id: o.by, displayName: memberName(o.by) }, "sm"),
+        el("span", { class: "make-name" }, el("b", { text: `${memberName(o.by)}: ${item ? item.title : "a drink that's gone"}` }),
+          o.note ? el("span", { class: "muted small", text: `"${o.note}"` }) : null),
+        item ? el("button", { class: "btn small primary", type: "button", text: "Serve", onclick: () => serve(h, o, item) }) : null,
+        el("button", { class: "btn small", type: "button", text: "No", "aria-label": "Can't make it", onclick: () => { cancelOrder(o.id); toast("Order turned down."); } }));
+    })));
+}
+
+function serve(h, o, item) {
+  if (o.kind === "cocktail") { makeForOrder(o); location.hash = `#/make/${item.id}`; return; }
+  const entry = [...stockIn(store.stock, h.id, "cooler"), ...stockIn(store.stock, h.id, "fridge")].find(s => s.item === item.id && fridgeCount(s) > 0);
+  const id = drinkOne(item, entry || null, o.by === uid() ? null : o.by);
+  serveOrder(o.id, id);
+}
+
+/* Ordering: what the bar can make or hand out right now. */
+function orderCard(h) {
+  const list = orderable(h, store.stock, currentCovers());
+  if (!list.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: "🍹 Order up" }),
+    el("p", { class: "hint", text: "Order from your phone: the bar sees it, makes it and it's logged for you (and on the Tab)." }),
+    el("ul", { class: "item-list" }, ...list.map(o => el("li", { class: "make-row" },
+      el("span", { class: "make-name" }, el("b", { text: `${o.kind === "cocktail" ? "🍹" : o.item.category.icon} ${o.item.title}` }),
+        el("span", { class: "muted small", text: o.kind === "cocktail" ? "From the menu" : "In the fridge" })),
+      el("button", { class: "btn small", type: "button", text: "Order", onclick: () => orderSheet(h, o) })))));
+}
+
+function orderSheet(h, o) {
+  openSheet(box => {
+    const note = el("input", { type: "text", maxlength: 80, placeholder: "Anything? e.g. light on the ice", "data-focus": "" });
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: `Order a ${o.item.title}` }),
+      field("Note (optional)", note),
+      el("button", { class: "btn primary block", type: "button", text: "Order it 🛎️", onclick: () => {
+        placeOrder(h.id, o.kind, o.item.id, note.value); closeSheet(); toast("Ordered. The bar will see it 🛎️");
+      } }),
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
+}
+
+/* Your orders at this bar in the last 12 hours, and where they're at. */
+function myOrdersCard(h) {
+  const mine = ordersBy(store.orders, uid()).filter(o => o.hh === h.id);
+  if (!mine.length) return null;
+  const state = { waiting: "⏳ Waiting", served: "✅ Served", cancelled: "✖ Not this time" };
+  return el("section", { class: "card stack" },
+    el("h3", { text: "Your orders" }),
+    el("ul", { class: "item-list" }, ...mine.map(o => el("li", { class: "make-row" },
+      el("span", { class: "make-name" }, el("b", { text: (orderItem(o) || { title: "A drink" }).title }), el("span", { class: "muted small", text: state[o.state] })),
+      o.state === "waiting" ? el("button", { class: "btn small", type: "button", text: "Take it back", onclick: () => cancelOrder(o.id) }) : null))));
 }
 
 /* ---------- The bar's page: photo, about, signature drink and the menu ---------- */

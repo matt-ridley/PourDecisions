@@ -10,6 +10,7 @@
      given    a friend gave you a drink (the Tab)     disputed  a friend said a drink you gave isn't right
      rated    a friend rated your variant       houseWon / houseLost  your variant won or lost the House Pour
      crownWon / crownLost  you took a crown, or someone took yours (crown changes passed in from crowns.js)
+     order    someone ordered from your bar         served   your Bar Menu order was served
      morning  your morning-after recap of a Drink Night is ready (until noon the next day)
      low      something in your household is running low or out (passed in from stock.js lowStock): one per thing,
               dated when it last changed */
@@ -19,7 +20,7 @@ import { houseChanges } from "./feed.js";
 export const ALERT_DAYS = 30;
 const DAY = 86400000;
 
-export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], crowns = [], low = [], mornings = [], now = Date.now(), days = ALERT_DAYS } = {}) {
+export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], crowns = [], low = [], mornings = [], orders = [], myHh = null, now = Date.now(), days = ALERT_DAYS } = {}) {
   const from = now - days * DAY, out = [];
   const recent = x => x.at >= from && x.at <= now + 600000;
   const mineVariant = id => { const v = id && itemById("variant", id); return v && v.data.by === me ? v : null; };
@@ -41,10 +42,12 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
     else if (myFirst.has(c.post) && c.at > myFirst.get(c.post)) out.push({ kind: "reply", post: c.post, at: c.at, from: [c.uid], text: c.text });
   }
 
-  // Your variants made by friends, and drinks friends made for you.
+  // Your variants made by friends, and drinks friends made for you (a served Bar Menu order says so itself).
+  const servedLogs = new Set(orders.filter(o => o.state === "served" && o.logId).map(o => o.logId));
   for (const l of logs) {
     if (!recent(l) || l.offFeed) continue;
     const maker = l.madeBy || l.uid;
+    if (servedLogs.has(l.id)) continue;
     if (l.uid === me && l.madeBy && l.madeBy !== me) out.push({ kind: "madeFor", at: l.at, from: [l.madeBy], logId: l.id });
     else if (l.uid === me && l.givenBy && l.givenBy !== me) out.push({ kind: "given", at: l.at, from: [l.givenBy], logId: l.id });
     if (l.disputed && l.uid !== me && (l.givenBy || l.madeBy) === me) out.push({ kind: "disputed", at: l.editedAt || l.at, from: [l.uid], logId: l.id });
@@ -72,6 +75,12 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
     if (!recent(c)) continue;
     if (c.uid === me) out.push({ kind: "crownWon", at: c.at, from: [], crown: c.crown });
     else if (c.from === me) out.push({ kind: "crownLost", at: c.at, from: [c.uid], crown: c.crown });
+  }
+  // Bar Menu orders: new ones for your bar, and yours served.
+  for (const o of orders) {
+    if (!recent(o)) continue;
+    if (o.hh === myHh && o.by !== me && o.state === "waiting") out.push({ kind: "order", at: o.at, from: [o.by], order: o });
+    if (o.by === me && o.state === "served" && o.servedBy && o.servedBy !== me) out.push({ kind: "served", at: o.at, from: [o.servedBy], order: o });
   }
   // The morning after a Drink Night (until noon; see nights.js mornings).
   for (const m of mornings) out.push({ kind: "morning", at: m.at, from: [], nightId: m.night.id });

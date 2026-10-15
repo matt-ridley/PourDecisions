@@ -39,6 +39,7 @@ export const store = {
   stock: [],              // what's in every household's fridge and bar, one document per thing
   nights: [],             // Drink Nights (see nights.js)
   bring: [],              // the bring lists of Drink Nights
+  orders: [],             // Bar Menu orders (see orders.js)
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -133,7 +134,7 @@ function refreshMemberListeners() {
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = []; store.nights = []; store.bring = [];
+  store.households = []; store.stock = []; store.nights = []; store.bring = []; store.orders = [];
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -159,6 +160,7 @@ function refreshMemberListeners() {
   list("stock", l => { store.stock = l; });
   list("nights", l => { store.nights = l; });
   list("bring", l => { store.bring = l; });
+  list("orders", l => { store.orders = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -176,7 +178,7 @@ function stopListeners() {
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
   store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
-  store.households = []; store.stock = []; store.nights = []; store.bring = [];
+  store.households = []; store.stock = []; store.nights = []; store.bring = []; store.orders = [];
 }
 
 function syncError(e) {
@@ -682,3 +684,16 @@ export function setBarPhoto(hh, src) {
   b.update(ref("households", hh), { hasPhoto: !!src, ...stamp() });
   write(b.commit());
 }
+
+/* ---------- Bar Menu / Order up (see orders.js) ---------- */
+export function placeOrder(hh, kind, item, note) {
+  const d = { hh, by: uid(), kind, item, state: "waiting", at: Date.now() };
+  const n = clip(note, 80);
+  if (n) d.note = n;
+  const id = newId("orders");
+  write(cloud.api.setDoc(ref("orders", id), d));
+  return id;
+}
+export const cancelOrder = id => write(cloud.api.updateDoc(ref("orders", id), { state: "cancelled", at: Date.now() }));
+export const serveOrder = (id, logId) => write(cloud.api.updateDoc(ref("orders", id),
+  { state: "served", servedBy: uid(), ...(logId ? { logId } : {}), at: Date.now() }));

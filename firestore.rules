@@ -267,11 +267,12 @@ service cloud.firestore {
     // A bar's page: about, a signature drink ("kind:id"), the menu (cocktail ids) and whether it has a photo (the photo
     // itself is in barphotos, so it isn't downloaded every time the app opens).
     function householdOk(d) {
-      return d.keys().hasOnly(["name", "members", "about", "signature", "menu", "hasPhoto", "by", "at"])
+      return d.keys().hasOnly(["name", "members", "about", "signature", "menu", "hasPhoto", "open", "by", "at"])
         && cleanName(d.name) && d.members is list && d.members.size() <= 10
         && optText(d, "about", 200) && optText(d, "signature", 130)
         && (!("menu" in d) || (d.menu is list && d.menu.size() <= 40))
         && (!("hasPhoto" in d) || d.hasPhoto is bool)
+        && (!("open" in d) || d.open is bool)
         && d.by == me() && d.at is int;
     }
     match /households/{id} {
@@ -281,6 +282,27 @@ service cloud.firestore {
       // Its members change it (adding someone, or leaving). Admins can tidy one up too.
       allow update: if ((isMember() && me() in resource.data.members) || isAdmin()) && householdOk(request.resource.data);
       allow delete: if isMember() && (me() in resource.data.members || isAdmin());
+    }
+
+    // Bar Menu / Order up (see js/orders.js): a guest orders; the bar's household serves it or says no. The guest can
+    // take back an order that's still waiting.
+    function orderOk(d) {
+      return d.keys().hasOnly(["hh", "by", "kind", "item", "note", "state", "at", "servedBy", "logId"])
+        && d.hh is string && exists(householdPath(d.hh)) && d.by is string
+        && d.kind in ["cocktail", "drink"] && d.item is string && d.item.size() > 0 && d.item.size() <= 80
+        && optText(d, "note", 80) && d.state in ["waiting", "served", "cancelled"] && d.at is int
+        && optText(d, "servedBy", 128) && optText(d, "logId", 40);
+    }
+    match /orders/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && orderOk(request.resource.data) && request.resource.data.by == me()
+        && request.resource.data.state == "waiting" && !request.resource.data.keys().hasAny(["servedBy", "logId"]);
+      allow update: if isMember() && orderOk(request.resource.data) && !changed().hasAny(["hh", "by", "kind", "item"]) && (
+        (inHousehold(resource.data.hh) && changed().hasOnly(["state", "servedBy", "logId", "at"])
+          && (request.resource.data.state != "served" || request.resource.data.servedBy == me()))
+        || (resource.data.by == me() && resource.data.state == "waiting" && request.resource.data.state == "cancelled"
+          && changed().hasOnly(["state", "at"])));
+      allow delete: if isMember() && (resource.data.by == me() || inHousehold(resource.data.hh) || isAdmin());
     }
 
     match /barphotos/{id} {

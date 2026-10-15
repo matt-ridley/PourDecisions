@@ -146,3 +146,20 @@ test("a bar's page: about, signature, menu and a photo kept in its own document"
   await assertFails(deleteDoc(doc(friend, "barphotos/h1")));
   await assertSucceeds(deleteDoc(doc(db, "barphotos/h1")));
 });
+
+test("orders: a guest orders, the household serves it or says no, the guest can take back a waiting one", async () => {
+  await seedHouse();
+  const host = as(env, "member"), guest = as(env, "member2");
+  await assertSucceeds(updateDoc(doc(host, "households/h1"), { open: true, by: "member", at: Date.now() }));
+  const order = (by, extra = {}) => ({ hh: "h1", by, kind: "cocktail", item: "manhattan", note: "Up, please", state: "waiting", at: Date.now(), ...extra });
+  await assertSucceeds(setDoc(doc(guest, "orders/o1"), order("member2")));
+  await assertFails(setDoc(doc(guest, "orders/o2"), order("owner")), "not for someone else");
+  await assertFails(setDoc(doc(guest, "orders/o3"), order("member2", { state: "served" })), "orders start waiting");
+  await assertFails(setDoc(doc(guest, "orders/o4"), order("member2", { hh: "nope" })), "the bar must exist");
+  await assertFails(updateDoc(doc(guest, "orders/o1"), { state: "served", servedBy: "member2", at: Date.now() }), "guests don't serve themselves");
+  await assertSucceeds(updateDoc(doc(host, "orders/o1"), { state: "served", servedBy: "member", logId: "log1", at: Date.now() }));
+  await assertFails(updateDoc(doc(guest, "orders/o1"), { state: "cancelled", at: Date.now() }), "too late once it's served");
+  await assertSucceeds(setDoc(doc(guest, "orders/o5"), order("member2")));
+  await assertSucceeds(updateDoc(doc(guest, "orders/o5"), { state: "cancelled", at: Date.now() }), "take back a waiting one");
+  await assertFails(updateDoc(doc(host, "orders/o5"), { item: "negroni", at: Date.now() }), "what was ordered never changes");
+});
