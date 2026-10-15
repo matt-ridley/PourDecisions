@@ -444,3 +444,11 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .out-label { font-weight: 800; font-size: 14px; white-space: nowrap; }
 .out-chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none; padding: 4px 12px 4px 4px;
   border-radius: 99px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; }
+
+/* The alerts bell and list */
+.bell { position: relative; }
+.bell-count { position: absolute; top: -5px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px;
+  background: var(--accent); color: var(--accent-ink); font-size: 12px; line-height: 20px; text-align: center; border: 2px solid var(--head-bg); }
+.alert.new .item-row { background: var(--primary-soft); }
+.alert .item-row .grow > span:first-child { overflow-wrap: anywhere; }
+.new-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }

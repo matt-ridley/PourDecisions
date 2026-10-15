@@ -5,7 +5,7 @@ import { store, uid, isAdmin, memberName, saveLog, deleteLog, toggleCheer, addCo
 import { itemById } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { feedItems, filterFeed, hasOlder, sameHere, FEED_DAYS, postId, cheersOn, commentsOn, cleanComment, MAX_COMMENT,
-  topOfNight, outNow } from "./feed.js";
+  topOfNight, outNow, sessions } from "./feed.js";
 import { groupRatings, starText, ratingOfLog } from "./ratepage.js";
 import { asItem, variantTitle } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
@@ -210,4 +210,22 @@ function outStrip() {
     ...out.map(o => el("a", { class: "out-chip", role: "listitem", href: `#/u/${o.uid}` }, avatar(member(o.uid), "xs"),
       el("span", {}, el("b", { text: member(o.uid).displayName }), placeName(o.placeId) ? ` at ${placeName(o.placeId)}` : "",
         el("span", { class: "muted", text: ` · ${fmtAgo(o.at)}` })))));
+}
+
+/* ---------- One post, and a drink's night ---------- */
+/* #/post/<id>: one feed post with its comments open, however old (alerts link here). Post ids hold a "~", and a
+   variant's id has one too, so everything after "#/post/" is the id. */
+export function renderPost(main) {
+  const post = decodeURIComponent(location.hash.replace(/^#\/post\//, ""));
+  const it = allFeed().find(x => postId(x) === post);
+  if (!it) return fill(main, el("div", { class: "card" }, el("p", { text: "That post isn't in the feed any more." })));
+  openPosts.add(post);
+  fill(main, el("h2", { class: "page-title", text: "Post" }), el("ul", { class: "feed-list" }, feedRow(it)));
+}
+
+/* Cheers and comments for the night a log belongs to, for the log's own page. Null when it's kept off the feed. */
+export function nightReactions(log) {
+  if (log.offFeed) return null;
+  const night = sessions(store.logs.filter(l => l.uid === log.uid), store.places).find(s => s.logs.some(l => l.id === log.id));
+  return night ? el("section", { class: "card" }, reactions(night)) : null;
 }

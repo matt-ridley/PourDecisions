@@ -145,4 +145,5 @@ export const icon = {
   search: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'),
   shield: svg('<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>'),
   chevron: svg('<path d="m9 6 6 6-6 6"/>', 2.5),
+  bell: svg('<path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
 };

@@ -10,6 +10,7 @@ import { sizesFor, defaultSize, itemAbv, logStd, recentDrinks, placesByUse,
   lastPlace, findPlace, cleanPlaceName, resolvePlace, SAME_NIGHT_MS } from "./logs.js";
 import { starText, ratingOfLog, rateButton } from "./ratepage.js";
 import { variantTitle } from "./variants.js";
+import { nightReactions } from "./feedpage.js";
 import { getUnits, fmtVolume, standardDrinks, ozToMl } from "./units.js";
 import { shrinkPhoto } from "./photo.js";
 
@@ -340,6 +341,7 @@ export function renderLogDetail(main, id) {
       el("div", { class: "grow" }, el("div", { class: "name", text: m.displayName }), el("div", { class: "muted small", text: fmtAgo(log.at) }))),
     el("dl", { class: "facts card" }, ...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", {}, v)])),
     log.notes ? el("p", { class: "card notes", text: log.notes }) : null,
+    nightReactions(log),
     el("div", { class: "stack" },
       mineLog && item ? rateButton(item) : null,
       mineLog ? el("button", { class: "btn primary block", type: "button", text: "Another one", onclick: () => { anotherOne(log); location.hash = "#/home"; } }) : null,

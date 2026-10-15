@@ -11,6 +11,8 @@ import { renderLog, renderLogDetail, renderLogEdit } from "./logpage.js";
 import { renderDrinks, renderCategory, renderStyle, renderDrink, renderRecipe, renderIngredient, renderVariant, renderCompare } from "./drinks.js";
 import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
+import { bellButton, renderAlerts } from "./alertspage.js";
+import { renderPost } from "./feedpage.js";
 import { renderMake } from "./makepage.js";
 import { applyTheme } from "./theme.js";
 
@@ -36,6 +38,8 @@ const ROUTES = {
   admin: { tab: null, live: true, render: renderAdmin },
   catalog: { tab: null, live: true, render: renderCatalogAdmin },
   system: { tab: null, live: true, render: renderSystem },
+  alerts: { tab: null, live: true, render: renderAlerts },
+  post: { tab: null, live: true, render: renderPost }, // one feed post with its comments open (from an alert)
 };
 
 function parseRoute() {
@@ -87,6 +91,7 @@ function renderHeader(inApp) {
       el("span", { html: icon.glass }), ball),
     el("div", { class: "brand" },
       el("div", { class: "brand-name", text: (store.group && store.group.name) || APP_NAME })),
+    bellButton(),
     el("a", { class: "me-btn", href: "#/me", "aria-label": "Your profile" }, avatar({ ...store.me, id: uid() }, "sm")));
 }
 

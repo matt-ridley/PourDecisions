@@ -52,3 +52,8 @@ test("night recaps and firsts can be cheered and commented on too", async () => 
     await assertSucceeds(setDoc(doc(db, `comments/${post.slice(0, 1)}c`), comment("member", { post })));
   }
 });
+
+test("members keep when they last looked at their alerts on their own profile", async () => {
+  await assertSucceeds(updateDoc(doc(as(env, "member"), "members/member"), { alertsSeenAt: Date.now() }));
+  await assertFails(updateDoc(doc(as(env, "member"), "members/owner"), { alertsSeenAt: Date.now() }), "not someone else's");
+});
