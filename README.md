@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.18.3 (beta)
+**Current version:** 0.18.4 (beta)
 
 ## Features
 
@@ -115,7 +115,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **On a drink's page:** **Log this** right under the name, then **🏠 Add** (to your fridge or bar, without leaving the page), **🎯 To try** and **🎁 Give** (pick a friend, and the log form opens with it for them, on the Tab).
 - **🎯 Want to try.** Drinks you've marked on their page and haven't had yet, on your profile (and friends' on theirs), with whose bar has one. A drink leaves the list once you log it.
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
-  - **Drinks:** about 1,580 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (540), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
+  - **Drinks:** about 1,770 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (680), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
   - **Search:** matches names, brands, styles, categories, places (`guelph`, `county`) and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
   - **Cocktail recipes:** 210 default recipes (201 cocktails plus 9 mocktails), each with ingredients (in oz or ml), garnish, glass and method. Classics, tiki, frozen drinks, shots and shooters, with Canada well covered: seven Caesars, Rye and Ginger, the Paralyzer, Caribou, the Toronto, Moose Milk and Spanish Coffee.
   - **Ingredients:** tap an ingredient in a recipe to see which drinks in the list count as it (any Canadian rye counts as "Rye") and the other cocktails that use it. Each drink's page lists the cocktails you can use it in.
@@ -387,6 +387,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.18.4** (2026-Oct-15): **More whisky and seltzers.** About 145 more whiskies (Crown Royal Fine de Cognac and Bourbon Mash, Wiser's Double Still Rye, more BC single malts, Scotch from every region, more bourbon and rye, Irish pot still, Japanese and world whisky), now 684 in all, and about 45 more hard seltzers (more White Claw and Surge, Truly, NÜTRL and Cottage Springs flavours, plus Bud Light Seltzer, High Noon, Corona, Vizzy and Social Lite), now 65. About 1,770 drinks in the built-in list. No new security rules.
 
 - **0.18.3** (2026-Oct-15): **Drinks**, finishing the ease-of-use pass. A drink's page has **Log this** under its name, with **🏠 Add** (to your fridge or bar, staying on the page), **🎯 To try** and **🎁 Give** (pick a friend; the log form opens with it for them). **🎯 Want to try** on profiles lists drinks marked and not yet had, with whose bar has one. **Search** puts the closest title first, then each brand's main drink (the list's own order) before flavours and other bottles, non-alcoholic versions after the rest unless asked for, and what the group logs most higher up ("guinness" now starts with Guinness Draught). What can I make calls the tick list **Planning** once you have a bar in the app. **Changed `firestore.rules`** (a `wants` list on your member document, up to 200): publish them before merging. The app works with the old rules too.
 
