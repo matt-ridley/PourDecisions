@@ -211,6 +211,33 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ---------- Cheers and comments on feed posts ----------
+    // A post id names what's cheered: s~<log> (a night), r~<rating>, v~<variant>, h~<variant>, a~<drink>.
+    // `to` is whoever the post is about, for their alerts.
+    function postOk(p) { return p is string && p.size() > 2 && p.size() <= 160 && p.matches("[srvha]~.+"); }
+    match /cheers/{id} {
+      allow read: if isMember();
+      // One per person per post (id = post|uid); taken back by deleting it.
+      allow create: if isMember()
+        && request.resource.data.keys().hasOnly(["post", "uid", "to", "at"])
+        && request.resource.data.uid == me() && postOk(request.resource.data.post)
+        && id == request.resource.data.post + "|" + me()
+        && request.resource.data.to is string && request.resource.data.to.size() <= 128
+        && request.resource.data.at is int;
+      allow delete: if isMember() && resource.data.uid == me();
+    }
+    match /comments/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.keys().hasOnly(["post", "uid", "to", "text", "at"])
+        && request.resource.data.uid == me() && postOk(request.resource.data.post)
+        && request.resource.data.to is string && request.resource.data.to.size() <= 128
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 300
+        && request.resource.data.at is int;
+      // No editing. Your own, or anyone's for an admin.
+      allow delete: if isMember() && (resource.data.uid == me() || isAdmin());
+    }
+
     // ---------- Catalogue moderation ----------
     // Corrections to built-in drinks (doc id = the built-in drink's id), laid over the list by the app. Only the
     // fields that differ are stored. mergedInto points a duplicate at the drink to keep.

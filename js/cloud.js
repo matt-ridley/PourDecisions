@@ -32,6 +32,8 @@ export const store = {
   styles: [],             // admins' new and renamed styles
   ratings: [],            // one per person per drink: stars, flavours and a review (see ratings.js)
   variants: [],           // members' own versions of cocktail recipes (see variants.js)
+  cheers: [],             // 🍻 on feed posts, one per person per post
+  comments: [],           // comments on feed posts
   outbox: [],             // this phone's logs the group doesn't have yet (see outbox.js)
 };
 
@@ -125,7 +127,7 @@ function refreshMemberListeners() {
   for (const k of Object.keys(cloud.meta)) if (k !== "group" && k !== "me") delete cloud.meta[k];
   store.members = new Map(); store.invite = undefined; store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
-  store.variants = []; setVariants([]);
+  store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
   if (!member) return;
   const { onSnapshot, collection, doc } = cloud.api;
   cloud.memberUnsubs.push(onSnapshot(collection(cloud.db, "members"), OPTS, snap => {
@@ -145,6 +147,8 @@ function refreshMemberListeners() {
   list("styles", l => { store.styles = l; setStyles(l); });
   list("ratings", l => { store.ratings = l; });
   list("variants", l => { store.variants = l; setVariants(l); });
+  list("cheers", l => { store.cheers = l; });
+  list("comments", l => { store.comments = l; });
   flushOutbox();
   if (key === "admin") cloud.memberUnsubs.push(onSnapshot(doc(cloud.db, "config", "invite"), OPTS, snap => {
     seen("invite", snap);
@@ -161,7 +165,7 @@ function stopListeners() {
   store.group = undefined; store.me = undefined; store.members = new Map(); store.invite = undefined;
   store.logs = []; store.places = []; store.drinks = []; setMemberDrinks([]);
   store.fixes = []; store.styles = []; store.ratings = []; setFixes([]); setStyles([]);
-  store.variants = []; setVariants([]);
+  store.variants = []; setVariants([]); store.cheers = []; store.comments = [];
 }
 
 function syncError(e) {
@@ -410,6 +414,34 @@ export function renameVariant(id, name) {
   write(cloud.api.updateDoc(ref("variants", id), { name: n || cloud.api.deleteField() }));
   store.variants = store.variants.map(v => v.id === id ? (n ? { ...v, name: n } : (({ name: _, ...rest }) => rest)(v)) : v);
   setVariants(store.variants);
+  emit();
+}
+
+/* ---------- Cheers and comments on feed posts ---------- */
+/* Cheers, or take it back. `to` is whoever the post is about (for their alerts). Works offline. */
+export function toggleCheer(post, to) {
+  const id = `${post}|${uid()}`;
+  if (store.cheers.some(c => c.id === id)) {
+    write(cloud.api.deleteDoc(ref("cheers", id)));
+    store.cheers = store.cheers.filter(c => c.id !== id);
+  } else {
+    const c = { post, uid: uid(), to: to || "", at: Date.now() };
+    write(cloud.api.setDoc(ref("cheers", id), c));
+    store.cheers = [...store.cheers, { id, ...c }];
+  }
+  emit();
+}
+/* A comment on a post (text already cleaned). Comments can't be edited, only deleted. */
+export function addComment(post, to, text) {
+  const id = newId("comments"), c = { post, uid: uid(), to: to || "", text, at: Date.now() };
+  write(cloud.api.setDoc(ref("comments", id), c));
+  store.comments = [...store.comments, { id, ...c }];
+  emit();
+}
+/* Your own comment, or anyone's for an admin. */
+export function deleteComment(id) {
+  write(cloud.api.deleteDoc(ref("comments", id)));
+  store.comments = store.comments.filter(c => c.id !== id);
   emit();
 }
 

@@ -419,3 +419,15 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .feed-head a { color: var(--primary); font-weight: 700; text-decoration: none; }
 .feed-quote { border-left: 3px solid var(--line); padding-left: 10px; }
 .feed-card.house { border-color: var(--gold); }
+
+/* Cheers and comments on feed posts */
+.react { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.react-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.react-btn { min-height: 40px; padding: 0 12px; border-radius: 99px; border: 2px solid var(--line); background: var(--surface); font-weight: 700; font-size: 15px; }
+.react-btn[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #1A1205; }
+.comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.comment { display: flex; gap: 8px; align-items: flex-start; }
+.comment p { overflow-wrap: anywhere; }
+.comment-del { min-height: 36px; padding: 0 10px; font-size: 14px; }
+.comment-form { display: flex; gap: 8px; align-items: flex-end; }
+.comment-form textarea { min-height: 44px; padding: 8px 12px; font-size: 16px; flex: 1; }
