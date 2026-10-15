@@ -465,3 +465,16 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .vol-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: baseline; }
 .board .avatar.sm { border-color: var(--surface); }
 .board-score { font: 700 22px/1 var(--f-display); color: var(--primary); }
+
+/* Passports */
+.seg-link { display: grid; place-items: center; min-height: 46px; border-radius: 12px; font-weight: 800; color: var(--muted); text-decoration: none; }
+.seg-link[aria-selected="true"] { background: var(--primary); color: var(--primary-ink); }
+.passport-cat { gap: 12px; }
+.passport-fam { font-weight: 800; text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
+.stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+.stamp { padding: 6px 10px; border-radius: 10px; border: 2px dashed var(--line); font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.stamp.got { border-style: solid; border-color: var(--primary); background: var(--primary-soft); color: var(--ink); }
+.country { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
+.country:not(.got) { opacity: .75; }
+.flag { font-size: 28px; width: 36px; text-align: center; flex: none; }
+.country .grow { display: grid; gap: 1px; }

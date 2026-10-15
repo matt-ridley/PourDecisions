@@ -5,7 +5,8 @@ import { setFixes, setVariants, itemById } from "../js/catalog.js";
 import { DRINKS } from "../js/catalog/drinks.js";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { startRows, buildVariant } from "../js/variants.js";
-import { POINTS, countsOf, varietyOf, scoreOf, board, totals, volumeOf } from "../js/stats.js";
+import { POINTS, countsOf, varietyOf, scoreOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext } from "../js/stats.js";
+import { allItems } from "../js/catalog.js";
 
 afterEach(() => { setFixes([]); setVariants([]); });
 
@@ -72,4 +73,32 @@ test("private volume: this week from Monday, this month, this year, and the 8-we
   assert.equal(v.month.drinks, 3, "Oct 1 to now");
   assert.equal(v.year.drinks, 5, "not the future one");
   assert.equal(v.avg8.drinks, 0.3, "2 drinks in the 8 weeks before this one");
+});
+
+/* ---------- Passports and Try next ---------- */
+
+test("who tried each style and country first in the group", () => {
+  const f = firstsInGroup([log("b", islay.id, now - H), log("a", islay.id, now - 2 * H), log("b", lager.id, now - 3 * H)]);
+  assert.deepEqual(f.styles.get("islay"), { uid: "a", at: now - 2 * H });
+  assert.equal(f.countries.get("CA").uid, "b"); assert.equal(f.countries.get("GB-SCT").uid, "a");
+});
+
+test("the country list: every country once, A to Z, with how many drinks come from it; flags", () => {
+  const list = countryList(allItems());
+  assert.equal(list.length, totals().countries);
+  assert.ok(list.find(c => c.code === "CA").drinks > 300, "provinces add up into Canada");
+  assert.ok(!list.some(c => c.code === "CA-ON"));
+  assert.deepEqual(list.map(c => c.name), [...list.map(c => c.name)].sort((a, b) => a.localeCompare(b)));
+  assert.equal(flagOf("CA"), "🇨🇦"); assert.equal(flagOf("GB-NIR"), "🇬🇧"); assert.notEqual(flagOf("GB-SCT"), flagOf("GB-ENG"));
+});
+
+test("try next: untried styles, the group's favourites first, each with a drink to try", () => {
+  const stout = DRINKS.find(d => d.style === "dry-irish-stout") || DRINKS.find(d => /stout/.test(d.style));
+  const logs = [log("me", lager.id), log("b", islay.id), log("b", stout.id), log("c", stout.id)];
+  const ratings = [{ uid: "b", kind: "drink", drinkId: islay.id, rating: 5 }, { uid: "b", kind: "drink", drinkId: stout.id, rating: 3 }];
+  const t = tryNext(logs, ratings, "me", allItems());
+  assert.deepEqual(t.slice(0, 2).map(x => [x.style, x.avg, x.triedBy]), [["islay", 5, 1], [stout.style, 3, 2]]);
+  assert.equal(t[0].drink.id, islay.id, "the group's best-rated in that style");
+  assert.ok(!t.some(x => x.style === lager.style), "not a style you've had");
+  assert.equal(tryNext([], [], "me", allItems()).length, 0, "nothing to go on yet");
 });
