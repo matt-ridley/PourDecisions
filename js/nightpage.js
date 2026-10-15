@@ -2,10 +2,11 @@
    The logic is in nights.js. */
 import { el, fill, icon, avatar, fmtDate, fmtAgo, toast, confirmButton, field, openSheet, closeSheet } from "./ui.js";
 import { store, uid, memberName, isAdmin, createNight, updateNight, joinNight, leaveNight, deleteNight, addPlace } from "./cloud.js";
-import { nightLogs, nightStatus, nightcap, tonight, perPerson } from "./nights.js";
-import { householdOf } from "./stock.js";
+import { search, itemById } from "./catalog.js";
+import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks } from "./nights.js";
+import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
 import { placesByUse, resolvePlace, findPlace, cleanPlaceName } from "./logs.js";
-import { logRow, giftable } from "./logpage.js";
+import { logRow, giftable, roundOf } from "./logpage.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const member = id => store.members.get(id) || { id, displayName: memberName(id) };
@@ -123,6 +124,7 @@ export function renderNight(main, id) {
       n.end != null ? el("p", { class: "muted small", text: `Ended ${fmtDate(n.end)}` }) : null,
       el("div", { class: "chips center" }, ...(n.guests || []).map(g => el("a", { class: "chip-btn who", href: g === me ? "#/me" : `#/u/${g}` }, avatar(member(g), "xs"), member(g).displayName))),
       !here && st.state !== "over" ? el("button", { class: "btn primary", type: "button", text: "🙋 I'm here", onclick: () => { joinNight(n.id); toast("You're in. Drinks you log now count for the night."); } }) : null),
+    here && st.state !== "over" ? roundCard(n, list) : null,
     el("section", { class: "card stack" },
       el("h3", { text: list.length ? `${plural(list.length, "drink")} so far` : "No drinks yet" }),
       list.length ? el("p", { class: "muted small", text: perPerson(list).map(p => `${member(p.uid).displayName} ${p.n}`).join(" · ") }) : null,
@@ -137,6 +139,71 @@ export function renderNight(main, id) {
       host && n.end != null ? el("button", { class: "btn block", type: "button", text: "Keep it going (take the end time off)", onclick: () => updateNight(n.id, { end: null }) }) : null,
       here && !host ? el("button", { class: "btn quiet block", type: "button", text: "Leave this night", onclick: () => leaveNight(n.id) }) : null,
       host || isAdmin() ? confirmButton("Delete this night", "Tap again to delete (the drinks stay)", () => { deleteNight(n.id); location.hash = "#/nights"; }, "btn danger block") : null));
+}
+
+/* ---------- Group rounds ---------- */
+// The last round poured on this phone, per night, for Same again: { drinkId, people, from }.
+const lastRound = new Map();
+
+function roundCard(n, list) {
+  const last = lastRound.get(n.id), item = last && itemById("drink", last.drinkId);
+  return el("section", { class: "card stack" },
+    el("div", { class: "row" },
+      el("button", { class: "btn primary", type: "button", text: "🍻 Round", onclick: () => roundSheet(n, list) }),
+      item ? el("button", { class: "btn", type: "button", text: `🔁 Same again (${last.people.length} × ${item.title})`, onclick: () => {
+        pour(n, item, last.people, last.from);
+      } }) : null),
+    el("p", { class: "hint", text: "One of the same drink for everyone you pick, in one tap. Yours is yours; everyone else's is on you (the Tab)." }));
+}
+
+// Pours the round from the stock entry picked, if it's still there.
+function pour(n, item, people, fromId) {
+  const entry = fromId ? store.stock.find(s => s.id === fromId) : null;
+  roundOf(item, entry, people);
+  lastRound.set(n.id, { drinkId: item.id, people, from: fromId });
+}
+
+function roundSheet(n, list) {
+  const me = uid(), hh = (householdOf(store.households, me) || {}).id;
+  const s = { item: null, people: new Set(n.guests || []), from: null };
+  openSheet(box => {
+    const q = el("input", { type: "search", class: "search-input", placeholder: "Search for a drink…", autocomplete: "off", autocorrect: "off", spellcheck: "false" });
+    const results = el("ul", { class: "item-list" }), body = el("div", { class: "stack" });
+    const pickItem = i => {
+      s.item = i;
+      const homes = sourcesFor(store.stock, hh, i.id);
+      s.from = homes.length ? homes[0].id : null;
+      draw();
+    };
+    const row = i => el("li", {}, el("button", { type: "button", class: "item-row plain", "aria-pressed": String(s.item === i), onclick: () => pickItem(i) },
+      el("span", { class: "item-icon", text: i.category.icon }), el("span", { class: "grow" }, el("b", { text: i.title }), el("span", { class: "muted small", text: i.style.name }))));
+    const drawResults = () => {
+      const text = q.value.trim();
+      const picks = text ? search(text).filter(i => i.kind === "drink").slice(0, 10)
+        : roundPicks(list).map(p => itemById("drink", p.drinkId)).filter(Boolean).slice(0, 8);
+      fill(results, ...picks.map(row), !text && !picks.length ? el("p", { class: "muted small", text: "Search for what everyone's having." }) : null);
+    };
+    q.addEventListener("input", drawResults);
+    const draw = () => {
+      if (!s.item) return fill(body, el("label", { class: "search" }, el("span", { html: icon.search }), q), results);
+      const homes = sourcesFor(store.stock, hh, s.item.id);
+      const label = e => e.where === "cooler" ? `❄️ Your cooler (${fridgeCount(e)})` : e.where === "fridge" ? `🧊 Your fridge (${fridgeCount(e)})` : `🍾 Your bar (${levelText(e)})`;
+      fill(body,
+        el("div", { class: "row spread" }, el("b", { text: `${s.item.category.icon} ${s.item.title}` }),
+          el("button", { class: "btn small", type: "button", text: "Change", onclick: () => { s.item = null; draw(); drawResults(); } })),
+        el("h3", { text: "Who's having one" }),
+        el("div", { class: "chips" }, ...(n.guests || []).map(g => el("button", { type: "button", class: "chip-btn who", "aria-pressed": String(s.people.has(g)),
+          onclick: () => { s.people.has(g) ? s.people.delete(g) : s.people.add(g); draw(); } }, avatar(member(g), "xs"), g === me ? "Me" : member(g).displayName))),
+        homes.length ? [el("h3", { text: "From" }), el("div", { class: "chips" },
+          el("button", { type: "button", class: "chip-btn", "aria-pressed": String(!s.from), onclick: () => { s.from = null; draw(); } }, "Not from home"),
+          ...homes.map(e => el("button", { type: "button", class: "chip-btn", "aria-pressed": String(s.from === e.id), onclick: () => { s.from = e.id; draw(); } }, label(e))))] : null,
+        el("button", { class: "btn primary block", type: "button", disabled: !s.people.size, text: s.people.size ? `Pour ${s.people.size} 🍻` : "Pick who's having one",
+          onclick: () => { pour(n, s.item, [...s.people], s.from); closeSheet(); } }));
+    };
+    drawResults(); draw();
+    box.append(el("div", { class: "stack" }, el("h2", { text: "🍻 A round" }), body,
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
 }
 
 function inviteSheet(n) {

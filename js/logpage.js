@@ -3,7 +3,7 @@
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
-import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount } from "./stock.js";
+import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount, onHand } from "./stock.js";
 import { myLiveNight } from "./nights.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
@@ -104,6 +104,33 @@ export function drinkOne(item, entry, to = null) {
   const said = to ? `Gave ${memberName(to)} a ${item.title} 🎁` : `${item.title} logged 🍻`;
   toast(fields.killed ? `${said} You killed the bottle! 🍾` : said,
     { label: "Undo", run: () => { deleteLog(id); putBack(); } });
+}
+
+/* A round: one of the same drink for each person, in its usual size. Yours is your own drink; everyone else's is given
+   by you (the Tab). It comes out of `entry` (your cooler, fridge or a bar bottle) while there's some left. */
+export function roundOf(item, entry, people) {
+  const sizes = sizesFor(item), size = sizes.find(z => z.key === defaultSize(item)) || sizes[0];
+  const placeId = placeIdNow(lastPlace(store.logs, uid()) || (myLiveNight(store.nights, store.logs, uid()) || {}).placeId);
+  let cur = entry ? { ...entry } : null;
+  const ids = [], backs = [], killed = [];
+  for (const p of people) {
+    const fields = { kind: "drink", drinkId: item.id, title: item.title, style: item.style.id, size: size.key, ml: size.ml,
+      abv: itemAbv(item), at: Date.now(), placeId };
+    if (p !== uid()) Object.assign(fields, { uid: p, givenBy: true });
+    if (cur && onHand(cur)) {
+      backs.push(fromHome(fields, cur));
+      if (fields.killed) killed.push(p);
+      // Keep a running copy, so the next pour knows what's left (and when a spare gets opened).
+      if (cur.where !== "bar") cur = { ...cur, count: (cur.count || 0) - 1 };
+      else {
+        const left = (cur.left || 0) - size.ml;
+        cur = left <= 0 && cur.spares ? { ...cur, left: cur.size + left, spares: cur.spares - 1 } : { ...cur, left };
+      }
+    }
+    ids.push(saveLog(fields));
+  }
+  const said = `Round of ${people.length} ${item.title} 🍻`;
+  toast(killed.length ? `${said} The bottle's done! 🍾` : said, { label: "Undo", run: () => { ids.forEach(deleteLog); backs.forEach(f => f()); } });
 }
 
 /* ---------- #/log: what are you drinking? ---------- */

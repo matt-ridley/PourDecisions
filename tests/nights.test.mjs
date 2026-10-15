@@ -35,3 +35,11 @@ test("Tonight: live nights and ones starting within 12 hours; your live night", 
 test("drinks per person, most first", () => {
   assert.deepEqual(perPerson(nightLogs(night(), logs)), [{ uid: "me", n: 2 }, { uid: "dave", n: 1 }]);
 });
+
+import { roundPicks } from "../js/nights.js";
+
+test("round picks: tonight's drinks, most had first, cocktails left out", () => {
+  const list = [log("1", "me", 1), { ...log("2", "dave", 2), drinkId: "guinness" }, { ...log("3", "dave", 3), drinkId: "guinness" },
+    log("4", "me", 4), { ...log("5", "me", 5), kind: "cocktail", drinkId: "caesar" }, { ...log("6", "sam", 6), drinkId: "corona" }];
+  assert.deepEqual(roundPicks(list).map(p => [p.drinkId, p.n]), [["molson-canadian", 2], ["guinness", 2], ["corona", 1]]);
+});
