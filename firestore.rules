@@ -60,6 +60,8 @@ service cloud.firestore {
                          && cleanName(request.resource.data.displayName)
                          && optText(request.resource.data, "hometown", 60)
                          && optText(request.resource.data, "favourite", 60)
+                         // Starred cocktails (the LCBO run lists what they're missing).
+                         && (!("starred" in request.resource.data) || (request.resource.data.starred is list && request.resource.data.starred.size() <= 100))
                          && (!("avatar" in request.resource.data) || request.resource.data.avatar == null
                              || (request.resource.data.avatar is string && request.resource.data.avatar.size() < 120000)))
         // Admins can pause or un-pause; only the owner can do that to another admin. Nobody can pause the owner.
