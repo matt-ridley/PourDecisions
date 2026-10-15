@@ -5,7 +5,7 @@ import { CATEGORIES, STYLE_INDEX } from "../js/catalog/styles.js";
 import { DRINKS, ORIGINS } from "../js/catalog/drinks.js";
 import { COCKTAILS } from "../js/catalog/cocktails.js";
 import { INGREDIENTS, INGREDIENT_INDEX } from "../js/catalog/ingredients.js";
-import { drinkTitle, normalize, search, setPopularity, browse, ITEMS, itemById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "../js/catalog.js";
+import { drinkTitle, normalize, search, filterItems, setPopularity, browse, ITEMS, itemById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "../js/catalog.js";
 import { slug } from "../js/catalog/make.js";
 
 test("style ids are unique across the whole tree", () => {
@@ -173,4 +173,18 @@ test("search puts each brand's main drink first, non-alcoholic last unless asked
   assert.equal(search("heineken")[0].id, "heineken"); // the exact title first
   setPopularity([{ kind: "drink", drinkId: "crown-royal-peach" }, { kind: "drink", drinkId: "crown-royal-peach" }]);
   try { assert.equal(search("crown")[0].id, "crown-royal-peach"); } finally { setPopularity([]); }
+});
+
+test("the Catalogue's filters", () => {
+  const whisky = filterItems(ITEMS, { cat: "whisky" });
+  assert.ok(whisky.length > 600 && whisky.every(i => i.category.id === "whisky"));
+  const on = filterItems(ITEMS, { from: "on" });
+  assert.ok(on.length >= 250 && on.every(i => i.data.origin === "CA-ON"));
+  assert.ok(filterItems(ITEMS, { from: "ca" }).length > on.length);
+  assert.ok(filterItems(ITEMS, { from: "import" }).every(i => i.data.origin && !i.data.origin.startsWith("CA")));
+  assert.ok(!filterItems(ITEMS, { from: "ca" }).some(i => i.kind === "cocktail"), "cocktails have no origin");
+  const had = new Set(["drink:crown-royal-deluxe"]);
+  assert.ok(!filterItems(whisky, { fresh: true }, { had }).some(i => i.id === "crown-royal-deluxe"));
+  assert.deepEqual(filterItems(ITEMS, { rated: true }, { rated: new Set(["cocktail:negroni"]) }).map(i => i.id), ["negroni"]);
+  assert.equal(filterItems(ITEMS, {}).length, ITEMS.length);
 });

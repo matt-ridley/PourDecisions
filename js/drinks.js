@@ -1,12 +1,13 @@
-/* The Drinks tab: search the catalog, or drill down Category > Family > Style > drink, each page with a short
+/* The Drinks tab: a landing page (What can I make, Top rated, the Catalogue), the Catalogue (search, filters and
+   Browse), and the drill down Category > Family > Style > drink, each page with a short
    description and breadcrumbs back up. Also a cocktail recipe and a recipe ingredient's page.
    A level with only one choice is skipped: Rosé goes straight to its drinks, Non-alcoholic straight to its styles. */
-import { el, fill, icon, fmtDay, fmtAgo, avatar, openSheet, closeSheet, toast, linkList } from "./ui.js";
+import { el, fill, icon, fmtDay, fmtAgo, avatar, openSheet, closeSheet, toast, linkList, field } from "./ui.js";
 import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
-import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "./catalog.js";
+import { search, filterItems, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
 import { store, uid, isAdmin, memberName, renameVariant, loadThumb, updateMe } from "./cloud.js";
 import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
@@ -18,39 +19,83 @@ import { householdOf } from "./stock.js";
 import { pickWhere } from "./barpage.js";
 import { giftable, giveNext } from "./logpage.js";
 
-// The search box keeps what was typed while moving between screens (this session only).
+// The Catalogue's search box and filters keep what was set while moving between screens (this session only).
 let query = "";
+const f = { cat: "", from: "", fresh: false, rated: false };
 const MAX_RESULTS = 60;
+const FROM = [["", "Anywhere"], ["on", "Ontario"], ["ca", "Canada"], ["import", "Imports"]];
 
-/* #/drinks: search box and category tiles, or results while typing. */
+/* #/drinks: what can I make, the group's top rated, and the Pour Decisions Catalogue. */
 export function renderDrinks(main) {
+  const n = new Set(groupRatings().map(r => `${r.kind}|${r.drinkId}`)).size;
+  const items = allItems(), recipes = items.filter(i => i.kind === "cocktail").length;
+  fill(main,
+    el("h2", { class: "page-title", text: "Drinks" }),
+    linkList([
+      { icon: "🍸", title: "What can I make", sub: "Cocktails from your bar, or from what you tick", href: "#/makeable" },
+      n ? { icon: "🏆", title: "Top rated", sub: `The group's favourites · ${n} drink${n === 1 ? "" : "s"} rated`, href: "#/top" } : null,
+      { icon: "📖", title: "Pour Decisions Catalogue", sub: `Search, filter and browse ${(items.length - recipes).toLocaleString()} drinks and ${recipes} cocktails`, href: "#/catalogue" },
+    ]));
+}
+
+/* #/catalogue: search and filters over every drink and cocktail; with neither in use, Browse by category. */
+export function renderCatalogue(main) {
   const box = el("input", { type: "search", class: "search-input", placeholder: "Search beer, whisky, cocktails…", value: query,
     "aria-label": "Search the drink list", autocomplete: "off", autocorrect: "off", spellcheck: "false" });
   const results = el("div", { class: "stack" });
   const draw = () => {
     query = box.value;
-    if (!query.trim()) return fill(results, quickLinks(), categoryGrid());
-    const hits = search(query);
-    fill(results, hits.length
+    const catOf = id => CATEGORIES.find(c => c.id === id);
+    const on = [
+      f.cat && catOf(f.cat) ? [`${catOf(f.cat).icon} ${catOf(f.cat).name}`, () => { f.cat = ""; }] : null,
+      f.from ? [`📍 ${FROM.find(x => x[0] === f.from)[1]}`, () => { f.from = ""; }] : null,
+      f.fresh ? ["🆕 Not had yet", () => { f.fresh = false; }] : null,
+      f.rated ? ["⭐ Rated by the group", () => { f.rated = false; }] : null,
+    ].filter(Boolean);
+    const bar = el("div", { class: "row spread" }, el("h3", { text: on.length || query.trim() ? "Results" : "Browse" }),
+      el("button", { type: "button", class: "chip-btn tag", "aria-pressed": String(on.length > 0), onclick: () => filterSheet(draw) },
+        on.length ? `Filter · ${on.length}` : "Filter"));
+    const chips = on.length ? el("div", { class: "chips" }, ...on.map(([text, clear]) => el("button", { type: "button", class: "chip-btn tag",
+      "aria-label": `Remove filter: ${text}`, onclick: () => { clear(); draw(); } }, `${text} ✕`))) : null;
+    if (!query.trim() && !on.length) return fill(results, bar, categoryGrid());
+    const had = new Set(store.logs.filter(l => l.uid === uid()).map(l => `${l.kind === "variant" ? "cocktail" : l.kind}:${l.drinkId}`));
+    const rated = new Set(groupRatings().map(r => `${r.kind}:${r.drinkId}`));
+    const hits = search(query, { items: filterItems(allItems(), f, { had, rated }) });
+    fill(results, bar, chips, hits.length
       ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(itemRow))
-      : el("p", { class: "muted center", text: "Nothing in the list matches that yet. Soon you'll be able to add it." }),
-      hits.length > MAX_RESULTS ? el("p", { class: "hint center", text: `Showing ${MAX_RESULTS} of ${hits.length.toLocaleString()}. Type more to narrow it down.` }) : null);
+      : el("p", { class: "muted center", text: on.length ? "Nothing matches. Try other filters." : "Nothing in the list matches that yet. Soon you'll be able to add it." }),
+      hits.length > MAX_RESULTS ? el("p", { class: "hint center", text: `Showing ${MAX_RESULTS} of ${hits.length.toLocaleString()}. Type more or filter to narrow it down.` }) : null);
   };
   box.addEventListener("input", draw);
   draw();
   fill(main,
-    el("h2", { class: "page-title", text: "Drinks" }),
+    el("h2", { class: "page-title", text: "Pour Decisions Catalogue" }),
     el("label", { class: "search" }, el("span", { html: icon.search }), box),
     results);
 }
 
-/* What can I make, and the group's top-rated list once anything is rated. */
-function quickLinks() {
-  const n = new Set(groupRatings().map(r => `${r.kind}|${r.drinkId}`)).size;
-  return linkList([
-    { icon: "🍸", title: "What can I make", sub: "Cocktails from your bar, or from what you tick", href: "#/makeable" },
-    n ? { icon: "🏆", title: "Top rated", sub: `The group's favourites · ${n} drink${n === 1 ? "" : "s"} rated`, href: "#/top" } : null,
-  ]);
+/* What kind, where from, not had yet, rated by the group. Changes apply as they're picked. */
+function filterSheet(draw) {
+  const cat = el("select", {}, el("option", { value: "", text: "All drinks" }),
+    ...CATEGORIES.map(c => el("option", { value: c.id, text: `${c.icon} ${c.name}` })));
+  cat.value = f.cat;
+  cat.addEventListener("change", () => { f.cat = cat.value; draw(); });
+  const from = el("select", {}, ...FROM.map(([value, text]) => el("option", { value, text })));
+  from.value = f.from;
+  from.addEventListener("change", () => { f.from = from.value; draw(); });
+  const check = (key, text) => {
+    const box = el("input", { type: "checkbox" });
+    box.checked = f[key];
+    box.addEventListener("change", () => { f[key] = box.checked; draw(); });
+    return el("label", { class: "check" }, box, el("span", { text }));
+  };
+  openSheet(box => box.append(el("div", { class: "stack" },
+    el("h2", { text: "Filter the catalogue" }),
+    field("What kind", cat),
+    field("Where from", from, "Cocktails aren't from anywhere, so they drop out of this one."),
+    check("fresh", "🆕 Only ones I haven't had"),
+    check("rated", "⭐ Only ones the group has rated"),
+    el("button", { class: "btn primary block", type: "button", text: "Done", onclick: closeSheet }))));
 }
 
 function categoryGrid() {
@@ -86,7 +131,7 @@ const famHref = (cat, f) => f.styles.length === 1 ? `#/style/${f.styles[0].id}` 
 
 /* Drinks › Whisky › Scotch › Islay Single Malt, each a link, then the current page (not a link). */
 function crumbs(...parts) {
-  const all = [["Drinks", "#/drinks"], ...parts];
+  const all = [["Catalogue", "#/catalogue"], ...parts];
   return el("nav", { class: "crumbs", "aria-label": "Where you are" }, el("ol", {}, ...all.map(([text, href], k) =>
     el("li", {}, k === all.length - 1 && !href ? el("span", { "aria-current": "page", text }) : el("a", { href, text })))));
 }
@@ -104,9 +149,9 @@ function styleTrail(styleId) {
 
 /* Where Back goes on a Drinks page when there's no earlier page in the app to go back to: one level up. */
 export function drinksParent(name, arg, arg2) {
-  const up = (kind, id) => { const i = itemById(kind, id); return i ? `#/style/${i.style.id}` : "#/drinks"; };
-  if (name === "cat") return arg2 ? `#/cat/${arg}` : "#/drinks";
-  if (name === "style") { const t = styleTrail(arg); return t.length > 1 ? t[t.length - 2][1] : "#/drinks"; }
+  const up = (kind, id) => { const i = itemById(kind, id); return i ? `#/style/${i.style.id}` : "#/catalogue"; };
+  if (name === "cat") return arg2 ? `#/cat/${arg}` : "#/catalogue";
+  if (name === "style") { const t = styleTrail(arg); return t.length > 1 ? t[t.length - 2][1] : "#/catalogue"; }
   if (name === "drink") return up("drink", arg);
   if (name === "recipe") return up("cocktail", arg);
   if (name === "v") { const v = itemById("variant", arg); return v ? `#/recipe/${v.base}` : "#/drinks"; }
