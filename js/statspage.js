@@ -8,6 +8,7 @@ import { groupRatings, starText } from "./ratepage.js";
 import { POINTS, varietyOf, board, totals, volumeOf, firstsInGroup, countryList, flagOf, tryNext,
   headToHead, monthly, byCategoryCount, favouriteStyles, myTopRated } from "./stats.js";
 import { ORIGINS } from "./catalog/drinks.js";
+import { CROWNS, crownHistory, crownsOf } from "./crowns.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const member = id => store.members.get(id) || { id, displayName: memberName(id) };
@@ -31,6 +32,7 @@ export function varietyCard(id) {
     el("div", { class: "row spread" }, el("h3", { text: "🧭 Variety" }),
       el("a", { class: "btn small", href: "#/board", text: row && v.score ? `#${row.rank} in the group` : "The board" })),
     el("div", { class: "score-line" }, el("b", { class: "score", text: String(v.score) }), el("span", { class: "muted", text: "variety points" })),
+    crownChips(id),
     el("div", { class: "mix-stats" },
       tile(v.drinks.size, "different drinks"), tile(v.styles.size, "styles", t.styles),
       tile(v.families.size, "families", t.families), tile(v.countries.size, "countries", t.countries)),
@@ -78,9 +80,10 @@ export function renderBoard(main) {
     el("ol", { class: "item-list card board" }, ...rows.map(r => el("li", {},
       el("a", { class: "item-row", href: r.uid === uid() ? "#/me" : `#/u/${r.uid}` },
         el("span", { class: "top-rank", text: String(r.rank) }), avatar(member(r.uid), "sm"),
-        el("span", { class: "grow" }, el("b", { text: r.uid === uid() ? "You" : member(r.uid).displayName }),
+        el("span", { class: "grow" }, el("b", { text: `${r.uid === uid() ? "You" : member(r.uid).displayName} ${crownsOf(groupCrowns().holders, r.uid).map(c => c.icon).join("")}` }),
           el("span", { class: "muted small", text: `${plural(r.drinks, "drink")} · ${plural(r.styles, "style")} · ${plural(r.countries, "country", "countries")}` })),
         el("b", { class: "board-score", text: String(r.score) }))))),
+    crownsCard(),
     el("section", { class: "card stack" },
       el("h3", { text: "How the score works" }),
       el("ul", { class: "todo" },
@@ -218,4 +221,34 @@ export function renderCharts(main) {
         return el("li", {}, el("a", { class: "item-row", href: r.kind === "variant" ? `#/v/${r.drinkId}` : `#/${r.kind === "cocktail" ? "recipe" : "drink"}/${r.drinkId}` },
           el("span", { class: "grow" }, el("b", { text: i ? i.title : "A cocktail variant" })), el("span", { class: "rating-line small", text: starText(r.rating) })));
       }))) : null);
+}
+
+/* ---------- Crowns ---------- */
+/* Who holds each crown, and every change of hands; worked out again only when the logs change. */
+let crownMemo = { logs: null, value: { holders: new Map(), changes: [] } };
+export function groupCrowns() {
+  if (crownMemo.logs !== store.logs) crownMemo = { logs: store.logs, value: crownHistory(store.logs) };
+  return crownMemo.value;
+}
+
+/* The crowns someone holds, as chips (on their profile). */
+function crownChips(id) {
+  const held = crownsOf(groupCrowns().holders, id);
+  return held.length ? el("div", { class: "chips" }, ...held.map(c => el("span", { class: "chip gold", title: `${c.name}: ${c.about}`, text: `👑 ${c.icon} ${c.name}` }))) : null;
+}
+
+/* Every crown, who holds it and with how many, and what it's for (on the board). */
+function crownsCard() {
+  const { holders } = groupCrowns();
+  return el("section", { class: "card stack" },
+    el("h3", { text: "👑 Crowns" }),
+    el("p", { class: "hint", text: "One holder at a time. Take a crown by passing whoever holds it; a tie keeps it where it is." }),
+    el("ul", { class: "item-list" }, ...CROWNS.map(c => {
+      const h = holders.get(c.id);
+      return el("li", {}, el(h ? "a" : "div", { class: "item-row", ...(h ? { href: h.uid === uid() ? "#/me" : `#/u/${h.uid}` } : {}) },
+        el("span", { class: "item-icon", text: c.icon }),
+        el("span", { class: "grow" }, el("b", { text: c.name }), el("span", { class: "muted small", text: `For ${c.about}${c.min > 1 ? ` (at least ${c.min})` : ""}` })),
+        h ? el("span", { class: "crown-holder" }, avatar(member(h.uid), "xs"), el("span", { class: "small", text: `${h.uid === uid() ? "You" : member(h.uid).displayName} · ${h.value}` }))
+          : el("span", { class: "muted small", text: "Up for grabs" })));
+    })));
 }

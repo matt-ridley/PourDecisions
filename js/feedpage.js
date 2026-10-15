@@ -10,6 +10,8 @@ import { groupRatings, starText, ratingOfLog } from "./ratepage.js";
 import { asItem, variantTitle } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
 import { titleOf, thumbBox } from "./logpage.js";
+import { groupCrowns } from "./statspage.js";
+import { CROWN_INDEX } from "./crowns.js";
 
 // Filters last for this session: who ("" = everyone), category, photos only, and how many days back.
 const f = { who: "", cat: "", photos: false, days: FEED_DAYS };
@@ -19,7 +21,9 @@ const SHOWN = 4; // drinks shown on a night's card before "Show the rest"
 let memo = { key: [], items: [] };
 function allFeed() {
   const key = [store.logs, store.ratings, store.drinks, store.places, store.variants, Math.floor(Date.now() / 600000)];
-  if (key.some((k, n) => k !== memo.key[n])) memo = { key, items: feedItems({ logs: store.logs, ratings: groupRatings(), drinks: store.drinks, places: store.places }) };
+  if (key.some((k, n) => k !== memo.key[n])) {
+    memo = { key, items: feedItems({ logs: store.logs, ratings: groupRatings(), drinks: store.drinks, places: store.places, crowns: groupCrowns().changes }) };
+  }
   return memo.items;
 }
 
@@ -57,7 +61,7 @@ export function feedCard() {
 
 function feedRow(it) {
   const card = { session: sessionCard, review: reviewCard, variant: variantCard, house: houseCard, added: addedCard,
-    first: firstCard, recap: recapCard }[it.type];
+    first: firstCard, recap: recapCard, crown: crownCard }[it.type];
   const li = card ? card(it) : null;
   if (li) li.append(reactions(it));
   return li;
@@ -228,4 +232,13 @@ export function nightReactions(log) {
   if (log.offFeed) return null;
   const night = sessions(store.logs.filter(l => l.uid === log.uid), store.places).find(s => s.logs.some(l => l.id === log.id));
   return night ? el("section", { class: "card" }, reactions(night)) : null;
+}
+
+/* "👑 Sam took the Globetrotter crown from Dave" */
+function crownCard({ uid: id, crown, from, at, value }) {
+  const c = CROWN_INDEX.get(crown);
+  if (!c) return null;
+  return el("li", { class: "card feed-card crown" },
+    head(id, ["👑 ", who(id), ` took the ${c.icon} `, el("a", { href: "#/board", text: c.name }), ...(from ? [" crown from ", el("b", { text: from === uid() ? "you" : member(from).displayName })] : [" crown"]),
+      el("span", { class: "muted small", text: ` (${c.about}: ${value})` })], at));
 }

@@ -174,3 +174,12 @@ test("who's out: everyone else who logged in the last 2 hours, newest first, whe
     log("d", "bud-light", now - 5 * 60000, { offFeed: true })];
   assert.deepEqual(outNow(logs, [], "me", now), [{ uid: "b", placeId: null, at: now - 10 * 60000 }, { uid: "a", placeId: "keg", at: now - 30 * 60000 }]);
 });
+
+test("crown changes passed in become feed posts with their own post id", () => {
+  const crown = { type: "crown", crown: "globetrotter", uid: "a", from: "b", at: now - H, value: 4 };
+  const items = feedItems({ crowns: [crown], now });
+  assert.equal(items[0], crown);
+  assert.equal(postId(crown), `c~globetrotter_${now - H}_a`);
+  assert.equal(filterFeed(items, { now, who: "a" }).length, 1);
+  assert.equal(filterFeed(items, { now, cat: "beer" }).length, 0);
+});

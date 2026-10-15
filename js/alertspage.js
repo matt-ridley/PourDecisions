@@ -7,13 +7,15 @@ import { alertsFor, unreadCount } from "./alerts.js";
 import { groupRatings, starText } from "./ratepage.js";
 import { variantTitle } from "./variants.js";
 import { titleOf } from "./logpage.js";
+import { groupCrowns } from "./statspage.js";
+import { CROWN_INDEX } from "./crowns.js";
 
 /* Your alerts, worked out again only when the data behind them changes. */
 let memo = { key: [], list: [] };
 function myAlerts() {
   const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) {
-    memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings() }) };
+    memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings(), crowns: groupCrowns().changes }) };
   }
   return memo.list;
 }
@@ -56,6 +58,8 @@ function variantName(id) {
   return v && c ? variantTitle(c.data, v.data) : "your variant";
 }
 
+const crownName = id => { const c = CROWN_INDEX.get(id); return c ? `${c.icon} ${c.name}` : "a"; };
+
 function alertRow(a, isNew) {
   const log = a.logId && store.logs.find(l => l.id === a.logId);
   const quote = t => `"${t.length > 80 ? `${t.slice(0, 80)}…` : t}"`;
@@ -68,6 +72,8 @@ function alertRow(a, isNew) {
     rated: () => ["⭐", `${names(a.from)} rated your ${variantName(a.variantId)} ${starText(a.rating)}`, `#/v/${a.variantId}`],
     houseWon: () => ["👑", `Your ${variantName(a.variantId)} is now the House Pour`, `#/v/${a.variantId}`],
     houseLost: () => ["👑", `${names(a.from)}'s ${variantName(a.variantId)} took your House Pour`, `#/v/${a.variantId}`],
+    crownWon: () => ["👑", `You took the ${crownName(a.crown)} crown`, "#/board"],
+    crownLost: () => ["👑", `${names(a.from)} took your ${crownName(a.crown)} crown`, "#/board"],
   }[a.kind]?.() || [];
   if (!text) return null;
   return el("li", { class: isNew ? "alert new" : "alert" }, el("a", { class: "item-row", href },

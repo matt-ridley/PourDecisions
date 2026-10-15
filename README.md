@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.11.2 (beta)
+**Current version:** 0.11.3 (beta)
 
 ## Features
 
@@ -34,6 +34,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Variety board:** everyone by score (Home shows the top three).
   - **🎫 Style passport:** every style by category and family, stamped ✓ once tried, with who in the group tried it first. Tap a style for its drinks. Anyone's passport can be opened from their profile.
   - **🌍 Country passport:** every country in the list with its flag (Scotland, England and Wales get theirs), stamped once tried, with how many drinks in the list come from there and who in the group tried it first.
+  - **👑 Crowns:** one holder at a time, for the most variety in one thing: 🧭 Explorer (top score), 🌍 Globetrotter (countries), 🎨 Style Hunter (styles), 🔥 Peat Freak (Islay and peated whiskies), 🍺 Hop Head (IPAs), 🥃 Dram Master (whiskies), 🍷 Sommelier (wines), 🍹 Mixologist (different cocktails made, for anyone) and 🍁 True North (Canadian drinks). Each needs a minimum, and moves only when someone strictly passes the holder, so a tie keeps it where it is. The board lists every crown and holder, profiles and board rows show the crowns held, and a change of hands is posted to the feed and sent as an alert.
   - **⚔️ Head-to-head:** from a friend's profile, the two of you side by side: scores, and the styles and countries you've both tried, only you, and only them.
   - **📊 Your charts** (only you): drinks by month for the last year, drinks by category, your favourite styles and your top rated. Tap or hover a bar for its numbers.
   - **✨ Try next:** on your profile and passport, styles you haven't had that the group likes (best rated first, then the most tried), each with a drink to try.
@@ -104,11 +105,11 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
    - ✅ **Cheers and comments** (0.10.1): a 🍻 Cheers on any post (showing who cheered) and short comments underneath. Delete your own; admins can delete any comment.
    - ✅ **Firsts, recaps and who's out** (0.10.2): automatic posts for firsts and variety milestones ("Dave's first Islay Single Malt", "Sam has tried 100 different drinks"), a recap card when a night at a place ends, and a strip showing who's out right now and where.
    - ✅ **Alerts** (0.10.3): a bell in the header for cheers and comments on your drinks, friends making your variants, and House Pours won or lost. In the app only: true phone notifications need a paid server.
-5. **Variety stats.** The competition: who has tried the most, never who has drunk the most. Worked out on the phone from the logs it already has, all time (no seasons).
+5. ✅ **Variety stats** (0.11.0 to 0.11.3). The competition: who has tried the most, never who has drunk the most. Worked out on the phone from the logs it already has, all time (no seasons).
    - ✅ **Variety core** (0.11.0): a variety score (new drink 1, style 3, family 5, country 5, category 10) on each profile with what was tried and styles per category, the group **Variety board**, and private volume numbers only you can see.
    - ✅ **Passports and Try next** (0.11.1): a style passport (who in the group tried each style first) and a country passport, and suggestions for untried styles the group rates highly, with a drink to try.
    - ✅ **Head-to-head and charts** (0.11.2): compare with a friend (tried by both, only you, only them), and personal charts: drinks by category and month, favourite styles, your top rated.
-   - **Crowns** (0.11.3): one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak and more), on profiles and the board, with a feed post and an alert when one changes hands.
+   - ✅ **Crowns** (0.11.3): one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak and more), on profiles and the board, with a feed post and an alert when one changes hands.
 
 ### After the core: the bar, the fridge and the tab
 
@@ -234,7 +235,7 @@ npm run deploy:rules
 - Accounts, profiles, logged drinks, shared places and drinks members add are stored in the group's Firebase project. Only members can read them.
 - Admins' fixes to built-in drinks (`fixes`, only the fields that differ) and their new or renamed styles (`styles`) are stored there too, and laid over the built-in list by the app.
 - Ratings are stored in `ratings`, one document per person per drink (id `uid_kind_drinkId`). A cocktail variant is rated with kind `variant`.
-- Cheers are stored in `cheers`, one per person per post (id `post|uid`), and comments in `comments`. A post id names what's cheered: `s~` a night (its first drink's log id), `r~` a review, `v~` a variant, `h~` a House Pour, `a~` a drink added to the list, `n~` a night recap (its first drink's log id), `f~` a first or milestone (`<log id>_<what>`). Each also keeps `to`, whoever the post is about, for their alerts.
+- Cheers are stored in `cheers`, one per person per post (id `post|uid`), and comments in `comments`. A post id names what's cheered: `s~` a night (its first drink's log id), `r~` a review, `v~` a variant, `h~` a House Pour, `a~` a drink added to the list, `n~` a night recap (its first drink's log id), `f~` a first or milestone (`<log id>_<what>`), `c~` a crown changing hands (`<crown>_<time>_<uid>`). Each also keeps `to`, whoever the post is about, for their alerts.
 - When you last opened your alerts is kept on your member document (`alertsSeenAt`), so it's the same on every phone. Alerts themselves are worked out on the phone from what it already has.
 - A log kept off the feed has `offFeed: true`. It still counts in its owner's stats.
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
@@ -318,6 +319,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.11.3** (2026-Oct-15): Variety stats, part 4: crowns. Nine crowns with one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak, Hop Head, Dram Master, Sommelier, Mixologist, True North), each for the most variety in one thing, taken only by strictly passing the holder. Shown on the board (every crown and holder) and profiles; a change of hands is posted to the feed and sent as an alert to the winner and the one who lost it. This finishes roadmap step 5. **Changed `firestore.rules`** (crown posts can be cheered): publish them before merging.
 - **0.11.2** (2026-Oct-15): Variety stats, part 3. **Head-to-head** with a friend (from their profile): scores, and styles and countries tried by both, only you, only them. **Your charts**, private to you (from Just for you): drinks by month for the last year, by category, your favourite styles and your top rated. No new security rules.
 - **0.11.1** (2026-Oct-15): Variety stats, part 2. A **style passport** (every style by category and family, stamped once tried, with who in the group tried it first) and a **country passport** with flags, for you or anyone from their profile. **Try next** suggests styles you haven't had that the group likes, each with a drink to try. No new security rules.
 - **0.11.0** (2026-Oct-15): Variety stats, part 1. A variety score for everyone (new drink 1, style 3, family 5, country 5, category 10; repeats score nothing), shown on profiles with what was tried and styles per category, and a **Variety board** (top three on Home). Your own profile has a private **Just for you** card: drinks and standard drinks this week, month and year, and your weekly average. Other members' profiles no longer show how many drinks someone has logged. No new security rules.
