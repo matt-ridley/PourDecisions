@@ -6,6 +6,7 @@ import { THEMES, getTheme, setTheme } from "./theme.js";
 import { getUnits, setUnits } from "./units.js";
 import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
+import { varietyCard, volumeCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
@@ -29,13 +30,13 @@ export function renderProfile(main, id) {
   const theirs = store.logs.filter(l => l.uid === m.id && (mine || !l.offFeed)).sort((a, b) => b.at - a.at);
   const parts = [head,
     el("section", { class: "card stack" },
-      el("h3", { text: `Recent drinks${theirs.length ? ` (${theirs.length} logged)` : ""}` }),
+      // How many someone has logged is a personal stat: only your own profile shows the count.
+      el("h3", { text: `Recent drinks${mine && theirs.length ? ` (${theirs.length} logged)` : ""}` }),
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
-    mixologistCard(m.id),
-    el("section", { class: "card stack" },
-      el("h3", { text: "Variety stats" }),
-      el("p", { class: "muted", text: "Distinct drinks, styles and countries tried will show here in a later release." }))];
+    varietyCard(m.id),
+    mine ? volumeCard() : null,
+    mixologistCard(m.id)].filter(Boolean);
 
   if (mine) {
     parts.push(el("section", { class: "card stack" },

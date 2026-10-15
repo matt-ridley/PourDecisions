@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.10.3 (beta)
+**Current version:** 0.11.0 (beta)
 
 ## Features
 
@@ -28,6 +28,11 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Another one:** your recent drinks on Home have an **Another** button that logs the same drink again in one tap (with Undo).
   - **Never lost without a word:** every log is kept on the phone until the group has it. Home shows drinks waiting for signal, and if the server ever refuses one it says why, with **Try again** and **Discard**.
   - **Your logs:** open any log to see it, edit it, log another or delete it. Admins can delete anyone's log. Profiles show each member's recent drinks, and each drink's page shows how many times you've had it.
+- **Variety.** The group competes on variety, never volume.
+  - **Your variety score:** every new drink is 1 point, a new style 3, a new family (Stout, Scotch, IPA…) 5, a new country 5 and a new category 10. Having the same drink again scores nothing. A cocktail variant counts as its cocktail, and drinks kept off the feed still count. Provinces count as Canada.
+  - **On each profile:** the score and rank in the group, different drinks, styles, families and countries tried (out of how many there are), and styles tried per category.
+  - **Variety board:** everyone by score (Home shows the top three).
+  - **🔒 Just for you:** on your own profile, how much you've had this week, month and year, and your weekly average over the last 8 weeks, in drinks and standard drinks. Nobody else ever sees it, and other members' profiles don't show how many drinks they've logged.
 - **The feed.** The top of Home shows what everyone's pouring over the last week (**Show more** for older), newest first. It never shows amounts or standard drinks: how much is a personal stat.
   - **A night is one card:** someone's drinks at one place, each within 6 hours of the last, with their rating of each.
   - Also: written reviews, new cocktail variants, a new 👑 House Pour, and drinks added to the list.
@@ -94,7 +99,11 @@ The admin and offline steps carry over what Lunker League learned the hard way, 
    - ✅ **Cheers and comments** (0.10.1): a 🍻 Cheers on any post (showing who cheered) and short comments underneath. Delete your own; admins can delete any comment.
    - ✅ **Firsts, recaps and who's out** (0.10.2): automatic posts for firsts and variety milestones ("Dave's first Islay Single Malt", "Sam has tried 100 different drinks"), a recap card when a night at a place ends, and a strip showing who's out right now and where.
    - ✅ **Alerts** (0.10.3): a bell in the header for cheers and comments on your drinks, friends making your variants, and House Pours won or lost. In the app only: true phone notifications need a paid server.
-5. **Variety stats.** Distinct drinks, styles, families and countries on each profile, plus standard drinks as a personal stat.
+5. **Variety stats.** The competition: who has tried the most, never who has drunk the most. Worked out on the phone from the logs it already has, all time (no seasons).
+   - ✅ **Variety core** (0.11.0): a variety score (new drink 1, style 3, family 5, country 5, category 10) on each profile with what was tried and styles per category, the group **Variety board**, and private volume numbers only you can see.
+   - **Passports and Try next** (0.11.1): a style passport (who in the group tried each style first) and a country passport, and suggestions for untried styles the group rates highly, with a drink to try.
+   - **Head-to-head and charts** (0.11.2): compare with a friend (tried by both, only you, only them), and personal charts: drinks by category and month, favourite styles, your top rated.
+   - **Crowns** (0.11.3): one holder at a time (Explorer, Globetrotter, Style Hunter, Peat Freak and more), on profiles and the board, with a feed post and an alert when one changes hands.
 
 ### After the core: the bar, the fridge and the tab
 
@@ -143,12 +152,11 @@ Rules to follow from the start, so they never need fixing later:
 
 ### Backlog
 
-- Crowns (one holder at a time, e.g. Explorer, Peat Freak, Globetrotter) and badges. (The House Pour crown for cocktail variants comes earlier, in step 3.)
+- Badges. (Crowns come in step 5; the House Pour crown for cocktail variants came in step 3.)
 - Recommendations ("you should try this"), wishlist and palate match.
 - The group's own cocktail book: brand-new recipes, not variants of a built-in one.
 - Challenges: blind tastings, Style Bingo, Around the World, Cocktail of the Month, Sober October.
 - Year-end "Wrapped".
-- Group start date and a late-logging window, like Lunker League's (late entries count for your history but not the competition). Decide once there's something to compete on.
 - An admin points editor with saved versions and a preview, once crowns, badges or challenges award points.
 
 ### Possible ideas
@@ -305,6 +313,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.11.0** (2026-Oct-15): Variety stats, part 1. A variety score for everyone (new drink 1, style 3, family 5, country 5, category 10; repeats score nothing), shown on profiles with what was tried and styles per category, and a **Variety board** (top three on Home). Your own profile has a private **Just for you** card: drinks and standard drinks this week, month and year, and your weekly average. Other members' profiles no longer show how many drinks someone has logged. No new security rules.
 - **0.10.3** (2026-Oct-14): The feed, part 4: alerts. A 🔔 bell in the header counts what's new for you: cheers and comments on your posts, replies on posts you commented on, friends making your variants or a drink for you, ratings of your variants, and House Pours won or lost. Opening Alerts marks them seen on every phone, and each one opens its post with the comments. A drink's page shows the cheers and comments for its night. This finishes roadmap step 4. No new security rules.
 - **0.10.2** (2026-Oct-14): The feed, part 3. Firsts and milestones post themselves: a first style or country (after someone's first 5 drinks) and variety milestones (10, 25, 50... different drinks or styles; never volume). A night recap appears when two or more people drank at the same place, once the night is over: who, how many, the most poured and photos. **Out now** shows who has logged in the last 2 hours, and where. Recaps and firsts can be cheered and commented on. **Changed `firestore.rules`** (two new post kinds): publish them before merging.
 - **0.10.1** (2026-Oct-14): The feed, part 2: 🍻 Cheers on any post (tap again to take it back), showing who said cheers, and 💬 comments under any post. Comments can't be edited; whoever wrote one, or an admin, can delete it. **New `firestore.rules`: publish them before merging.**

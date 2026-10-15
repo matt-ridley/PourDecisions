@@ -13,6 +13,7 @@ import { renderSystem, statusText } from "./systempage.js";
 import { renderTop } from "./ratepage.js";
 import { bellButton, renderAlerts } from "./alertspage.js";
 import { renderPost } from "./feedpage.js";
+import { renderBoard } from "./statspage.js";
 import { renderMake } from "./makepage.js";
 import { applyTheme } from "./theme.js";
 
@@ -39,6 +40,7 @@ const ROUTES = {
   catalog: { tab: null, live: true, render: renderCatalogAdmin },
   system: { tab: null, live: true, render: renderSystem },
   alerts: { tab: null, live: true, render: renderAlerts },
+  board: { tab: null, live: true, render: renderBoard }, // the variety board
   post: { tab: null, live: true, render: renderPost }, // one feed post with its comments open (from an alert)
 };
 
