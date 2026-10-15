@@ -1,11 +1,10 @@
-/* Home: your recent drinks (with "Another one"), anything that didn't reach the group, and the group. The feed of
-   everyone's drinks comes in a later release. */
-import { el, fill, avatar, toast } from "./ui.js";
+/* Home: a short hello, then anything that needs you now (drinks that didn't send, the morning after, tonight's nights,
+   drinks to rate), then the feed. The group, the boards and the Tab are on the Us tab. */
+import { el, fill, toast } from "./ui.js";
 import { store, uid, isAdmin, retryLog, discardLog, saveLog, deleteLog } from "./cloud.js";
 import { toCheck } from "./moderation.js";
 import { TAGLINE } from "./config.js";
-import { CATEGORIES } from "./catalog/styles.js";
-import { allItems, itemById } from "./catalog.js";
+import { itemById } from "./catalog.js";
 import { rateCard } from "./ratepage.js";
 import { feedCard } from "./feedpage.js";
 import { recentVariants, variantTitle, makeLogs } from "./variants.js";
@@ -14,17 +13,10 @@ import { tonightCard, morningHomeCard } from "./nightpage.js";
 
 export function renderHome(main) {
   const me = store.me || {};
-  const members = [...store.members.values()].filter(m => !m.suspended).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
-  const styles = CATEGORIES.reduce((n, c) => n + c.families.reduce((t, f) => t + f.styles.length, 0), 0);
   fill(main,
-    el("section", { class: "welcome" },
-      el("p", { class: "eyebrow", text: "Cheers" }),
+    el("section", { class: "welcome slim" },
       el("h2", { text: `Hey ${me.displayName || "there"} 👋` }),
-      el("p", { text: TAGLINE }),
-      el("div", { class: "hero-stats" },
-        el("div", { class: "stat" }, el("b", { text: String(members.length) }), el("span", { text: "in the group" })),
-        el("div", { class: "stat" }, el("b", { text: String(store.logs.length) }), el("span", { text: "drinks logged" })),
-        el("div", { class: "stat" }, el("b", { text: String(allItems().length) }), el("span", { text: `in the list (${styles} styles)` })))),
+      el("p", { text: TAGLINE })),
     outboxCard(),
     morningHomeCard(),
     tonightCard(),

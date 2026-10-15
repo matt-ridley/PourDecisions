@@ -1,6 +1,6 @@
 /* The feed on Home: what everyone's pouring (see feed.js), with filters, "Same here" on a friend's drink, 🍻 Cheers
    and comments on every post, and Show more for older days. Amounts are never shown: how much is a personal stat. */
-import { el, fill, avatar, fmtAgo, toast, confirmButton } from "./ui.js";
+import { el, fill, avatar, fmtAgo, toast, confirmButton, field, openSheet, closeSheet } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, deleteLog, toggleCheer, addComment, deleteComment } from "./cloud.js";
 import { itemById } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
@@ -36,19 +36,19 @@ export function feedCard() {
   const box = el("section", { class: "stack" });
   const draw = () => {
     const all = allFeed(), items = filterFeed(all, f);
-    const people = [...store.members.values()].filter(m => !m.suspended).sort((a, b) => a.displayName.localeCompare(b.displayName));
-    const who = el("select", { "aria-label": "Whose drinks" }, el("option", { value: "", text: "Everyone" }),
-      ...people.map(m => el("option", { value: m.id, text: m.id === uid() ? "Just me" : m.displayName })));
-    who.value = f.who;
-    who.addEventListener("change", () => { f.who = who.value; draw(); });
-    const cat = el("select", { "aria-label": "Category" }, el("option", { value: "", text: "All drinks" }),
-      ...CATEGORIES.map(c => el("option", { value: c.id, text: `${c.icon} ${c.name}` })));
-    cat.value = f.cat;
-    cat.addEventListener("change", () => { f.cat = cat.value; draw(); });
+    // The filters in use, each as a chip that clears it.
+    const catOf = id => CATEGORIES.find(c => c.id === id);
+    const on = [
+      f.who ? [f.who === uid() ? "Just me" : member(f.who).displayName, () => { f.who = ""; }] : null,
+      f.cat && catOf(f.cat) ? [`${catOf(f.cat).icon} ${catOf(f.cat).name}`, () => { f.cat = ""; }] : null,
+      f.photos ? ["📷 Photos", () => { f.photos = false; }] : null,
+    ].filter(Boolean);
     fill(box,
       el("div", { class: "row spread" }, el("h3", { text: "The feed" }),
-        el("button", { type: "button", class: "chip-btn tag", "aria-pressed": String(f.photos), onclick: () => { f.photos = !f.photos; draw(); } }, "📷 Photos")),
-      el("div", { class: "feed-filters" }, who, cat),
+        el("button", { type: "button", class: "chip-btn tag", "aria-pressed": String(on.length > 0), onclick: () => filterSheet(draw) },
+          on.length ? `Filter · ${on.length}` : "Filter")),
+      on.length ? el("div", { class: "chips" }, ...on.map(([text, clear]) => el("button", { type: "button", class: "chip-btn tag",
+        "aria-label": `Remove filter: ${text}`, onclick: () => { clear(); draw(); } }, `${text} ✕`))) : null,
       outStrip(),
       items.length ? el("ul", { class: "feed-list" }, ...items.map(feedRow).filter(Boolean))
         : el("p", { class: "card muted center", text: f.who || f.cat || f.photos ? "Nothing matches in these days. Try other filters or Show more."
@@ -58,6 +58,28 @@ export function feedCard() {
   };
   draw();
   return box;
+}
+
+/* Whose drinks, which kind, and photos only. Changes apply as they're picked. */
+function filterSheet(draw) {
+  const people = [...store.members.values()].filter(m => !m.suspended).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const who = el("select", {}, el("option", { value: "", text: "Everyone" }),
+    ...people.map(m => el("option", { value: m.id, text: m.id === uid() ? "Just me" : m.displayName })));
+  who.value = f.who;
+  who.addEventListener("change", () => { f.who = who.value; draw(); });
+  const cat = el("select", {}, el("option", { value: "", text: "All drinks" }),
+    ...CATEGORIES.map(c => el("option", { value: c.id, text: `${c.icon} ${c.name}` })));
+  cat.value = f.cat;
+  cat.addEventListener("change", () => { f.cat = cat.value; draw(); });
+  const photos = el("input", { type: "checkbox" });
+  photos.checked = f.photos;
+  photos.addEventListener("change", () => { f.photos = photos.checked; draw(); });
+  openSheet(box => box.append(el("div", { class: "stack" },
+    el("h2", { text: "Filter the feed" }),
+    field("Whose drinks", who),
+    field("What kind", cat),
+    el("label", { class: "check" }, photos, el("span", { text: "📷 Only posts with photos" })),
+    el("button", { class: "btn primary block", type: "button", text: "Done", onclick: closeSheet }))));
 }
 
 function feedRow(it) {
@@ -136,7 +158,7 @@ function drinkRow(l) {
   return el("li", { class: "log-row" },
     el("a", { class: "item-row grow", href: `#/l/${l.id}` }, thumbBox(l),
       el("span", { class: "grow" }, el("b", { text: titleOf(l) }), el("span", { class: "muted small", text: meta }))),
-    l.uid !== uid() && item ? el("button", { class: "btn small", type: "button", text: "Same here", "aria-label": `Same here: ${titleOf(l)}`,
+    l.uid !== uid() && item ? el("button", { class: "btn small same-btn", type: "button", text: "+", title: "Same here", "aria-label": `Same here: ${titleOf(l)}`,
       onclick: () => {
         const p = lastPlace(store.logs, uid());
         const fields = sameHere(l, { placeId: p ? (resolvePlace(store.places, p) || { id: p }).id : null });

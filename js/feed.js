@@ -63,6 +63,23 @@ export function houseChanges(logs, ratings) {
   return out;
 }
 
+/* Crowns that stuck: a change of hands shows in the feed only if the crown stayed put for CROWN_SETTLE_MS, or it's
+   the latest change for that crown. Early on crowns swap back and forth every few drinks; this keeps that out. */
+export const CROWN_SETTLE_MS = 24 * 3600000;
+export function settledCrowns(changes) {
+  const byCrown = new Map();
+  for (const c of [...changes].sort((a, b) => a.at - b.at)) {
+    if (!byCrown.has(c.crown)) byCrown.set(c.crown, []);
+    byCrown.get(c.crown).push(c);
+  }
+  const out = [];
+  for (const list of byCrown.values()) list.forEach((c, n) => {
+    const next = list[n + 1];
+    if (!next || next.at - c.at >= CROWN_SETTLE_MS) out.push(c);
+  });
+  return out;
+}
+
 /* Everything in the feed, newest first. `ratings` is everyone's ratings (ratings.allRatings); `drinks` the drinks
    members added (store.drinks). */
 export function feedItems({ logs = [], ratings = [], drinks = [], places = [], crowns = [], nights = [], now = Date.now() }) {
@@ -75,7 +92,7 @@ export function feedItems({ logs = [], ratings = [], drinks = [], places = [], c
   items.push(...houseChanges(logs, ratings));
   for (const d of drinks) if (!d.mergedInto && d.by && d.at) items.push({ type: "added", uid: d.by, at: d.at, drinkId: d.id });
   const hosted = nightItems(nights, logs, now), inNight = new Set(hosted.flatMap(n => n.logs.map(l => l.id)));
-  items.push(...firsts(logs), ...recaps(logs, places, now).filter(r => !r.logs.some(l => inNight.has(l.id))), ...hosted, ...crowns);
+  items.push(...firsts(logs), ...recaps(logs, places, now).filter(r => !r.logs.some(l => inNight.has(l.id))), ...hosted, ...settledCrowns(crowns));
   return items.sort((a, b) => b.at - a.at);
 }
 
