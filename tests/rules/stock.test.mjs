@@ -83,3 +83,17 @@ test("admins can clear out stock; nobody stocks a household that doesn't exist",
   await assertSucceeds(deleteDoc(doc(as(env, "admin2"), BEER)));
   await assertFails(setDoc(doc(as(env, "member"), "stock/nope~fridge~drink~molson-canadian"), beer("member", { hh: "nope" })));
 });
+
+test("pours come off with an increment, and logs say where a drink came from and what bottles it killed", async () => {
+  await seedHouse();
+  const db = as(env, "member");
+  const BOTTLE = "stock/h1~bar~drink~campari";
+  await assertSucceeds(setDoc(doc(db, BOTTLE), { hh: "h1", where: "bar", kind: "drink", item: "campari", size: 750, left: 20, by: "member", at: Date.now() }));
+  await assertSucceeds(updateDoc(doc(db, BOTTLE), { left: increment(-44), by: "member", at: Date.now() }), "the last pour can dip below 0");
+  const log = { uid: "member", kind: "drink", drinkId: "campari", title: "Campari", style: "bitter", size: "shot", ml: 44, abv: 25,
+    at: Date.now(), createdAt: Date.now(), hasPhoto: false };
+  await assertSucceeds(setDoc(doc(db, "logs/l1"), { ...log, from: "h1~bar~drink~campari", killed: ["campari"] }));
+  await assertFails(setDoc(doc(db, "logs/l2"), { ...log, killed: [] }), "killed lists at least one bottle");
+  await assertFails(setDoc(doc(db, "logs/l3"), { ...log, from: 5 }));
+});
+

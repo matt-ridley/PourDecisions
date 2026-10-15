@@ -9,13 +9,15 @@ import { variantTitle } from "./variants.js";
 import { titleOf } from "./logpage.js";
 import { groupCrowns } from "./statspage.js";
 import { CROWN_INDEX } from "./crowns.js";
+import { householdOf, lowStock, fridgeCount, levelText } from "./stock.js";
 
 /* Your alerts, worked out again only when the data behind them changes. */
 let memo = { key: [], list: [] };
 function myAlerts() {
-  const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, Math.floor(Date.now() / 600000)];
+  const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, store.stock, store.households, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) {
-    memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings(), crowns: groupCrowns().changes }) };
+    memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings(), crowns: groupCrowns().changes,
+      low: (h => h ? lowStock(store.stock, h.id) : [])(householdOf(store.households, uid())) }) };
   }
   return memo.list;
 }
@@ -58,6 +60,11 @@ function variantName(id) {
   return v && c ? variantTitle(c.data, v.data) : "your variant";
 }
 
+/* "Molson Canadian is running low: 2 left", "Campari is down to ¼", "Out of fresh lime juice" */
+const lowText = s => s.kind === "ing" ? `Out of ${s.thing.title.charAt(0).toLowerCase()}${s.thing.title.slice(1)}`
+  : s.where === "fridge" ? `${s.thing.title} is running low: ${fridgeCount(s)} left in the fridge`
+  : levelText(s) === "Empty" ? `${s.thing.title} is empty, with no spare` : `${s.thing.title} is down to ${levelText(s)}, with no spare`;
+
 const crownName = id => { const c = CROWN_INDEX.get(id); return c ? `${c.icon} ${c.name}` : "a"; };
 
 function alertRow(a, isNew) {
@@ -74,6 +81,7 @@ function alertRow(a, isNew) {
     houseLost: () => ["👑", `${names(a.from)}'s ${variantName(a.variantId)} took your House Pour`, `#/v/${a.variantId}`],
     crownWon: () => ["👑", `You took the ${crownName(a.crown)} crown`, "#/board"],
     crownLost: () => ["👑", `${names(a.from)} took your ${crownName(a.crown)} crown`, "#/board"],
+    low: () => [a.stock.where === "fridge" ? "🧊" : "🍾", lowText(a.stock), `#/bar/${a.stock.hh}/${a.stock.where}`],
   }[a.kind]?.() || [];
   if (!text) return null;
   return el("li", { class: isNew ? "alert new" : "alert" }, el("a", { class: "item-row", href },

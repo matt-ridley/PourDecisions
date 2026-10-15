@@ -4,7 +4,9 @@
    Bartender mode shows the recipe in big text with a checkbox per line and keeps the screen awake.
    Starting from a variant (/<variant>) fills in its bottles and amounts: change anything and the new one is a remix of it. */
 import { el, fill, icon, toast, openSheet, closeSheet, avatar } from "./ui.js";
-import { store, uid, memberName, saveLog, deleteLog, saveVariant } from "./cloud.js";
+import { store, uid, memberName, saveLog, deleteLog, saveVariant, takeOut } from "./cloud.js";
+import { householdOf, sourcesFor, makePours, levelText, fridgeCount } from "./stock.js";
+import { ML_PER_OZ } from "./units.js";
 import { itemById, rawItem, drinksFor, ingredientById, ingredientsOf, search, normalize, INGREDIENTS } from "./catalog.js";
 import { COCKTAILS } from "./catalog/cocktails.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
@@ -46,6 +48,10 @@ export function renderMake(main, id, fromId) {
   const build = () => buildVariant(recipe, rows(), { glass: s.glass, garnish: s.garnish, name: nameIn.value, from: start ? from.id : null });
   const existingOf = v => v && itemById("variant", v.id); // follows merges to the variant kept
   const servings = () => servingsFor(s.servings, s.drinkers);
+  // Your household's bar and fridge: their bottles come first in the picker, and what you pour comes out of them.
+  const hh = (householdOf(store.households, me) || {}).id;
+  const homeOf = drinkId => sourcesFor(store.stock, hh, drinkId).sort((a, b) => (a.where === "bar" ? 0 : 1) - (b.where === "bar" ? 0 : 1))[0];
+  const homeText = e => e.where === "bar" ? `In your bar · ${levelText(e)}` : `In your fridge · ${fridgeCount(e)}`;
 
   /* ---------- Ingredients ---------- */
   const units = () => getUnits();
@@ -72,7 +78,7 @@ export function renderMake(main, id, fromId) {
     const pickable = (r.baseIng || r.ing).some(id => drinksFor(id).length);
     const label = pickable
       ? el("button", { type: "button", class: "make-name", onclick: () => bottleSheet(r) },
-          el("b", { text: name }), el("span", { class: "muted small", text: r.drinkId ? "Change bottle" : "Pick the bottle" }))
+          el("b", { text: name }), el("span", { class: "muted small", text: r.drinkId ? (homeOf(r.drinkId) ? `Change bottle · ${homeText(homeOf(r.drinkId))}` : "Change bottle") : "Pick the bottle" }))
       : el("span", { class: "make-name" }, el("b", { text: name }));
     return el("li", { class: "make-row" }, amount, label,
       el("button", { type: "button", class: "icon-x", "aria-label": `Leave out ${name}`, text: "×", onclick: remove }));
@@ -90,7 +96,10 @@ export function renderMake(main, id, fromId) {
       const base = r.baseIng || r.ing;
       const q = el("input", { type: "search", placeholder: "Search bottles", autocomplete: "off", "data-focus": "" });
       const list = el("ul", { class: "item-list" });
-      const choices = bottleChoices({ ing: base }, { logs: store.logs, variants: store.variants, uid: me });
+      // Bottles you have at home first (keeping the usual order within each group).
+      const choices = bottleChoices({ ing: base }, { logs: store.logs, variants: store.variants, uid: me })
+        .map((c, k) => ({ c, k, home: homeOf(c.item.id) })).sort((a, b) => (a.home ? 0 : 1) - (b.home ? 0 : 1) || a.k - b.k)
+        .map(x => ({ ...x.c, home: x.home }));
       const pick = fn => () => { fn(); closeSheet(); changed(); };
       // "Any rye or bourbon" (as written), then "Any rye", "Any bourbon": no particular bottle.
       const lower = id => { const g = ingredientById(id); return g.proper ? g.name : g.name.toLowerCase(); };
@@ -109,7 +118,7 @@ export function renderMake(main, id, fromId) {
             "aria-pressed": String(r.drinkId === c.item.id), onclick: pick(() => { r.drinkId = c.item.id; r.ing = [c.ing]; }) },
             el("span", { class: "item-icon", text: c.item.category.icon }),
             el("span", { class: "grow" }, el("b", { text: c.item.title }),
-              el("span", { class: "muted small", text: [c.item.style.name, `${c.item.data.approx ? "~" : ""}${c.item.data.abv}%`].join(" · ") }))))),
+              el("span", { class: "muted small", text: [c.home ? `🏠 ${homeText(c.home)}` : "", c.item.style.name, `${c.item.data.approx ? "~" : ""}${c.item.data.abv}%`].filter(Boolean).join(" · ") }))))),
           hits.length > 40 ? el("li", { class: "hint", text: `Showing 40 of ${hits.length}. Type to narrow it down.` }) : null,
           !hits.length && t ? el("li", { class: "muted", text: "No bottle in the list matches. Add it from the Log tab first." }) : null);
       };
@@ -268,11 +277,18 @@ export function renderMake(main, id, fromId) {
     const placeId = lastPlace(store.logs, me);
     const logs = makeLogs({ recipe, variant, drinkers: s.drinkers, me, at: now, placeId: placeId ? (resolvePlace(store.places, placeId) || { id: placeId }).id : null })
       .map(f => f.uid === me && s.offFeed ? { ...f, offFeed: true } : f);
+    // Picked bottles in your bar lose what was poured (a beer from the fridge, one per serving). Bottles emptied go on
+    // your own drink, or the first one when you're making for others: whoever pours gets the credit.
+    const taken = makePours(rows(), servings(), store.stock, hh, ML_PER_OZ)
+      .map(p => ({ p, t: takeOut(p.entry, { ml: p.ml, n: p.n }) })).filter(x => x.t);
+    const killed = taken.filter(x => x.t.killed).map(x => x.p.drinkId);
+    if (killed.length) { const k = logs.findIndex(f => f.uid === me); logs[k < 0 ? 0 : k].killed = killed; }
     // The photo goes with your own drink only: a friend couldn't delete their log if it carried your photo.
     const ids = logs.map(f => saveLog(f, f.uid === me ? pics : null));
     const title = variant ? variantTitle(recipe, variant) : recipe.name;
-    toast(ids.length > 1 ? `${title} logged for ${plural(ids.length, "person", "people")} 🍹` : `${title} logged 🍹`,
-      { label: "Undo", run: () => ids.forEach(deleteLog) });
+    const done = ids.length > 1 ? `${title} logged for ${plural(ids.length, "person", "people")} 🍹` : `${title} logged 🍹`;
+    toast(killed.length ? `${done} You killed the bottle! 🍾` : done,
+      { label: "Undo", run: () => { ids.forEach(deleteLog); taken.forEach(x => x.t.undo()); } });
     location.hash = "#/home";
   }
 
@@ -287,7 +303,8 @@ export function renderMake(main, id, fromId) {
       el("a", { class: "btn small", href: `#/recipe/${recipe.id}`, text: "Recipe" })),
     el("section", { class: "card stack" },
       el("div", { class: "row spread" }, el("h3", { text: "Ingredients" }), unitsSeg),
-      el("p", { class: "hint", text: "Tap a bottle to pick the one you're using. − and + change the amount; × leaves it out." }),
+      el("p", { class: "hint", text: hh ? "Tap a bottle to pick the one you're using: yours at home come first, and what you pour comes out of them. − and + change the amount; × leaves it out."
+        : "Tap a bottle to pick the one you're using. − and + change the amount; × leaves it out." }),
       rowsBox, leftOut, addBtn),
     el("section", { class: "card stack" }, el("h3", { text: "Glass and garnish" }),
       el("label", { class: "field" }, el("span", { class: "field-label", text: "Glass" }), glassIn),

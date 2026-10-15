@@ -76,3 +76,9 @@ test("crowns: you took one, or someone took yours", () => {
   assert.deepEqual(alertsFor("me", { crowns, now }).map(a => [a.kind, a.crown, a.from.join()]),
     [["crownLost", "globetrotter", "dave"], ["crownWon", "globetrotter", ""]]);
 });
+
+test("things running low at home are alerts, dated when they last changed, within the last 30 days", () => {
+  const low = [{ id: "h~fridge~drink~a", at: now - H }, { id: "h~bar~ing~b", at: now - 40 * D }];
+  const list = alertsFor("me", { low, now });
+  assert.deepEqual(list.map(a => [a.kind, a.stock.id]), [["low", "h~fridge~drink~a"]]);
+});

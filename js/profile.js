@@ -8,7 +8,8 @@ import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
 import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
-import { householdOf, stockIn, fridgeCount } from "./stock.js";
+import { householdOf, stockIn, fridgeCount, emptiesOf } from "./stock.js";
+import { itemById } from "./catalog.js";
 
 const seg = (label, options, current, pick) => el("div", { class: "seg wide", role: "group", "aria-label": label },
   ...options.map(([k, text]) => el("button", { type: "button", "aria-pressed": String(current === k), text, onclick: () => pick(k) })));
@@ -36,6 +37,7 @@ export function renderProfile(main, id) {
       theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
     barLink(m.id, mine),
+    emptiesCard(m.id),
     varietyCard(m.id),
     mine ? tryNextCard() : null,
     mine ? volumeCard() : null,
@@ -101,6 +103,17 @@ function confirmSignOut() {
     el("div", { class: "row" },
       el("button", { class: "btn", type: "button", text: "Cancel", onclick: closeSheet }),
       el("button", { class: "btn danger", type: "button", text: "Sign out", onclick: () => { closeSheet(); signOut(); } })))));
+}
+
+/* Killed the bottle: a wall of the empties someone poured the last drop of. */
+function emptiesCard(id) {
+  const all = emptiesOf(store.logs, id);
+  if (!all.length) return null;
+  return el("section", { class: "card stack" },
+    el("h3", { text: `🍾 Killed the bottle · ${all.length}` }),
+    el("div", { class: "chips" }, ...all.slice(0, 24).map(e => el("a", { class: "chip-btn tag", href: `#/l/${e.logId}`,
+      text: (itemById("drink", e.drinkId) || { title: "A bottle" }).title }))),
+    all.length > 24 ? el("p", { class: "muted small", text: `And ${all.length - 24} more.` }) : null);
 }
 
 /* Your bar and fridge (or a start button), or the household someone else is in. */

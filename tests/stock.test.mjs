@@ -70,3 +70,40 @@ test("a household's bar feeds What can I make: Crown Royal counts as rye, the fr
   const { now } = sortByHave(allItems().filter(i => i.kind === "cocktail"), have);
   assert.ok(now.some(r => r.item.id === "whisky-sour"));
 });
+
+import { pourFrom, sourcesFor, makePours, emptiesOf, lowStock } from "../js/stock.js";
+
+test("a pour comes off the open bottle; the one that empties it kills it, and a spare is opened for the rest", () => {
+  assert.deepEqual(pourFrom(bottle("campari", 500), 44), { killed: false, inc: -44 });
+  assert.deepEqual(pourFrom(bottle("campari", 30), 44), { killed: true, inc: -44 });
+  assert.deepEqual(pourFrom(bottle("campari", 30, { spares: 2 }), 44), { killed: true, set: { left: 736, spares: 1 } });
+  assert.deepEqual(pourFrom(bottle("campari", 0, { spares: 1 }), 44), { killed: false, set: { left: 706, spares: 0 } });
+  assert.equal(pourFrom(bottle("campari", 0), 44), null, "nothing left to pour");
+});
+
+test("a drink can come from your fridge or bar when there's some left", () => {
+  const stock = [fridge("molson-canadian", 2), { ...bottle("molson-canadian", 0), item: "molson-canadian", id: stockId("h1", "bar", "drink", "molson-canadian") }, fridge("x", 0)];
+  assert.deepEqual(sourcesFor(stock, "h1", "molson-canadian").map(s => s.where), ["fridge"]);
+  assert.deepEqual(sourcesFor(stock, "h1", "x"), []);
+  assert.deepEqual(sourcesFor(stock, null, "molson-canadian"), [], "no household, no home stock");
+});
+
+test("making a cocktail takes the poured amount from picked bar bottles, and a beer per serving from the fridge", () => {
+  const stock = [bottle("crown-royal-deluxe", 700), fridge("molson-canadian", 6)];
+  const rows = [{ drinkId: "crown-royal-deluxe", oz: 1.5 }, { drinkId: "molson-canadian", qty: "1" }, { ing: ["lemon-juice"], oz: 1 }, { drinkId: "not-in-stock", oz: 1 }];
+  const pours = makePours(rows, 2, stock, "h1", 30);
+  assert.deepEqual(pours.map(p => [p.drinkId, p.ml, p.n]), [["crown-royal-deluxe", 90, 0], ["molson-canadian", 0, 2]]);
+});
+
+test("the wall of empties credits whoever poured, newest first", () => {
+  const logs = [{ id: "a", uid: "me", at: 1, killed: ["campari"] }, { id: "b", uid: "friend", madeBy: "me", at: 3, killed: ["gin1", "vermouth1"] },
+    { id: "c", uid: "friend", at: 2, killed: ["rum1"] }, { id: "d", uid: "me", at: 4 }];
+  assert.deepEqual(emptiesOf(logs, "me").map(e => e.drinkId), ["gin1", "vermouth1", "campari"]);
+  assert.deepEqual(emptiesOf(logs, "friend").map(e => e.drinkId), ["rum1"]);
+});
+
+test("running low: fridge at its warning, a bottle at ¼ or empty with no spare, an ingredient out", () => {
+  const stock = [fridge("molson-canadian", 2, { low: 2 }), fridge("molson-canadian-67", 9, { low: 2 }), bottle("campari", 150),
+    bottle("crown-royal-deluxe", 150, { spares: 1 }), ing("lime-juice", { out: true }), ing("lemon-juice")];
+  assert.deepEqual(lowStock(stock, "h1").map(s => s.item).sort(), ["campari", "lime-juice", "molson-canadian"]);
+});
