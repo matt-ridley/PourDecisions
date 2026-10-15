@@ -6,13 +6,14 @@ import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
-import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing } from "./catalog.js";
+import { search, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
 import { store, uid, isAdmin, memberName, renameVariant, loadThumb } from "./cloud.js";
 import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
 import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME,
   rankVariants, asItem, compareRows } from "./variants.js";
 import { ratingsCard, groupRatings, starText } from "./ratepage.js";
+import { haveSet } from "./makeablepage.js";
 
 // The search box keeps what was typed while moving between screens (this session only).
 let query = "";
@@ -25,7 +26,7 @@ export function renderDrinks(main) {
   const results = el("div", { class: "stack" });
   const draw = () => {
     query = box.value;
-    if (!query.trim()) return fill(results, topLink(), categoryGrid());
+    if (!query.trim()) return fill(results, makeableLink(), topLink(), categoryGrid());
     const hits = search(query);
     fill(results, hits.length
       ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(itemRow))
@@ -50,6 +51,14 @@ function topLink() {
     el("span", { class: "chev", html: icon.chevron }));
 }
 
+/* What can I make, from what you've ticked as on hand. */
+function makeableLink() {
+  return el("a", { class: "card admin-link", href: "#/makeable" },
+    el("span", { class: "item-icon", text: "🍸" }),
+    el("div", { class: "grow" }, el("b", { text: "What can I make" }), el("p", { class: "muted small", text: "Tick what's in your bar and see which cocktails you can mix" })),
+    el("span", { class: "chev", html: icon.chevron }));
+}
+
 function categoryGrid() {
   return el("div", { class: "cat-grid" }, ...CATEGORIES.map(c => el("a", { class: "cat-tile", href: `#/cat/${c.id}` },
     el("span", { class: "cat-icon", text: c.icon }),
@@ -62,7 +71,7 @@ function itemRow(i, { style = true } = {}) {
   const d = i.data, st = style ? i.style.name : "";
   const nv = i.kind === "cocktail" ? variantCount(i.id, store.logs) : 0;
   const meta = i.kind === "cocktail"
-    ? [st, d.method, d.glass, nv ? `${nv} variant${nv === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")
+    ? [canMake(d) ? "✅ Can make" : "", st, d.method, d.glass, nv ? `${nv} variant${nv === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")
     : [st, d.origin ? originName(d.origin) : "", abvText(d)].filter(Boolean).join(" · ");
   return el("li", {}, el("a", { class: "item-row", href: `#/${i.kind === "cocktail" ? "recipe" : "drink"}/${i.id}` },
     el("span", { class: "item-icon", text: i.category.icon }),
@@ -71,6 +80,9 @@ function itemRow(i, { style = true } = {}) {
 }
 
 const abvText = d => `${d.approx ? "~" : ""}${d.abv}%`;
+
+/* Can you make this cocktail with what you've ticked in What can I make? False when nothing is ticked. */
+const canMake = r => { const have = haveSet(); return !!have && !missingFor(r, have).length; };
 
 /* ---------- Drilling down ---------- */
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -213,13 +225,24 @@ export function renderRecipe(main, id) {
       el("div", { class: "row spread" }, el("h3", { text: "Ingredients" }), unitsSeg),
       el("ul", { class: "ingredients" }, ...r.ingredients.map(x => el("li", {},
         el("b", { text: x.oz ? fmtAmount(x.oz, units) : x.qty }), ingredientLinks(x)))),
-      el("p", {}, el("b", { text: "Garnish: " }), r.garnish)),
+      el("p", {}, el("b", { text: "Garnish: " }), r.garnish),
+      haveLine(r)),
     el("section", { class: "card stack" },
       el("h3", { text: "Method" }),
       el("ol", { class: "steps" }, ...r.steps.map(s => el("li", { text: s })))),
     variantsCard(i),
     ratingsCard(i),
     makeThis(i));
+}
+
+/* Under a recipe's ingredients: whether what you've ticked in What can I make covers it. */
+function haveLine(r) {
+  const have = haveSet();
+  if (!have) return null;
+  const missing = missingFor(r, have);
+  return el("a", { class: "note small", href: "#/makeable", text: missing.length
+    ? `🛒 You're missing ${missing.map(x => x.item).join(", ")}`
+    : "✅ You have everything for this one" });
 }
 
 /* An ingredient line's name, linked to its ingredient page. With choices, each choice gets its own link. */

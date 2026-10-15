@@ -15,6 +15,7 @@ const APP_FILES = [
   "js/units.js", "js/home.js", "js/drinks.js", "js/catalog.js",
   "js/logs.js", "js/logpage.js", "js/outbox.js", "js/photo.js", "js/moderation.js", "js/systempage.js", "js/ratings.js", "js/ratepage.js",
   "js/variants.js", "js/makepage.js", "js/feed.js", "js/feedpage.js", "js/alerts.js", "js/alertspage.js", "js/stats.js", "js/statspage.js", "js/crowns.js",
+  "js/makeable.js", "js/makeablepage.js",
   "js/catalog/styles.js", "js/catalog/drinks.js", "js/catalog/cocktails.js", "js/catalog/make.js",
   "js/catalog/beer.js", "js/catalog/whisky.js", "js/catalog/spirits.js", "js/catalog/wine.js", "js/catalog/more.js", "js/catalog/na.js",
   "js/catalog/ingredients.js", "js/catalog/about.js", "js/catalog/recipes-stirred.js", "js/catalog/recipes-sours.js", "js/catalog/recipes-long.js",
