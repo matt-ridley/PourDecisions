@@ -68,3 +68,11 @@ test("only the last 30 days, and unread means newer than when you last looked", 
   assert.equal(unreadCount(a, now - 3 * H), 1);
   assert.equal(unreadCount(a, now - H), 0);
 });
+
+test("crowns: you took one, or someone took yours", () => {
+  const crowns = [{ type: "crown", crown: "globetrotter", uid: "me", from: null, at: now - 3 * H, value: 3 },
+    { type: "crown", crown: "globetrotter", uid: "dave", from: "me", at: now - H, value: 4 },
+    { type: "crown", crown: "hop-head", uid: "sam", from: "dave", at: now, value: 3 }];
+  assert.deepEqual(alertsFor("me", { crowns, now }).map(a => [a.kind, a.crown, a.from.join()]),
+    [["crownLost", "globetrotter", "dave"], ["crownWon", "globetrotter", ""]]);
+});

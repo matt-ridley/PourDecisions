@@ -10,6 +10,7 @@
      added    a drink a member added to the list: { drinkId }
      first    a first or a milestone: { what: "style" | "country" | "drinks" | "styles", label, n?, logId }
      recap    a night at one place with two or more people, once it's over: { people, placeId, logs, start }
+     crown    a crown changed hands: { crown, from, value } (see crowns.js; passed in as `crowns`)
    Logs kept off the feed (offFeed) never show. The feed never shows amounts: how much is a personal stat. */
 import { itemById, resolveId, originName } from "./catalog.js";
 import { resolvePlace, SAME_NIGHT_MS } from "./logs.js";
@@ -61,7 +62,7 @@ export function houseChanges(logs, ratings) {
 
 /* Everything in the feed, newest first. `ratings` is everyone's ratings (ratings.allRatings); `drinks` the drinks
    members added (store.drinks). */
-export function feedItems({ logs = [], ratings = [], drinks = [], places = [], now = Date.now() }) {
+export function feedItems({ logs = [], ratings = [], drinks = [], places = [], crowns = [], now = Date.now() }) {
   const items = [...sessions(logs, places)];
   for (const r of ratings) if (!r.fromLog && r.review) items.push({ type: "review", uid: r.uid, at: r.at, rating: r });
   const bases = new Set(logs.filter(l => l.variantId).map(l => (itemById("variant", l.variantId) || {}).base).filter(Boolean));
@@ -70,7 +71,7 @@ export function feedItems({ logs = [], ratings = [], drinks = [], places = [], n
   }
   items.push(...houseChanges(logs, ratings));
   for (const d of drinks) if (!d.mergedInto && d.by && d.at) items.push({ type: "added", uid: d.by, at: d.at, drinkId: d.id });
-  items.push(...firsts(logs), ...recaps(logs, places, now));
+  items.push(...firsts(logs), ...recaps(logs, places, now), ...crowns);
   return items.sort((a, b) => b.at - a.at);
 }
 
@@ -136,6 +137,7 @@ export function postId(item) {
     case "added": return `a~${item.drinkId}`;
     case "first": return `f~${item.logId}_${item.what}`;
     case "recap": return `n~${item.logs[item.logs.length - 1].id}`;
+    case "crown": return `c~${item.crown}_${item.at}_${item.uid}`;
     default: return "";
   }
 }

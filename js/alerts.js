@@ -7,14 +7,15 @@
      cheer    cheers on your post (one alert per post, everyone who cheered)
      comment  a comment on your post            reply  a comment on a post you commented on
      made     a friend made your variant        madeFor  a friend made a drink for you
-     rated    a friend rated your variant       houseWon / houseLost  your variant won or lost the House Pour */
+     rated    a friend rated your variant       houseWon / houseLost  your variant won or lost the House Pour
+     crownWon / crownLost  you took a crown, or someone took yours (crown changes passed in from crowns.js) */
 import { itemById, resolveId } from "./catalog.js";
 import { houseChanges } from "./feed.js";
 
 export const ALERT_DAYS = 30;
 const DAY = 86400000;
 
-export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], now = Date.now(), days = ALERT_DAYS } = {}) {
+export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], crowns = [], now = Date.now(), days = ALERT_DAYS } = {}) {
   const from = now - days * DAY, out = [];
   const recent = x => x.at >= from && x.at <= now + 600000;
   const mineVariant = id => { const v = id && itemById("variant", id); return v && v.data.by === me ? v : null; };
@@ -59,6 +60,12 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
       if (prev && prev.uid === me && h.uid !== me) out.push({ kind: "houseLost", at: h.at, from: [h.uid], variantId: h.variantId });
     }
     last.set(h.base, h);
+  }
+  // Crowns: won, or taken from you.
+  for (const c of crowns) {
+    if (!recent(c)) continue;
+    if (c.uid === me) out.push({ kind: "crownWon", at: c.at, from: [], crown: c.crown });
+    else if (c.from === me) out.push({ kind: "crownLost", at: c.at, from: [c.uid], crown: c.crown });
   }
   return out.sort((a, b) => b.at - a.at);
 }

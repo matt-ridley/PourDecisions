@@ -501,3 +501,7 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 }
 .cols .col:first-child:hover::after, .cols .col:first-child:focus-visible::after { left: 0; transform: none; }
 .cols .col:last-child:hover::after, .cols .col:last-child:focus-visible::after { left: auto; right: 0; transform: none; }
+
+/* Crowns */
+.crown-holder { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.feed-card.crown { border-color: var(--gold); }

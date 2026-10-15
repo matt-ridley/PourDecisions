@@ -47,7 +47,7 @@ test("comments: your own, short, never edited; deleted by their writer or an adm
 
 test("night recaps and firsts can be cheered and commented on too", async () => {
   const db = as(env, "member");
-  for (const post of ["n~log123", "f~log123_style"]) {
+  for (const post of ["n~log123", "f~log123_style", "c~globetrotter_1_member"]) {
     await assertSucceeds(setDoc(doc(db, `cheers/${post}|member`), cheer("member", { post })));
     await assertSucceeds(setDoc(doc(db, `comments/${post.slice(0, 1)}c`), comment("member", { post })));
   }
