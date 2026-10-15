@@ -11,7 +11,7 @@ import { feedCard } from "./feedpage.js";
 import { boardTeaser } from "./statspage.js";
 import { recentVariants, variantTitle, makeLogs } from "./variants.js";
 import { lastPlace, resolvePlace } from "./logs.js";
-import { tonightCard } from "./nightpage.js";
+import { tonightCard, morningHomeCard } from "./nightpage.js";
 
 export function renderHome(main) {
   const me = store.me || {};
@@ -27,6 +27,7 @@ export function renderHome(main) {
         el("div", { class: "stat" }, el("b", { text: String(store.logs.length) }), el("span", { text: "drinks logged" })),
         el("div", { class: "stat" }, el("b", { text: String(allItems().length) }), el("span", { text: `in the list (${styles} styles)` })))),
     outboxCard(),
+    morningHomeCard(),
     tonightCard(),
     rateCard(),
     againCard(),

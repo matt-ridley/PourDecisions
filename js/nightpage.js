@@ -4,9 +4,9 @@ import { el, fill, icon, avatar, fmtDate, fmtAgo, toast, confirmButton, field, o
 import { store, uid, memberName, isAdmin, createNight, updateNight, joinNight, leaveNight, deleteNight, addPlace,
   addBring, setArrived, removeBring } from "./cloud.js";
 import { search, itemById } from "./catalog.js";
-import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks, bringFor } from "./nights.js";
+import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks, bringFor, nightRecap, mornings } from "./nights.js";
 import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
-import { placesByUse, resolvePlace, findPlace, cleanPlaceName } from "./logs.js";
+import { placesByUse, resolvePlace, findPlace, cleanPlaceName, logStd } from "./logs.js";
 import { logRow, giftable, roundOf } from "./logpage.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -125,6 +125,8 @@ export function renderNight(main, id) {
       n.end != null ? el("p", { class: "muted small", text: `Ended ${fmtDate(n.end)}` }) : null,
       el("div", { class: "chips center" }, ...(n.guests || []).map(g => el("a", { class: "chip-btn who", href: g === me ? "#/me" : `#/u/${g}` }, avatar(member(g), "xs"), member(g).displayName))),
       !here && st.state !== "over" ? el("button", { class: "btn primary", type: "button", text: "🙋 I'm here", onclick: () => { joinNight(n.id); toast("You're in. Drinks you log now count for the night."); } }) : null),
+    st.state === "over" ? recapCard(n) : null,
+    st.state === "over" && here ? morningCard(n) : null,
     here && st.state !== "over" ? roundCard(n, list) : null,
     st.state !== "over" || bringFor(store.bring, n.id).length ? bringCard(n, here || host, st.state !== "over") : null,
     el("section", { class: "card stack" },
@@ -141,6 +143,54 @@ export function renderNight(main, id) {
       host && n.end != null ? el("button", { class: "btn block", type: "button", text: "Keep it going (take the end time off)", onclick: () => updateNight(n.id, { end: null }) }) : null,
       here && !host ? el("button", { class: "btn quiet block", type: "button", text: "Leave this night", onclick: () => leaveNight(n.id) }) : null,
       host || isAdmin() ? confirmButton("Delete this night", "Tap again to delete (the drinks stay)", () => { deleteNight(n.id); location.hash = "#/nights"; }, "btn danger block") : null));
+}
+
+/* ---------- Recaps ---------- */
+const drinkTitle = id => (itemById("drink", id) || { title: "a drink" }).title;
+const timeOf = t => fmtDate(t).split(" ").slice(1).join(" ");
+
+/* The night's recap, once it's over: everything, including drinks per person (shown here, not in the feed). */
+function recapCard(n) {
+  const r = nightRecap(n, store.logs);
+  const line = (icon, label, value) => value ? el("li", {}, `${icon} `, el("b", { text: `${label}: ` }), value) : null;
+  const stockNow = id => store.stock.find(s => s.id === id);
+  return el("section", { class: "card stack" },
+    el("h3", { text: "🌙 The recap" }),
+    el("ul", { class: "recap-lines" },
+      line("🍻", "Drinks", `${r.total}${r.people.length ? ` (${r.people.map(p => `${nameOf(p.uid)} ${p.n}`).join(", ")})` : ""}`),
+      line("🏆", "Most poured", r.top ? `${(itemById(r.top.kind, r.top.drinkId) || { title: "a drink" }).title} (${r.top.n})` : ""),
+      line("🍾", "Bottles killed", r.killed.map(k => `${drinkTitle(k.drinkId)} (${nameOf(k.by)})`).join(", ")),
+      line("🥃", "Poured from the bar", r.poured.map(p => { const s = stockNow(p.stockId); return `${drinkTitle(p.item)} ${Math.round(p.ml)} ml${s ? `, now ${levelText(s)}` : ""}`; }).join("; ")),
+      line("🧊", "Out of fridges and coolers", r.takenOut.map(t => `${t.n} × ${drinkTitle(t.item)}`).join(", ")),
+      line("🎁", "Most generous", r.generous ? `${nameOf(r.generous.uid)} (${plural(r.generous.n, "drink")} given)` : ""),
+      line("😴", "First to tap out", r.firstOut ? `${nameOf(r.firstOut.uid)} (last drink ${timeOf(r.firstOut.at)})` : ""),
+      line("🌙", "Nightcap", r.nightcap ? `${nameOf(r.nightcap.uid)} at ${timeOf(r.nightcap.at)}` : "")),
+    el("p", { class: "hint", text: "The recap is posted to the feed too (without the drinks per person)." }));
+}
+const nameOf = id => id === uid() ? "You" : member(id).displayName;
+
+/* The morning after, just for you: what you drank, your standard drinks, and what you gave and were given. */
+function morningBody(m) {
+  return [
+    el("p", {}, el("b", { text: `${plural(m.logs.length, "drink")} · ${m.std} standard drink${m.std === 1 ? "" : "s"}` })),
+    el("p", { class: "muted small", text: m.logs.map(l => l.title).join(", ") }),
+    m.gave || m.got ? el("p", { class: "small", text: [m.gave ? `🎁 You gave ${plural(m.gave, "drink")}` : "", m.got ? `you were given ${plural(m.got, "drink")}` : ""].filter(Boolean).join(" · ") }) : null,
+    el("p", { class: "hint", text: "Only you can see this. If you don't remember, the app will." }),
+  ];
+}
+function morningCard(n) {
+  const m = mornings([n], store.logs, uid(), logStd)[0];
+  return m ? el("section", { class: "card stack" }, el("h3", { text: "☀️ Your morning after" }), ...morningBody(m)) : null;
+}
+
+/* Home: the morning after a night you drank at, until noon. */
+export function morningHomeCard() {
+  const m = mornings(store.nights, store.logs, uid(), logStd)[0];
+  if (!m) return null;
+  return el("section", { class: "card stack" },
+    el("div", { class: "row spread" }, el("h3", { text: `☀️ The morning after ${m.night.name}` }),
+      el("a", { class: "btn small", href: `#/night/${m.night.id}`, text: "Recap" })),
+    ...morningBody(m));
 }
 
 /* ---------- The bring list ---------- */

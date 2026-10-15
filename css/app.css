@@ -255,6 +255,7 @@ a.member-row:active { background: var(--surface-2); }
 .gauge i.on { background: var(--primary); border-color: var(--primary); }
 .gauge b { margin-left: 6px; min-width: 40px; text-align: right; }
 .chips.center { justify-content: center; }
+.recap-lines { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 2px; }
 .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 32px; }
 .fold > summary::-webkit-details-marker { display: none; }
 .fold > summary::after { content: "+"; font: 700 20px/1 var(--f-display); color: var(--primary); margin-left: auto; }

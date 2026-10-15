@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.15.2 (beta)
+**Current version:** 0.15.3 (beta)
 
 ## Features
 
@@ -87,6 +87,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Drinks come together by themselves:** anything logged by someone who's there, from the start. With no end time the night ends with its last drink, the **🌙 Nightcap**, once nobody has logged one for 6 hours; the host can also **End the night**.
   - **🍻 Round:** on a night you're at, pick a drink (tonight's favourites come first) and who's having one. It logs one for each: yours is yours, everyone else's is on you (the Tab). It comes out of your cooler, fridge or a bar bottle if you pick one. **🔁 Same again** pours the last round again. Undo takes the whole round back.
   - **📝 Bring list:** who's bringing what (with how many), ticked off when it arrives. Add your own; the host can add for anyone there. Drinks to share go in your cooler, so friends can grab one and it goes on the Tab.
+  - **🌙 The recap**, once a night is over: drinks (and per person, on the night's page only), most poured, bottles killed, what was poured from the bar (and the level now), what came out of fridges and coolers, the most generous, the first to tap out and the Nightcap. It's posted to the feed (without the per-person numbers), where it can be cheered and commented on, and it replaces the automatic same-place recap for those drinks.
+  - **☀️ The morning after:** a private card on Home until noon the next day (and an alert) for each night you drank at: your drinks, standard drinks, and what you gave and were given.
   - **Tonight** on Home shows nights that are on or start within 12 hours, and logging a drink during a night you're at picks its place.
 - **🧾 The Tab.** Who owes whom a drink, from your profile. Every drink given counts as 1: drinks given with 🎁 Give one or Who's it for?, cocktails made for someone, and drinks taken from a friend's cooler (whoever loaded it gave it). Each pair of people has its own tab, never combined or passed on, and it's paid back in drinks.
   - **You and everyone:** "Dave owes you 2", "You owe Sam 1", with what each of you gave. **Around the group** shows everyone else's open tabs: everyone can see every balance.
@@ -167,7 +169,7 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **No confirming:** a drink given counts straight away. The person receiving gets an alert and can tap **That's not right**, which takes it off the Tab and tells the giver.
 
 **C. Drink Nights**
-- ✅ **Hosting a night** (0.15.0), ✅ **group rounds** (0.15.1) and ✅ **the bring list** (0.15.2). Next: recaps and the morning-after recap (0.15.3).
+- ✅ **Hosting a night** (0.15.0), ✅ **group rounds** (0.15.1), ✅ **the bring list** (0.15.2) and ✅ **recaps and the morning after** (0.15.3). This finishes milestone C.
 - **Joining:** the host invites people, and anyone else in the group can tap **I'm here**.
 - Host, place, who's there and start time. The end time is optional: with none, the night ends with the last drink logged, which is marked as the **Nightcap**.
 - At home (the host's fridge and bar), out with coolers, or both.
@@ -362,6 +364,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.15.3** (2026-Oct-15): Drink Nights, part 4, finishing milestone C: **🌙 recaps** and **☀️ the morning after**. When a night is over its page shows the recap (drinks and per person, most poured, bottles killed, poured from the bar with the level now, out of fridges and coolers, most generous, first to tap out, Nightcap), and it's posted to the feed without the per-person numbers, replacing the same-place recap. Everyone who drank gets a private morning-after card on Home until noon the next day, and an alert. **Changed `firestore.rules`** (a night's post can be cheered and commented on): publish them before merging.
 
 - **0.15.2** (2026-Oct-15): Drink Nights, part 3: **📝 the bring list**. On a night: who's bringing what (and how many), ticked off when it arrives by whoever's bringing it or the host. You add your own; the host can add for anyone there. A reminder to load your cooler with drinks to share. **New `firestore.rules`** (`bring`): publish them before merging.
 

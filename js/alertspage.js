@@ -10,14 +10,17 @@ import { titleOf } from "./logpage.js";
 import { groupCrowns } from "./statspage.js";
 import { CROWN_INDEX } from "./crowns.js";
 import { householdOf, lowStock, fridgeCount, levelText } from "./stock.js";
+import { mornings } from "./nights.js";
+import { logStd } from "./logs.js";
 
 /* Your alerts, worked out again only when the data behind them changes. */
 let memo = { key: [], list: [] };
 function myAlerts() {
-  const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, store.stock, store.households, Math.floor(Date.now() / 600000)];
+  const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, store.stock, store.households, store.nights, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) {
     memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings(), crowns: groupCrowns().changes,
-      low: (h => h ? lowStock(store.stock, h.id) : [])(householdOf(store.households, uid())) }) };
+      low: (h => h ? lowStock(store.stock, h.id) : [])(householdOf(store.households, uid())),
+      mornings: mornings(store.nights, store.logs, uid(), logStd) }) };
   }
   return memo.list;
 }
@@ -83,6 +86,7 @@ function alertRow(a, isNew) {
     houseLost: () => ["👑", `${names(a.from)}'s ${variantName(a.variantId)} took your House Pour`, `#/v/${a.variantId}`],
     crownWon: () => ["👑", `You took the ${crownName(a.crown)} crown`, "#/board"],
     crownLost: () => ["👑", `${names(a.from)} took your ${crownName(a.crown)} crown`, "#/board"],
+    morning: () => ["☀️", `Good morning. Your recap of ${(store.nights.find(n => n.id === a.nightId) || { name: "last night" }).name} is ready`, `#/night/${a.nightId}`],
     low: () => [a.stock.where === "fridge" ? "🧊" : "🍾", lowText(a.stock), `#/bar/${a.stock.hh}/${a.stock.where}`],
   }[a.kind]?.() || [];
   if (!text) return null;

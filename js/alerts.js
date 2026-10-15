@@ -10,6 +10,7 @@
      given    a friend gave you a drink (the Tab)     disputed  a friend said a drink you gave isn't right
      rated    a friend rated your variant       houseWon / houseLost  your variant won or lost the House Pour
      crownWon / crownLost  you took a crown, or someone took yours (crown changes passed in from crowns.js)
+     morning  your morning-after recap of a Drink Night is ready (until noon the next day)
      low      something in your household is running low or out (passed in from stock.js lowStock): one per thing,
               dated when it last changed */
 import { itemById, resolveId } from "./catalog.js";
@@ -18,7 +19,7 @@ import { houseChanges } from "./feed.js";
 export const ALERT_DAYS = 30;
 const DAY = 86400000;
 
-export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], crowns = [], low = [], now = Date.now(), days = ALERT_DAYS } = {}) {
+export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings = [], crowns = [], low = [], mornings = [], now = Date.now(), days = ALERT_DAYS } = {}) {
   const from = now - days * DAY, out = [];
   const recent = x => x.at >= from && x.at <= now + 600000;
   const mineVariant = id => { const v = id && itemById("variant", id); return v && v.data.by === me ? v : null; };
@@ -72,6 +73,8 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
     if (c.uid === me) out.push({ kind: "crownWon", at: c.at, from: [], crown: c.crown });
     else if (c.from === me) out.push({ kind: "crownLost", at: c.at, from: [c.uid], crown: c.crown });
   }
+  // The morning after a Drink Night (until noon; see nights.js mornings).
+  for (const m of mornings) out.push({ kind: "morning", at: m.at, from: [], nightId: m.night.id });
   // Running low at home.
   for (const s of low) if (recent(s)) out.push({ kind: "low", at: s.at, from: [], stock: s });
   return out.sort((a, b) => b.at - a.at);
