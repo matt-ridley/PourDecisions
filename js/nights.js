@@ -66,3 +66,14 @@ export function roundPicks(list) {
   });
   return [...by.values()].sort((a, b) => b.n - a.n || b.last - a.last).map(({ last, ...p }) => p);
 }
+
+/* ---------- The bring list ---------- */
+/* bring/{id}: { night, by (who's bringing it), text, n? (how many), arrived?, addedBy, at }. A plan, ticked off when it
+   arrives: drinks people bring go in their cooler, so handing them out uses the cooler and the Tab. */
+
+/* A night's bring list: grouped by who's bringing, in the order people joined the list, oldest item first. */
+export function bringFor(bring, nightId) {
+  const items = bring.filter(b => b.night === nightId).sort((a, b) => a.at - b.at), order = [];
+  for (const b of items) if (!order.includes(b.by)) order.push(b.by);
+  return order.map(by => ({ by, items: items.filter(b => b.by === by) }));
+}

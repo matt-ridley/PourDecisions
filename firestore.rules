@@ -328,6 +328,27 @@ service cloud.firestore {
       allow delete: if isMember() && (resource.data.host == me() || isAdmin());
     }
 
+    // The bring list: who's bringing what to a night. You add your own; the host can add for anyone there.
+    function nightHost(id) { return get(/databases/$(database)/documents/nights/$(id)).data.host; }
+    function bringOk(d) {
+      return d.keys().hasOnly(["night", "by", "text", "n", "arrived", "addedBy", "at"])
+        && d.night is string && exists(/databases/$(database)/documents/nights/$(d.night))
+        && d.by is string && d.text is string && d.text.size() > 0 && d.text.size() <= 80
+        && (!("n" in d) || (d.n is int && d.n > 0 && d.n <= 99))
+        && (!("arrived" in d) || d.arrived is bool)
+        && d.addedBy is string && d.at is int;
+    }
+    match /bring/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && bringOk(request.resource.data) && request.resource.data.addedBy == me()
+        && (request.resource.data.by == me() || nightHost(request.resource.data.night) == me());
+      // Ticking it off (or fixing it): whoever's bringing it, or the host.
+      allow update: if isMember() && bringOk(request.resource.data) && !changed().hasAny(["night", "by", "addedBy"])
+        && (resource.data.by == me() || nightHost(resource.data.night) == me());
+      allow delete: if isMember() && (resource.data.by == me() || resource.data.addedBy == me() || isAdmin()
+        || !exists(/databases/$(database)/documents/nights/$(resource.data.night)) || nightHost(resource.data.night) == me());
+    }
+
     // ---------- Catalogue moderation ----------
     // Corrections to built-in drinks (doc id = the built-in drink's id), laid over the list by the app. Only the
     // fields that differ are stored. mergedInto points a duplicate at the drink to keep.

@@ -43,3 +43,11 @@ test("round picks: tonight's drinks, most had first, cocktails left out", () => 
     log("4", "me", 4), { ...log("5", "me", 5), kind: "cocktail", drinkId: "caesar" }, { ...log("6", "sam", 6), drinkId: "corona" }];
   assert.deepEqual(roundPicks(list).map(p => [p.drinkId, p.n]), [["molson-canadian", 2], ["guinness", 2], ["corona", 1]]);
 });
+
+import { bringFor } from "../js/nights.js";
+
+test("the bring list groups by who's bringing, in the order they signed up", () => {
+  const bring = [{ id: "a", night: "n1", by: "dave", text: "Ice", at: 2 }, { id: "b", night: "n1", by: "me", text: "Chips", at: 1 },
+    { id: "c", night: "n1", by: "dave", text: "12 Molson", at: 3 }, { id: "d", night: "n2", by: "me", text: "Other", at: 0 }];
+  assert.deepEqual(bringFor(bring, "n1").map(g => [g.by, g.items.map(i => i.id)]), [["me", ["b"]], ["dave", ["a", "c"]]]);
+});

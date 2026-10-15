@@ -1,9 +1,10 @@
 /* Drink Nights: #/nights (tonight, upcoming and past), #/host (host one) and #/night/<id> (the night itself).
    The logic is in nights.js. */
 import { el, fill, icon, avatar, fmtDate, fmtAgo, toast, confirmButton, field, openSheet, closeSheet } from "./ui.js";
-import { store, uid, memberName, isAdmin, createNight, updateNight, joinNight, leaveNight, deleteNight, addPlace } from "./cloud.js";
+import { store, uid, memberName, isAdmin, createNight, updateNight, joinNight, leaveNight, deleteNight, addPlace,
+  addBring, setArrived, removeBring } from "./cloud.js";
 import { search, itemById } from "./catalog.js";
-import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks } from "./nights.js";
+import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks, bringFor } from "./nights.js";
 import { householdOf, sourcesFor, levelText, fridgeCount } from "./stock.js";
 import { placesByUse, resolvePlace, findPlace, cleanPlaceName } from "./logs.js";
 import { logRow, giftable, roundOf } from "./logpage.js";
@@ -125,6 +126,7 @@ export function renderNight(main, id) {
       el("div", { class: "chips center" }, ...(n.guests || []).map(g => el("a", { class: "chip-btn who", href: g === me ? "#/me" : `#/u/${g}` }, avatar(member(g), "xs"), member(g).displayName))),
       !here && st.state !== "over" ? el("button", { class: "btn primary", type: "button", text: "🙋 I'm here", onclick: () => { joinNight(n.id); toast("You're in. Drinks you log now count for the night."); } }) : null),
     here && st.state !== "over" ? roundCard(n, list) : null,
+    st.state !== "over" || bringFor(store.bring, n.id).length ? bringCard(n, here || host, st.state !== "over") : null,
     el("section", { class: "card stack" },
       el("h3", { text: list.length ? `${plural(list.length, "drink")} so far` : "No drinks yet" }),
       list.length ? el("p", { class: "muted small", text: perPerson(list).map(p => `${member(p.uid).displayName} ${p.n}`).join(" · ") }) : null,
@@ -139,6 +141,39 @@ export function renderNight(main, id) {
       host && n.end != null ? el("button", { class: "btn block", type: "button", text: "Keep it going (take the end time off)", onclick: () => updateNight(n.id, { end: null }) }) : null,
       here && !host ? el("button", { class: "btn quiet block", type: "button", text: "Leave this night", onclick: () => leaveNight(n.id) }) : null,
       host || isAdmin() ? confirmButton("Delete this night", "Tap again to delete (the drinks stay)", () => { deleteNight(n.id); location.hash = "#/nights"; }, "btn danger block") : null));
+}
+
+/* ---------- The bring list ---------- */
+/* Who's bringing what, ticked off when it arrives. The bringer or the host ticks it; you add your own, the host adds for
+   anyone. Drinks to share go in the bringer's cooler, so handing them out uses the cooler and goes on the Tab. */
+function bringCard(n, canAdd, open) {
+  const me = uid(), host = n.host === me, groups = bringFor(store.bring, n.id), myHh = householdOf(store.households, me);
+  const text = el("input", { type: "text", maxlength: 80, placeholder: "e.g. 12 Molson, ice, chips", autocapitalize: "sentences" });
+  const count = el("input", { type: "number", inputmode: "numeric", min: "1", max: "99", placeholder: "How many", "aria-label": "How many (optional)" });
+  const who = host ? el("select", { "aria-label": "Who's bringing it" }, ...(n.guests || []).map(g => el("option", { value: g, text: g === me ? "Me" : member(g).displayName }))) : null;
+  const add = () => {
+    if (!text.value.trim()) return text.focus();
+    addBring(n.id, who ? who.value : me, text.value, Number(count.value) || 0);
+    text.value = ""; count.value = "";
+  };
+  return el("section", { class: "card stack" },
+    el("h3", { text: "📝 Bring list" }),
+    groups.length ? el("ul", { class: "item-list" }, ...groups.flatMap(g => g.items.map(b => {
+      const mine = b.by === me || host;
+      return el("li", { class: "make-row" },
+        el("label", { class: "check grow" },
+          el("input", { type: "checkbox", checked: b.arrived ? true : null, disabled: !mine, onchange: e => setArrived(b.id, e.target.checked) }),
+          el("span", {}, el("b", { text: `${b.n ? `${b.n} × ` : ""}${b.text}` }), el("br"),
+            el("span", { class: "muted small", text: `${b.by === me ? "You" : member(b.by).displayName}${b.arrived ? " · ✓ here" : ""}` }))),
+        mine || b.addedBy === me ? el("button", { type: "button", class: "icon-x", "aria-label": `Remove ${b.text}`, text: "×", onclick: () => removeBring(b.id) }) : null);
+    }))) : el("p", { class: "muted", text: "Nothing on the list yet. Say what you're bringing so nobody brings three bags of ice." }),
+    canAdd && open ? el("div", { class: "stack" },
+      el("div", { class: "row" }, text, count),
+      who ? field("Who's bringing it", who) : null,
+      el("button", { class: "btn", type: "button", text: "Add to the list", onclick: add }),
+      el("p", { class: "hint" }, "Bringing drinks to share? ",
+        myHh ? el("a", { href: `#/bar/${myHh.id}/cooler`, text: "Load your cooler" }) : "Load your cooler",
+        ": friends can grab one, and it goes on the Tab.")) : null);
 }
 
 /* ---------- Group rounds ---------- */
