@@ -23,14 +23,14 @@ const placeOf = id => id ? resolvePlace(store.places, id) : null;
 const placeName = id => (placeOf(id) || {}).name || "";
 const placeIdNow = id => (placeOf(id) || { id }).id || null;
 // A cocktail variant shows as its own name ("Basement Sour"), and follows a rename.
-const titleOf = log => {
+export const titleOf = log => {
   const item = itemOf(log), v = log.variantId && itemById("variant", log.variantId);
   return item && v ? variantTitle(item.data, v.data) : (item || log).title;
 };
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 
 /* ---------- Thumbnails (loaded only when shown) ---------- */
-function thumbBox(log, cls = "log-thumb") {
+export function thumbBox(log, cls = "log-thumb") {
   if (!log.hasPhoto) return el("span", { class: `${cls} icon`, text: iconOf(log) });
   const img = el("img", { class: cls, alt: "", loading: "lazy" });
   loadThumb(log.id).then(src => { if (src) img.src = src; else img.replaceWith(el("span", { class: `${cls} icon`, text: iconOf(log) })); });
@@ -54,7 +54,7 @@ export function anotherOne(log) {
   const item = itemOf(log); // a merged or fixed drink logs as the drink it is now
   const id = saveLog({ kind: log.kind, drinkId: item ? item.id : log.drinkId, title: titleOf(log),
     style: item ? item.style.id : log.style, size: log.size, ml: log.ml, abv: item && log.kind === "drink" ? item.data.abv : log.abv,
-    at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())), variantId: log.variantId });
+    at: Date.now(), placeId: placeIdNow(sameNight ? log.placeId : lastPlace(store.logs, uid())), variantId: log.variantId, offFeed: log.offFeed });
   toast(`Another ${titleOf(log)} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
 }
 
@@ -161,6 +161,9 @@ export function renderLogForm(main, item, editing = null) {
   // Notes
   const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
 
+  // Keep it off the feed
+  const offIn = el("input", { type: "checkbox", checked: editing && editing.offFeed ? true : null });
+
   // Photo
   const photoIn = el("input", { type: "file", accept: "image/*", hidden: true });
   const photoBox = el("div", { class: "photo-pick" });
@@ -185,6 +188,8 @@ export function renderLogForm(main, item, editing = null) {
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox),
     el("section", { class: "card stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
     el("section", { class: "card stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
+    el("section", { class: "card stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
+      el("p", { class: "hint", text: "Your drink still counts in your stats. The group just doesn't see it in the feed or on your profile." })),
     msg, save);
 
   form.addEventListener("submit", e => {
@@ -198,7 +203,7 @@ export function renderLogForm(main, item, editing = null) {
     }
     const fields = { kind: editing ? editing.kind : item.kind, drinkId: editing ? editing.drinkId : item.id,
       title: editing ? editing.title : item.title, style: editing ? editing.style : item.style.id, size: s.size, ml: s.ml, abv,
-      placeId: s.placeId, notes: notesIn.value, at };
+      placeId: s.placeId, notes: notesIn.value, at, offFeed: offIn.checked };
     if (editing) {
       updateLog(editing.id, fields, s.pics);
       toast("Saved.");

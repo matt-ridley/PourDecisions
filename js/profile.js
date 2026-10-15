@@ -25,11 +25,12 @@ export function renderProfile(main, id) {
       el("p", { class: "muted small", text: `Joined ${fmtDay(m.joinedAt || Date.now())}` }),
       store.group && (store.group.admins || []).includes(m.id) ? el("span", { class: "chip gold", text: store.group.ownerUid === m.id ? "Group owner" : "Admin" }) : null));
 
-  const theirs = store.logs.filter(l => l.uid === m.id).sort((a, b) => b.at - a.at);
+  // Someone else's drinks kept off the feed stay off their profile too.
+  const theirs = store.logs.filter(l => l.uid === m.id && (mine || !l.offFeed)).sort((a, b) => b.at - a.at);
   const parts = [head,
     el("section", { class: "card stack" },
       el("h3", { text: `Recent drinks${theirs.length ? ` (${theirs.length} logged)` : ""}` }),
-      theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l)))
+      theirs.length ? el("ul", { class: "item-list" }, ...theirs.slice(0, 10).map(l => logRow(l, { another: mine })))
         : el("p", { class: "muted", text: "Nothing logged yet." })),
     mixologistCard(m.id),
     el("section", { class: "card stack" },

@@ -276,7 +276,7 @@ export function randomCode() {
 /* ---------- Logging drinks ---------- */
 const newId = name => cloud.api.doc(cloud.api.collection(cloud.db, name)).id;
 const clip = (v, n) => String(v || "").trim().slice(0, n);
-const OPTIONAL = ["rating", "notes", "tags", "placeId"];
+const OPTIONAL = ["rating", "notes", "tags", "placeId", "offFeed"];
 
 /* The fields a log may have. Empty optional fields are left out rather than saved blank. */
 function cleanLog(f) {
@@ -289,6 +289,7 @@ function cleanLog(f) {
   if (f.placeId) log.placeId = f.placeId;
   if (f.variantId) log.variantId = f.variantId;
   if (f.madeBy) log.madeBy = f.madeBy;
+  if (f.offFeed) log.offFeed = true;
   return log;
 }
 const pic = (src, at) => ({ uid: uid(), src, at, bytes: dataBytes(src) });

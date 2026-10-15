@@ -407,3 +407,15 @@ button.item-row.plain[aria-pressed="true"] { background: var(--primary-soft); }
 .mix-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .mix-stats .stat { background: var(--surface-2); }
 .mix-stats .stat span { color: var(--muted); }
+
+/* ---------- The feed ---------- */
+.feed-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.feed-filters select { min-height: 44px; font-size: 15px; padding: 6px 10px; }
+.feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.feed-card { display: grid; gap: 8px; padding: 14px; }
+.feed-card .item-list { padding: 0; }
+.feed-head { display: flex; gap: 10px; align-items: center; }
+.feed-head .avatar.sm { border-color: var(--surface); }
+.feed-head a { color: var(--primary); font-weight: 700; text-decoration: none; }
+.feed-quote { border-left: 3px solid var(--line); padding-left: 10px; }
+.feed-card.house { border-color: var(--gold); }
