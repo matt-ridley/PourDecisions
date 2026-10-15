@@ -82,3 +82,9 @@ test("things running low at home are alerts, dated when they last changed, withi
   const list = alertsFor("me", { low, now });
   assert.deepEqual(list.map(a => [a.kind, a.stock.id]), [["low", "h~fridge~drink~a"]]);
 });
+
+test("a friend giving you a drink is an alert; giving one yourself isn't", () => {
+  const logs = [{ id: "g1", uid: "me", givenBy: "dave", at: now - H, kind: "drink", drinkId: "molson-canadian" },
+    { id: "g2", uid: "dave", givenBy: "me", at: now - H, kind: "drink", drinkId: "molson-canadian" }];
+  assert.deepEqual(kinds(alertsFor("me", { logs, now })), [["given", "dave"]]);
+});

@@ -300,6 +300,7 @@ function cleanLog(f) {
   if (f.placeId) log.placeId = f.placeId;
   if (f.variantId) log.variantId = f.variantId;
   if (f.madeBy) log.madeBy = f.madeBy;
+  if (f.givenBy) log.givenBy = f.givenBy;
   if (f.offFeed) log.offFeed = true;
   if (f.from) log.from = clip(f.from, 200);
   if (f.killed && f.killed.length) log.killed = f.killed.slice(0, 20);
@@ -326,11 +327,12 @@ function sendEntry(e) {
 
 /* A new log. Saved to the outbox first, then sent; works offline (Firestore sends it when there's signal).
    pics: { photo, thumb } data URLs, or null. Returns the new log's id straight away.
-   A drink you made for someone else is logged as theirs: fields.uid is theirs and fields.madeBy is you. */
+   A drink you made for someone else is logged as theirs: fields.uid is theirs and fields.madeBy is you. A drink you gave
+   someone (the Tab) is the same with fields.givenBy. */
 export function saveLog(fields, pics = null) {
   const id = newId("logs"), now = Date.now();
-  const forSomeone = fields.madeBy && fields.uid && fields.uid !== uid();
-  const log = { ...cleanLog(forSomeone ? { ...fields, madeBy: uid() } : { ...fields, madeBy: null }),
+  const forSomeone = (fields.madeBy || fields.givenBy) && fields.uid && fields.uid !== uid();
+  const log = { ...cleanLog(forSomeone ? { ...fields, ...(fields.madeBy ? { madeBy: uid(), givenBy: null } : { givenBy: uid() }) } : { ...fields, madeBy: null, givenBy: null }),
     uid: forSomeone ? fields.uid : uid(), createdAt: now, hasPhoto: !!pics };
   const entry = { id, log, thumb: pics && pics.thumb, photo: pics && pics.photo, state: "sending", savedAt: now };
   outboxPut(entry).then(refreshOutbox).then(() => sendEntry(entry));

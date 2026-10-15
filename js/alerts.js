@@ -7,6 +7,7 @@
      cheer    cheers on your post (one alert per post, everyone who cheered)
      comment  a comment on your post            reply  a comment on a post you commented on
      made     a friend made your variant        madeFor  a friend made a drink for you
+     given    a friend gave you a drink (the Tab)
      rated    a friend rated your variant       houseWon / houseLost  your variant won or lost the House Pour
      crownWon / crownLost  you took a crown, or someone took yours (crown changes passed in from crowns.js)
      low      something in your household is running low or out (passed in from stock.js lowStock): one per thing,
@@ -44,6 +45,7 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
     if (!recent(l) || l.offFeed) continue;
     const maker = l.madeBy || l.uid;
     if (l.uid === me && l.madeBy && l.madeBy !== me) out.push({ kind: "madeFor", at: l.at, from: [l.madeBy], logId: l.id });
+    else if (l.uid === me && l.givenBy && l.givenBy !== me) out.push({ kind: "given", at: l.at, from: [l.givenBy], logId: l.id });
     else if (maker !== me && mineVariant(l.variantId)) out.push({ kind: "made", at: l.at, from: [maker], logId: l.id, variantId: resolveId("variant", l.variantId) });
   }
 

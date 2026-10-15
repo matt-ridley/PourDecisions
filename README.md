@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.13.2 (beta)
+**Current version:** 0.14.0 (beta)
 
 ## Features
 
@@ -79,6 +79,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
   - **Drinks come out as you have them:** **Drink one** on a fridge drink (or **Pour one** on a bottle) logs it for you in its usual size and takes it out. Logging a drink you have at home asks **From home?** (picked for you unless you're somewhere), and **Make it** lists your own bottles first and takes what you pour out of them (a beer per serving from the fridge for a Boilermaker). Undo puts it back.
   - **❄️ Cooler:** heading out? **Load the cooler** from your fridge (pick how many of each, or All). Drinks then come out of the cooler, and anyone in the group can **Drink one** from it: it shows under **Coolers out** on Everyone's bars, and logging a drink that's in a cooler offers it. **Back in the fridge** puts whatever's left back when you're home.
+  - **🎁 Give one:** next to Drink one on the fridge, bar and your cooler. Pick a friend: it's logged for them, comes out of your stock and goes on the Tab. When logging, **Who's it for?** does the same for any drink. The friend gets an alert, the feed shows who it was from, and the giver can delete it.
   - **🍾 Killed the bottle:** the pour that empties a bottle gets the credit (the maker, for a drink made for someone else), and a spare is opened for the rest. Each profile has a wall of the bottles they finished.
   - **Running low:** the 🔔 alerts tell everyone in the household when a fridge drink reaches its warning, a bottle is down to ¼ or empty with no spare, or an ingredient is marked out.
   - **What can I make here:** each bar links to What can I make with that bar and fridge (beer counts too, for a Boilermaker).
@@ -145,12 +146,15 @@ These milestones come after steps 1 to 5, since they all build on logging a drin
 - **Coolers:** for a night out, load a cooler from your fridge. Drinks then come out of the cooler (anyone in the group can take one), and whatever's left goes back into the fridge afterwards.
 
 **B. The Tab**
+- ✅ **Give a drink** (0.14.0). Next: **the Tab** itself (0.14.1: balances, history, Pay one back, That's not right, drinks from a friend's cooler) and **Most Generous** (0.14.2: boards and a crown).
+- **What goes on the Tab:** drinks given (Give one, or Who's it for? when logging), cocktails made for someone (the maker gave it), and drinks a friend takes from your cooler (whoever loaded it gave it).
 - **Give a drink:** pick a person. The drink is logged for them, comes out of your fridge, bar or cooler, and goes on the Tab. When it comes from a shared household fridge, the person who hands it over is the giver.
 - **Every drink counts as 1**, whatever it is.
 - **Person to person:** each pair has its own balance (given vs received), and balances are never combined or passed on to other people.
 - **Paid back in drinks**, never cash.
-- **Most Generous** board, plus a playful opposite.
-- To decide when building: whether the person receiving confirms a drink, or can dispute one logged to them.
+- **Everyone can see** every balance.
+- **Most Generous** board, plus a playful opposite: **Thirstiest** (received the most compared with what they gave). All time, with a This month view, and a Most Generous crown.
+- **No confirming:** a drink given counts straight away. The person receiving gets an alert and can tap **That's not right**, which takes it off the Tab and tells the giver.
 
 **C. Drink Nights**
 - Host, place, who's there and start time. The end time is optional: with none, the night ends with the last drink logged, which is marked as the **Nightcap**.
@@ -260,6 +264,7 @@ npm run deploy:rules
 - Cheers are stored in `cheers`, one per person per post (id `post|uid`), and comments in `comments`. A post id names what's cheered: `s~` a night (its first drink's log id), `r~` a review, `v~` a variant, `h~` a House Pour, `a~` a drink added to the list, `n~` a night recap (its first drink's log id), `f~` a first or milestone (`<log id>_<what>`), `c~` a crown changing hands (`<crown>_<time>_<uid>`). Each also keeps `to`, whoever the post is about, for their alerts.
 - When you last opened your alerts is kept on your member document (`alertsSeenAt`), so it's the same on every phone. Alerts themselves are worked out on the phone from what it already has.
 - A log kept off the feed has `offFeed: true`. It still counts in its owner's stats.
+- A drink given to someone has `givenBy` (the giver) and is logged as theirs, like `madeBy` for a cocktail made for someone.
 - A drink from home has `from` (the stock document it came out of), and a pour that emptied bottles has `killed` (their drink ids).
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
 - A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
@@ -342,6 +347,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.14.0** (2026-Oct-15): The Tab, part 1: **🎁 give a drink**. **Give one** on the fridge, bar and cooler (pick a friend), and **Who's it for?** when logging any drink: it's logged for them with you as the giver, comes out of your stock, and shows in the feed ("🎁 from Dave") and their alerts. The giver can delete it. Roadmap: the Tab's decisions (no confirming but a dispute button, everyone sees balances, cooler drinks count, Most Generous and Thirstiest). **Changed `firestore.rules`** (logs can have `givenBy`): publish them before merging.
 
 - **0.13.2** (2026-Oct-15): **❄️ Coolers**, finishing milestone A. Each household's bar page has a Cooler tab: load it from the fridge for a night out (how many of each, or All), and **Back in the fridge** returns whatever's left. Anyone in the group can **Drink one** from a cooler that's out: Everyone's bars lists the **Coolers out**, and logging a drink that's in a cooler offers it (your own cooler is picked for you). **Changed `firestore.rules`** (coolers, and anyone in the group can change a cooler's count): publish them before merging.
 

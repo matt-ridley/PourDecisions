@@ -76,6 +76,7 @@ function alertRow(a, isNew) {
     reply: () => ["💬", `${names(a.from)} also commented: ${quote(a.text)}`, `#/post/${a.post}`],
     made: () => ["🍸", `${names(a.from)} made your ${variantName(a.variantId)}`, `#/v/${a.variantId}`],
     madeFor: () => ["🎁", `${names(a.from)} made you ${log ? titleOf(log) : "a drink"}`, `#/l/${a.logId}`],
+    given: () => ["🎁", `${names(a.from)} gave you ${log ? titleOf(log) : "a drink"}`, `#/l/${a.logId}`],
     rated: () => ["⭐", `${names(a.from)} rated your ${variantName(a.variantId)} ${starText(a.rating)}`, `#/v/${a.variantId}`],
     houseWon: () => ["👑", `Your ${variantName(a.variantId)} is now the House Pour`, `#/v/${a.variantId}`],
     houseLost: () => ["👑", `${names(a.from)}'s ${variantName(a.variantId)} took your House Pour`, `#/v/${a.variantId}`],

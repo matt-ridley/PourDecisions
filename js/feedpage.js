@@ -130,7 +130,7 @@ function sessionCard(s) {
 
 function drinkRow(l) {
   const r = ratingOfLog(l), item = itemById(l.kind, l.drinkId);
-  const meta = [item ? (l.variantId ? `Variant of ${item.title}` : item.style.name) : "", l.madeBy ? `made by ${nameOf(l.madeBy)}` : "",
+  const meta = [item ? (l.variantId ? `Variant of ${item.title}` : item.style.name) : "", l.madeBy ? `made by ${nameOf(l.madeBy)}` : "", l.givenBy ? `🎁 from ${nameOf(l.givenBy)}` : "",
     r ? starText(r.rating) : ""].filter(Boolean).join(" · ");
   return el("li", { class: "log-row" },
     el("a", { class: "item-row grow", href: `#/l/${l.id}` }, thumbBox(l),
