@@ -1,8 +1,9 @@
 /* Group admin: name, invite code, members and (owner only) admins. */
 import { el, field, avatar, fmtDay, openSheet, closeSheet, toast, copyText, confirmButton, fill } from "./ui.js";
 import { store, uid, isAdmin, isOwner, setGroupName, setInviteCode, setSuspended, removeMember, setAdmin, randomCode, cleanCode } from "./cloud.js";
-import { APP_NAME } from "./config.js";
+import { APP_NAME, TAGLINE } from "./config.js";
 import { toCheck } from "./moderation.js";
+import { freePlanCard } from "./systempage.js";
 
 const publicUrl = () => location.origin + location.pathname; // without ?emulator or anything else
 
@@ -21,6 +22,7 @@ export function renderAdmin(main) {
         toast(await copyText(text) ? "Invite copied. Paste it into a text." : text);
       } }),
       el("button", { class: "btn", type: "button", text: "Change code", onclick: () => codeSheet(code) })),
+    isOwner() && code ? el("button", { class: "btn block", type: "button", text: "✉️ Email an invite", onclick: () => emailSheet(code) }) : null,
     el("p", { class: "hint", text: "Changing the code stops new sign-ups with the old one. People already in the group stay in." }));
 
   const group = el("section", { class: "card stack" },
@@ -46,7 +48,47 @@ export function renderAdmin(main) {
     el("div", { class: "grow" }, el("h3", { text: "Drink list" }),
       el("p", { class: "muted small", text: "Check new drinks, fix details, merge duplicates, styles and places." })),
     n ? el("span", { class: "chip gold", text: `${n} to check` }) : null);
-  fill(main, el("h2", { class: "page-title", text: "Group admin" }), catalog, invite, group, list);
+  fill(main, el("h2", { class: "page-title", text: "Group admin" }), catalog, invite, group, list, freePlanCard());
+}
+
+/* The owner's invite email: what the app is, installing it on iPhone and Android, signing up and the invite code.
+   It opens in the owner's own email app, so it comes from their address and needs no email service. */
+export function inviteEmail(groupName, code, url, name = "") {
+  const subject = `Join ${groupName} on ${APP_NAME}`;
+  const body = [
+    `Hi${name ? ` ${name}` : ""},`,
+    "",
+    `I'd like you to join ${groupName} on ${APP_NAME}, our private drinks app. ${TAGLINE}`,
+    "Log what you drink, rate it, see what everyone's pouring, and compete on variety (the most different drinks, styles and countries, never the most drinks).",
+    "",
+    `1. Open ${url} on your phone.`,
+    "2. Put it on your home screen:",
+    "   - iPhone: open it in Safari, tap the Share button, then Add to Home Screen.",
+    "   - Android: open it in Chrome, tap the ⋮ menu, then Install app (or Add to Home screen).",
+    "3. Open it from the home screen and create an account with your email and a password.",
+    `4. Tap Join the group and enter the invite code: ${code}`,
+    "",
+    "Cheers!",
+  ].join("\n");
+  return { subject, body };
+}
+
+function emailSheet(code) {
+  openSheet(box => {
+    const to = el("input", { type: "email", inputmode: "email", autocomplete: "off", placeholder: "friend@example.com", "data-focus": "" });
+    const name = el("input", { type: "text", maxlength: 40, autocapitalize: "words", placeholder: "e.g. Sam" });
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: "✉️ Email an invite" }),
+      el("p", { class: "hint", text: "Writes the email in your own email app (from your address): what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. Check it and send it from there." }),
+      field("Their email (optional)", to),
+      field("Their name (optional)", name),
+      el("button", { class: "btn primary block", type: "button", text: "Open in my email app", onclick: () => {
+        const { subject, body } = inviteEmail(store.group.name, code, publicUrl(), name.value.trim());
+        location.href = `mailto:${encodeURIComponent(to.value.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        closeSheet();
+      } }),
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
 }
 
 function codeSheet(current) {

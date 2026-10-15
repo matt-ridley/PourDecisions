@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.16.3 (beta)
+**Current version:** 0.17.0 (beta)
 
 ## Features
 
@@ -18,6 +18,8 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Merge duplicates:** pick the drink to keep. The duplicate disappears from search and browsing, and its logs show and count as the drink kept. Nobody's logs change, so it can be undone.
   - **Styles:** add a style under an existing family (with its description), or rename a built-in style or rewrite its description. Only admins can.
   - **Places:** rename a place, or merge a duplicate ("Keg" into "The Keg"). Logs at the duplicate show the place kept.
+- **📊 The free plan.** System info and Group admin show an estimate of how much of Firebase's free plan the group uses: storage out of 1 GB (with room for about how many more drinks, photos included), and what opening the app on a new phone costs in reads (50,000 a day) and downloads (10 GB a month). The meters turn amber at 60% and red at 85%.
+- **✉️ Email an invite (owner).** From Group admin: writes the invite in the owner's own email app, with what the app is, installing it on iPhone and Android, signing up and the invite code. It comes from their address and needs no email service.
 - **Profiles.** Each member has a name, an optional hometown and a favourite drink.
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
 - **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal.
@@ -121,10 +123,10 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 The admin and offline steps carry over what Lunker League learned the hard way, so Pour Decisions starts with them instead of fixing them later.
 
-1. **Status light, System info and admin tools.**
+1. ✅ **Status light, System info and admin tools** (0.7.0 and 0.17.0).
    - ✅ **Status light** and **System info** (0.7.0).
-   - **Storage and free-plan meters:** how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
-   - **Email an invite (owner):** writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
+   - ✅ **Storage and free-plan meters** (0.17.0): how much of Firebase's free 1 GB is used and how many more logs fit, and what each app open costs against the free plan's daily reads and monthly downloads. Shown on System info and Group admin, so limits are seen coming.
+   - ✅ **Email an invite (owner)** (0.17.0): writes an invite email in the owner's own email app, with what the app is, how to install it on iPhone and Android, how to sign up, and the invite code. It comes from the owner's address and needs no email service.
 2. ✅ **Ratings and reviews** (0.8.0).
 3. ✅ **Cocktail variants** (0.9.0 to 0.9.3). Make a cocktail by following its recipe, pick the bottles you actually used, change the amounts, add or leave out ingredients, and name it if you like. Each different version becomes a variant under the original cocktail, which shows how many variants the group has made. Making the same thing again (same bottles, same amounts) counts toward the same variant instead of adding a copy. Variants are rated by the group, and each one shows who has made it.
    - ✅ **Variants core** (0.9.0): what makes a variant, ids from what's in it, automatic names, makers, strength from the real bottles, security rules.
@@ -372,6 +374,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.17.0** (2026-Oct-15): The last of roadmap step 1. **📊 Free-plan meters** on System info and Group admin: estimated storage out of the free 1 GB (and how many more drinks fit, photos included), and what an app open on a new phone costs against the free plan's daily reads and monthly downloads. **✉️ Email an invite** for the group owner: opens their email app with the whole invite (what the app is, installing it on iPhone and Android, signing up, the code). No new security rules.
 
 - **0.16.3** (2026-Oct-15): The bartender, part 4, finishing milestone D: **🛒 the LCBO run**. Star cocktails you want to make (☆ on a recipe). Your household's run lists what's running low (fridge warnings, bottles at ¼ or empty with no spare, ingredients out) and the one thing missing for anyone's starred cocktails. **Got it** restocks it (a reload, a fresh bottle or spare, or picking the bottle you bought), and **Share** sends the list. Linked from the bar page. **Changed `firestore.rules`** (starred cocktails on your member document, up to 100): publish them before merging.
 
