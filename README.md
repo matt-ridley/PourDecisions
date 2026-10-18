@@ -209,7 +209,7 @@ Rules to follow from the start, so they never need fixing later:
 - Never match saved app files while ignoring the query string, and never save an address that has one.
 - Photos (small and full) never go inside the documents every phone loads at start-up.
 - Listeners load only what a screen needs. Once loading the whole history costs too much, older years get packed into an archive.
-- A change that needs new security rules goes out with them: publish the rules before (or right when) merging, or phones show a sync problem.
+- A change that needs new security rules goes out with them: the Security rules GitHub Action publishes them when they're merged (see Updating the security rules), or phones show a sync problem.
 - Still open in Lunker League, so worth trying to solve here: in a dead zone, sign-in checks the account over the network at start-up and can show "Loading…" for up to 30 seconds.
 
 ### Easier to use
@@ -282,7 +282,11 @@ Open your profile, then **Group admin > Copy invite**, and text it to your frien
 
 ### Updating the security rules
 
-Some new versions change `firestore.rules`, and the changelog says when. Publish them before (or right after) merging, or the new features show a sync problem. Either paste the file into **Firestore > Rules** in the Firebase console and click **Publish**, or from this folder:
+Some new versions change `firestore.rules`, and the changelog says when. **They publish themselves:** the **Security rules** GitHub Action ([`.github/workflows/rules.yml`](.github/workflows/rules.yml)) runs the tests on any pull request that changes the rules, and publishes them to Firebase as soon as they're merged into `main`. Check the **Actions** tab after merging: a red run means the rules weren't published. To publish `main`'s rules again, open **Actions > Security rules > Run workflow**.
+
+It needs a Google Cloud service account with the **Firebase Rules Admin** role (and **Service Usage Consumer** if publishing complains about permissions), with its JSON key saved as the repository secret `FIREBASE_SERVICE_ACCOUNT` (**Settings > Secrets and variables > Actions**).
+
+To publish by hand instead, paste the file into **Firestore > Rules** in the Firebase console and click **Publish**, or from this folder:
 
 ```bash
 npx firebase login

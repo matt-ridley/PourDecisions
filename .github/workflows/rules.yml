@@ -1,0 +1,56 @@
+# Security rules: tested on every pull request that changes them, and published to Firebase when they reach main.
+# Publishing uses a service account key (Firebase Rules Admin) saved as the repository secret FIREBASE_SERVICE_ACCOUNT.
+# Run it by hand from the Actions tab (Run workflow) to publish main's rules again.
+name: Security rules
+
+on:
+  pull_request:
+    paths: ["firestore.rules", "firebase.json", "tests/rules/**", ".github/workflows/rules.yml"]
+  push:
+    branches: [main]
+    paths: ["firestore.rules", "firebase.json", "tests/rules/**", ".github/workflows/rules.yml"]
+  workflow_dispatch:
+
+# One publish at a time, in order, so an older run can't overwrite newer rules.
+concurrency:
+  group: rules-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:rules
+
+  publish:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Publish firestore.rules
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then echo "::error::The FIREBASE_SERVICE_ACCOUNT secret is missing."; exit 1; fi
+          key="$RUNNER_TEMP/firebase-key.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$key"
+          export GOOGLE_APPLICATION_CREDENTIALS="$key"
+          npx firebase deploy --only firestore:rules --non-interactive
+          rm -f "$key"
