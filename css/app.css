@@ -349,8 +349,38 @@ textarea { resize: vertical; min-height: 84px; }
 .log-photo { border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
 .log-photo-img { display: block; width: 100%; max-height: 70vh; object-fit: contain; }
 .log-photo .log-photo-img.icon { display: grid; place-items: center; font-size: 64px; height: 160px; }
-.photo-preview { display: flex; align-items: center; gap: 12px; }
-.photo-preview img { width: 96px; height: 96px; object-fit: cover; border-radius: 14px; }
+/* A photo in a form: tap the area to take one, then Adjust thumbnail moves the square lists show. */
+.photo-pick { display: block; width: 100%; padding: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 14px; overflow: hidden; background: var(--surface-2); border: 2px dashed var(--line); }
+.photo-pick:active { border-color: var(--primary); }
+.photo-pick img { display: block; width: 100%; max-height: 360px; object-fit: contain; background: #000; }
+.photo-empty { display: grid; justify-items: center; gap: 6px; padding: 24px 16px; color: var(--muted); font-weight: 700; }
+.photo-empty svg { width: 40px; height: 40px; }
+.focus-area { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; overflow: hidden; border-radius: 12px;
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+.focus-area img { display: block; max-width: 100%; max-height: 52dvh; pointer-events: none; }
+.focus-frame { position: absolute; border: 3px solid var(--accent); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); pointer-events: none; }
+.focus-preview { flex-wrap: nowrap; align-items: flex-start; }
+.focus-preview .row > .btn { flex: 0 0 auto; }
+
+/* In-app camera (from Lunker League): a full-screen viewfinder, above everything. */
+.cam { position: fixed; inset: 0; z-index: 50; background: #000; color: #fff; }
+.cam-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.cam-msg { position: absolute; left: 24px; right: 24px; top: 40%; text-align: center; font-weight: 700; }
+.cam-msg:empty { display: none; }
+.cam-top, .cam-bar { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; }
+.cam-top { top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.cam-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+.cam-btn {
+  min-width: 52px; min-height: 52px; padding: 0 16px; border: 0; border-radius: 99px;
+  background: rgba(0, 0, 0, .55); color: #fff; font-weight: 800; font-size: 18px; backdrop-filter: blur(6px);
+}
+.cam-btn.wide { flex: 1; }
+.cam-btn.use { background: var(--primary); color: var(--primary-ink); }
+.cam-shutter { width: 78px; height: 78px; border-radius: 50%; border: 6px solid #fff; background: rgba(255, 255, 255, .25); }
+.cam-shutter:active { background: #fff; }
+.cam-shutter:disabled { opacity: .4; }
+.cam-spacer { width: 52px; }
+.cam-bar:has(.wide:not([hidden])) .cam-spacer { display: none; }
 .notes { white-space: pre-wrap; }
 .note { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: var(--surface-2); }
 .problem { border-color: var(--danger); background: var(--danger-soft); }

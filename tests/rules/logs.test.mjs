@@ -80,6 +80,18 @@ test("a log and its photos save together, and only small JPEGs fit", async () =>
   await assertFails(setDoc(doc(as(env, "owner"), "thumbs/a"), pic("owner")), "can't replace someone else's photo");
 });
 
+test("a photo's thumbnail can be framed (focus), with whole numbers 0 to 100 only", async () => {
+  const db = as(env, "member");
+  await assertSucceeds(setDoc(doc(db, "logs/a"), log("member", { hasPhoto: true, focus: { x: 20, y: 100 } })));
+  await assertSucceeds(updateDoc(doc(db, "logs/a"), { focus: { x: 0, y: 50 }, editedAt: Date.now() }));
+  await assertSucceeds(updateDoc(doc(db, "logs/a"), { focus: deleteField(), editedAt: Date.now() }));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { focus: { x: 101, y: 50 } })));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { focus: { x: 20.5, y: 50 } })));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { focus: { x: 20 } })));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { focus: { x: 20, y: 50, z: 1 } })));
+  await assertFails(setDoc(doc(db, "logs/b"), log("member", { focus: "middle" })));
+});
+
 test("deleting a log's photos: yours, or anyone's for an admin, and missing ones are fine", async () => {
   await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "thumbs/a"), pic("member")));
   await assertSucceeds(deleteDoc(doc(as(env, "member"), "photos/missing")));

@@ -13,7 +13,7 @@ const APP_FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/main.js", "js/config.js", "js/ui.js", "js/cloud.js", "js/gate.js", "js/profile.js", "js/admin.js", "js/theme.js",
   "js/units.js", "js/home.js", "js/drinks.js", "js/catalog.js",
-  "js/logs.js", "js/logpage.js", "js/outbox.js", "js/photo.js", "js/moderation.js", "js/systempage.js", "js/ratings.js", "js/ratepage.js",
+  "js/logs.js", "js/logpage.js", "js/outbox.js", "js/photo.js", "js/camera.js", "js/thumbfocus.js", "js/focuspick.js", "js/moderation.js", "js/systempage.js", "js/ratings.js", "js/ratepage.js",
   "js/variants.js", "js/makepage.js", "js/feed.js", "js/feedpage.js", "js/alerts.js", "js/alertspage.js", "js/stats.js", "js/statspage.js", "js/crowns.js",
   "js/makeable.js", "js/makeablepage.js", "js/stock.js", "js/barpage.js", "js/tab.js", "js/tabpage.js", "js/nights.js", "js/nightpage.js", "js/orders.js", "js/runpage.js", "js/usage.js", "js/uspage.js",
   "js/catalog/styles.js", "js/catalog/drinks.js", "js/catalog/cocktails.js", "js/catalog/make.js",
