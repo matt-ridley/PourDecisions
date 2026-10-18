@@ -56,6 +56,7 @@ const highNoon = maker("High Noon", "US", "", A);
 const corona = maker("Corona", "", "", A);
 const vizzy = maker("Vizzy", "", "", A);
 const socialLite = maker("Social Lite", "CA", "", A);
+const coors = maker("Coors", "CA", "", A);
 
 const SELTZERS = [
   ...flavours(whiteClaw, "Hard Seltzer", "seltzer", 5.0, ["Pineapple", "Passion Fruit", "Strawberry", "Tangerine", "Peach", "Blackberry"]),
@@ -68,6 +69,10 @@ const SELTZERS = [
   ...flavours(corona, "Hard Seltzer", "seltzer", 4.5, ["Lime", "Mango", "Black Cherry", "Tropical Lime"]),
   ...flavours(vizzy, "Hard Seltzer", "seltzer", 5.0, ["Strawberry Kiwi", "Pineapple Orange", "Black Cherry Lime", "Watermelon Strawberry"]),
   ...flavours(socialLite, "Vodka Soda", "seltzer", 5.0, ["Lemon Lime", "Ginger Lime"]),
+  // Coors Seltzer (0.19.1): the original pack, the Splash, Island Breeze, Slushie and Mixables packs, and Orange Cream Pop.
+  ...flavours(coors, "Seltzer", "seltzer", 4.5, ["Black Cherry", "Mango", "Lemon Lime", "Grapefruit", "Orange Cream Pop",
+    "Blue Raspberry", "Peach", "Strawberry", "Fruit Punch", "Watermelon Daiquiri", "Pineapple Colada", "Mango Sunset",
+    "Grape Slushie", "Orange Slushie", "Cherry Slushie", "Lemonade", "Strawberry Bliss", "Peach Dreams"]),
 ];
 
 export const MORE = [...CIDER, ...SAKE, ...RTD, ...SELTZERS];
