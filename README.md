@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.19.0 (beta)
+**Current version:** 0.19.1 (beta)
 
 ## Features
 
@@ -117,7 +117,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **On a drink's page:** **Log this** right under the name, then **🏠 Add** (to your fridge or bar, without leaving the page), **🎯 To try** and **🎁 Give** (pick a friend, and the log form opens with it for them, on the Tab).
 - **🎯 Want to try.** Drinks you've marked on their page and haven't had yet, on your profile (and friends' on theirs), with whose bar has one. A drink leaves the list once you log it.
   - **Categories:** Beer, Whisky, Spirits, Wine, Cider/Seltzer/More, Cocktails and Non-alcoholic, with beer and whisky first. Each one is split into families and styles, from Czech Pilsner and Hazy IPA to Islay single malt and Canadian rye (about 270 styles, including Appassimento and Icewine).
-  - **Drinks:** about 1,770 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (680), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
+  - **Drinks:** about 1,790 brands and products, Ontario first (about 290 from Ontario breweries, distilleries, wineries and cideries), then the rest of Canada and imports. Deepest for whisky (680), spirits (510) and beer (350). Flavours are their own entries (Crown Royal Peach, White Claw Mango). Each shows its style, where it's from (with the town for Ontario makers) and its alcohol %. "~" means approximate: it varies by batch or vintage, or hasn't been checked against the label.
   - **Search:** matches names, brands, styles, categories, places (`guelph`, `county`) and cocktail ingredients, and ignores accents (`jager` finds Jägermeister).
   - **Cocktail recipes:** 210 default recipes (201 cocktails plus 9 mocktails), each with ingredients (in oz or ml), garnish, glass and method. Classics, tiki, frozen drinks, shots and shooters, with Canada well covered: seven Caesars, Rye and Ginger, the Paralyzer, Caribou, the Toronto, Moose Milk and Spanish Coffee.
   - **Ingredients:** tap an ingredient in a recipe to see which drinks in the list count as it (any Canadian rye counts as "Rye") and the other cocktails that use it. Each drink's page lists the cocktails you can use it in.
@@ -395,6 +395,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.19.1** (2026-Oct-18): **Coors Seltzer.** 18 Coors Seltzer flavours in the built-in list: the original pack (Black Cherry, Mango, Lemon Lime, Grapefruit), Orange Cream Pop, the Splash Pack (Blue Raspberry, Peach, Strawberry, Fruit Punch), Island Breeze (Watermelon Daiquiri, Pineapple Colada, Mango Sunset), the Slushies (Grape, Orange, Cherry) and Mixables (Lemonade, Strawberry Bliss, Peach Dreams). Hard seltzers are now 83. No new security rules.
 
 - **0.19.0** (2026-Oct-18): **Photos like Lunker League.** The Log form has a **Photo** card of its own (out of More options): tap the photo area or **Camera** for a camera inside the app, with retake, front or back camera and the flash, or pick one with **Gallery**. Big photos are shrunk while they're opened, so 50-megapixel shots don't run Android out of memory. **🎯 Adjust thumbnail** moves the square that lists, the feed, night recaps and a variant's photos show, saved as `focus` on the log; it works when editing a log and in Make it too. **Changed `firestore.rules`** (the optional `focus` on logs): publish them before merging.
 - **0.18.5** (2026-Oct-15): **The Catalogue.** The Drinks tab is now three rows: What can I make, Top rated and the **Pour Decisions Catalogue**. The Catalogue has the search box, **Browse** (the category tiles that open the drill-down) and a **Filter** button: what kind, where from (Ontario, Canada, imports), only ones you haven't had, only ones the group has rated. Filters show as chips you can tap to clear, and they work with or without a search. Breadcrumbs start at Catalogue. No new security rules.
