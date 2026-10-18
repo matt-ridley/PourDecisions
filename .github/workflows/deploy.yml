@@ -1,0 +1,103 @@
+# Deploy: tests, then the security rules (when they changed), then the app on GitHub Pages, in that order, so the app
+# never goes live before the rules it needs.
+# - Pull requests: the tests only.
+# - Push to main: tests, rules (only if firestore.rules or firebase.json changed), then Pages. A failed step stops the
+#   rest, so a failing test or a refused rules publish leaves the live app as it was.
+# - Run workflow (Actions tab): publishes main's rules whether they changed or not, then the app.
+# Needs Settings > Pages > Source set to "GitHub Actions", and a service account key (Firebase Rules Admin) saved as the
+# repository secret FIREBASE_SERVICE_ACCOUNT.
+name: Deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, in order, so an older run can't overwrite newer rules or an app.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      # The Firestore emulator is downloaded on first use; keep it between runs.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:rules
+
+  rules:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Did the rules change?
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+            || ! git diff --quiet "$BEFORE" "$GITHUB_SHA" -- firestore.rules firebase.json; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Rules unchanged since the last deploy: nothing to publish."
+          fi
+      - uses: actions/setup-node@v6
+        if: steps.changed.outputs.publish == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.changed.outputs.publish == 'true'
+      - name: Publish firestore.rules
+        if: steps.changed.outputs.publish == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then echo "::error::The FIREBASE_SERVICE_ACCOUNT secret is missing."; exit 1; fi
+          key="$RUNNER_TEMP/firebase-key.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$key"
+          export GOOGLE_APPLICATION_CREDENTIALS="$key"
+          npx firebase deploy --only firestore:rules --non-interactive
+          rm -f "$key"
+
+  pages:
+    needs: rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v6
+      # The whole repository, as "Deploy from a branch" served it (hidden files, .git and .github left out).
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v5
