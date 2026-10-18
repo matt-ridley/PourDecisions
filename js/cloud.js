@@ -6,6 +6,7 @@ import { FIREBASE_CONFIG, FIREBASE_SDK } from "./config.js";
 import { setMemberDrinks, setFixes, setStyles, setVariants, setPopularity } from "./catalog.js";
 import { outboxPut, outboxDelete, outboxGet, outboxAll } from "./outbox.js";
 import { dataBytes } from "./photo.js";
+import { cleanFocus } from "./thumbfocus.js";
 import { ratingId } from "./ratings.js";
 import { pourFrom, stockId, unloadMoves } from "./stock.js";
 
@@ -293,7 +294,7 @@ export function randomCode() {
 /* ---------- Logging drinks ---------- */
 const newId = name => cloud.api.doc(cloud.api.collection(cloud.db, name)).id;
 const clip = (v, n) => String(v || "").trim().slice(0, n);
-const OPTIONAL = ["rating", "notes", "tags", "placeId", "offFeed", "disputed"];
+const OPTIONAL = ["rating", "notes", "tags", "placeId", "offFeed", "disputed", "focus"];
 
 /* The fields a log may have. Empty optional fields are left out rather than saved blank. */
 function cleanLog(f) {
@@ -311,6 +312,9 @@ function cleanLog(f) {
   if (f.offFeed) log.offFeed = true;
   if (f.from) log.from = clip(f.from, 200);
   if (f.killed && f.killed.length) log.killed = f.killed.slice(0, 20);
+  // Where the square thumbnail sits on the photo (Adjust thumbnail); none = the middle.
+  const focus = cleanFocus(f.focus);
+  if (focus) log.focus = focus;
   return log;
 }
 const pic = (src, at) => ({ uid: uid(), src, at, bytes: dataBytes(src) });
@@ -341,6 +345,7 @@ export function saveLog(fields, pics = null) {
   const forSomeone = (fields.madeBy || fields.givenBy) && fields.uid && fields.uid !== uid();
   const log = { ...cleanLog(forSomeone ? { ...fields, ...(fields.madeBy ? { madeBy: uid(), givenBy: null } : { givenBy: uid() }) } : { ...fields, madeBy: null, givenBy: typeof fields.givenBy === "string" && fields.givenBy !== uid() ? fields.givenBy : null }),
     uid: forSomeone ? fields.uid : uid(), createdAt: now, hasPhoto: !!pics };
+  if (!pics) delete log.focus; // no photo, no thumbnail to frame
   const entry = { id, log, thumb: pics && pics.thumb, photo: pics && pics.photo, state: "sending", savedAt: now };
   outboxPut(entry).then(refreshOutbox).then(() => sendEntry(entry));
   return id;
@@ -351,6 +356,7 @@ export async function updateLog(id, fields, pics) {
   const old = store.logs.find(l => l.id === id);
   if (!old) return;
   const log = cleanLog({ ...old, ...fields });
+  if (!(pics === undefined ? old.hasPhoto : pics)) delete log.focus; // no photo, no thumbnail to frame
   const upd = { ...log, editedAt: Date.now() };
   // Optional fields that were cleared are deleted, not left with their old values.
   for (const k of OPTIONAL) if (!(k in log) && k in old) upd[k] = cloud.api.deleteField();

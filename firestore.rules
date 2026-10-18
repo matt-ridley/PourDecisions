@@ -81,9 +81,15 @@ service cloud.firestore {
     // receiver said "That's not right", which takes it off the Tab.
     // from is the stock entry it came out of (a fridge or bar, see stock below); killed lists the bottles (drink ids)
     // this pour emptied, for the wall of empties.
+    // focus is where the photo's square thumbnail sits ({ x, y }, each 0 to 100; none = the middle).
+    function validFocus(f) {
+      return f == null || (f is map && f.keys().hasOnly(["x", "y"]) && f.keys().hasAll(["x", "y"])
+        && f.x is int && f.y is int && f.x >= 0 && f.x <= 100 && f.y >= 0 && f.y <= 100);
+    }
     function logOk(d) {
       return d.keys().hasOnly(["uid", "kind", "drinkId", "title", "style", "size", "ml", "abv", "at", "createdAt", "editedAt",
-                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed", "givenBy", "disputed"])
+                               "rating", "notes", "tags", "placeId", "hasPhoto", "variantId", "madeBy", "offFeed", "from", "killed", "givenBy", "disputed", "focus"])
+        && validFocus(d.get("focus", null))
         && d.kind in ["drink", "cocktail"]
         && d.drinkId is string && d.drinkId.size() > 0 && d.drinkId.size() <= 80
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120

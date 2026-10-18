@@ -1,4 +1,4 @@
-/* The Log tab: pick a drink, then size, place, time, notes and an optional photo. Rating comes later, once per drink
+/* The Log tab: pick a drink, then size, place, a photo (camera or gallery), time and notes. Rating comes later, once per drink
    (see ratepage.js). Also a log's own page (#/l/<id>), editing it, adding a drink to the shared list, and the
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
@@ -14,7 +14,8 @@ import { starText, ratingOfLog, rateButton } from "./ratepage.js";
 import { variantTitle } from "./variants.js";
 import { nightReactions } from "./feedpage.js";
 import { getUnits, fmtVolume, standardDrinks, ozToMl } from "./units.js";
-import { shrinkPhoto } from "./photo.js";
+import { photoField } from "./focuspick.js";
+import { focusStyle } from "./thumbfocus.js";
 
 const MAX_RESULTS = 40;
 let query = "";
@@ -33,9 +34,10 @@ export const titleOf = log => {
 const stdText = n => `${n} standard drink${n === 1 ? "" : "s"}`;
 
 /* ---------- Thumbnails (loaded only when shown) ---------- */
-export function thumbBox(log, cls = "log-thumb") {
+// Square thumbnails sit where the drinker put them (Adjust thumbnail); a whole photo (cover = false) shows all of it.
+export function thumbBox(log, cls = "log-thumb", cover = true) {
   if (!log.hasPhoto) return el("span", { class: `${cls} icon`, text: iconOf(log) });
-  const img = el("img", { class: cls, alt: "", loading: "lazy" });
+  const img = el("img", { class: cls, alt: "", loading: "lazy", style: cover ? focusStyle(log) : null });
   loadThumb(log.id).then(src => { if (src) img.src = src; else img.replaceWith(el("span", { class: `${cls} icon`, text: iconOf(log) })); });
   return img;
 }
@@ -219,8 +221,9 @@ export function renderLogForm(main, item, editing = null) {
     placeId: placeIdNow(editing ? editing.placeId : lastPlace(store.logs, uid()) || (myLiveNight(store.nights, store.logs, uid()) || {}).placeId),
     at: editing ? editing.at : null, // null = now
     notes: editing ? editing.notes || "" : "",
-    pics: undefined, // undefined = unchanged, null = no photo, { photo, thumb } = new photo
   };
+  // The photo: pics undefined = unchanged, null = no photo, { photo, thumb } = new photo. focus = the thumbnail's square.
+  const ph = { pics: undefined, thumb: null, focus: editing ? editing.focus || null : null };
   if (s.ml == null) s.ml = (sizes.find(z => z.key === s.size) || sizes[0]).ml || 0;
   if (s.size === "other" || !sizes.some(z => z.key === s.size)) s.size = "other";
 
@@ -293,24 +296,11 @@ export function renderLogForm(main, item, editing = null) {
   // Keep it off the feed
   const offIn = el("input", { type: "checkbox", checked: editing && editing.offFeed ? true : null });
 
-  // Photo
-  const photoIn = el("input", { type: "file", accept: "image/*", hidden: true });
-  const photoBox = el("div", { class: "photo-pick" });
-  const drawPhoto = (src) => fill(photoBox, src
-    ? el("div", { class: "photo-preview" }, el("img", { src, alt: "Your photo" }),
-        el("button", { class: "btn small", type: "button", text: "Remove", onclick: () => { s.pics = null; drawPhoto(null); drawMore(); } }))
-    : el("button", { class: "btn block", type: "button", onclick: () => photoIn.click() }, "📷 Add a photo"));
-  photoIn.addEventListener("change", async () => {
-    const f = photoIn.files && photoIn.files[0];
-    photoIn.value = "";
-    if (!f) return;
-    try { s.pics = await shrinkPhoto(f); drawPhoto(s.pics.thumb); drawMore(); }
-    catch (e) { console.warn(e); toast("That photo couldn't be read. Try another one."); }
-  });
-  drawPhoto(null);
-  if (editing && editing.hasPhoto) loadThumb(editing.id).then(src => { if (src && s.pics === undefined) drawPhoto(src); });
+  // Photo: the in-app camera or the gallery, with Adjust thumbnail.
+  const photo = photoField(ph);
+  if (editing && editing.hasPhoto) loadThumb(editing.id).then(src => { if (src && ph.pics === undefined) { ph.thumb = src; photo.draw(); } });
 
-  // The extras (who it's for, when, notes and photo, off the feed) fold away under More options, with a line saying what
+  // The extras (who it's for, when, notes, off the feed) fold away under More options, with a line saying what
   // they're set to. Open when editing, or when it's already for a friend (Pay one back).
   const moreLine = el("span", { class: "muted small" });
   const more = el("details", { class: "card fold", open: editing || s.to ? "" : null },
@@ -318,14 +308,14 @@ export function renderLogForm(main, item, editing = null) {
     friends.length ? el("div", { class: "stack" }, el("h3", { text: "Who's it for?" }), toBox,
       el("p", { class: "hint", text: "Giving it to a friend logs it for them and puts it on the Tab: they owe you one." })) : null,
     editing ? null : el("div", { class: "stack" }, el("h3", { text: "When" }), el("div", { class: "chips" }, nowBtn, earlierBtn), whenRow),
-    el("div", { class: "stack" }, el("h3", { text: "Notes and photo" }), notesIn, photoBox, photoIn),
+    el("div", { class: "stack" }, el("h3", { text: "Notes" }), notesIn),
     el("div", { class: "stack" }, el("label", { class: "check" }, offIn, el("span", {}, "🙈 Keep it off the feed")),
       el("p", { class: "hint", text: "Your drink still counts in your stats. The group just doesn't see it in the feed or on your profile." })));
   function drawMore() {
     moreLine.textContent = [
       s.to ? `🎁 For ${memberName(s.to)}` : friends.length ? "For me" : "",
       editing ? "" : whenRow.hidden ? "Now" : "Earlier",
-      notesIn.value.trim() ? "Notes" : "", s.pics || (editing && editing.hasPhoto && s.pics === undefined) ? "Photo" : "",
+      notesIn.value.trim() ? "Notes" : "",
       offIn.checked ? "🙈 Off the feed" : "",
     ].filter(Boolean).join(" · ");
   }
@@ -341,6 +331,7 @@ export function renderLogForm(main, item, editing = null) {
     homes.length ? el("section", { class: "card stack" }, el("h3", { text: "From home or a cooler?" }), fromBox,
       el("p", { class: "hint", text: "Takes it out of the fridge or cooler, or the amount out of the bottle in your bar." })) : null,
     editing ? el("section", { class: "card stack" }, el("h3", { text: "When" }), whenRow) : null,
+    el("section", { class: "card stack" }, el("h3", { text: "Photo" }), photo.node),
     more,
     // Log it stays on screen above the tabs, however far down the form you are.
     el("div", { class: "sticky-save" }, msg, save));
@@ -356,16 +347,16 @@ export function renderLogForm(main, item, editing = null) {
     }
     const fields = { kind: editing ? editing.kind : item.kind, drinkId: editing ? editing.drinkId : item.id,
       title: editing ? editing.title : item.title, style: editing ? editing.style : item.style.id, size: s.size, ml: s.ml, abv,
-      placeId: s.placeId, notes: notesIn.value, at, offFeed: offIn.checked };
+      placeId: s.placeId, notes: notesIn.value, at, offFeed: offIn.checked, focus: ph.thumb ? ph.focus : null };
     if (editing) {
-      updateLog(editing.id, fields, s.pics);
+      updateLog(editing.id, fields, ph.pics);
       toast("Saved.");
       history.back();
       return;
     }
     if (s.to) Object.assign(fields, { uid: s.to, givenBy: true, offFeed: false });
     const putBack = fromHome(fields, homes.find(e => e.id === s.from));
-    const id = saveLog(fields, s.pics || null);
+    const id = saveLog(fields, ph.pics || null);
     query = "";
     const said = s.to ? `Gave ${memberName(s.to)} a ${item.title} 🎁` : `${item.title} logged 🍻`;
     toast(fields.killed ? `${said} You killed the bottle! 🍾` : said,
@@ -474,7 +465,7 @@ export function renderLogDetail(main, id) {
   if (!log) return fill(main, el("div", { class: "card" }, el("p", { text: "That drink log isn't here any more." })));
   const item = itemOf(log), mineLog = log.uid === uid();
   const m = store.members.get(log.uid) || { id: log.uid, displayName: memberName(log.uid) };
-  const photo = log.hasPhoto ? el("div", { class: "log-photo" }, thumbBox(log, "log-photo-img")) : null;
+  const photo = log.hasPhoto ? el("div", { class: "log-photo" }, thumbBox(log, "log-photo-img", false)) : null;
   if (photo) loadPhoto(log.id).then(src => { if (src) { const img = photo.querySelector("img"); if (img) img.src = src; } });
   const std = logStd(log), r = ratingOfLog(log);
   const variant = log.variantId && itemById("variant", log.variantId);

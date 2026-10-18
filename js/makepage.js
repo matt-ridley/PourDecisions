@@ -11,7 +11,7 @@ import { itemById, rawItem, drinksFor, ingredientById, ingredientsOf, search, no
 import { COCKTAILS } from "./catalog/cocktails.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
 import { recipeVolume, recipeAbv, lastPlace, resolvePlace } from "./logs.js";
-import { shrinkPhoto } from "./photo.js";
+import { photoField } from "./focuspick.js";
 import { startRows, buildVariant, variantRecipe, variantTitle, changeWords, rowName, makersOf, cleanVariantName, MAX_NAME,
   MAX_ROWS, stepAmount, addedRow, bottleChoices, servingsFor, makeLogs, variantDoc } from "./variants.js";
 
@@ -251,21 +251,8 @@ export function renderMake(main, id, fromId) {
   }
 
   /* ---------- A photo (optional): kept with your own log, and shown on the variant's page ---------- */
-  let pics = null;
-  const photoIn = el("input", { type: "file", accept: "image/*", hidden: true });
-  const photoBox = el("div", { class: "photo-pick" });
-  const drawPhoto = () => fill(photoBox, pics
-    ? el("div", { class: "photo-preview" }, el("img", { src: pics.thumb, alt: "Your photo" }),
-        el("button", { class: "btn small", type: "button", text: "Remove", onclick: () => { pics = null; drawPhoto(); } }))
-    : el("button", { class: "btn block", type: "button", onclick: () => photoIn.click() }, "📷 Add a photo"));
-  photoIn.addEventListener("change", async () => {
-    const f = photoIn.files && photoIn.files[0];
-    photoIn.value = "";
-    if (!f) return;
-    try { pics = await shrinkPhoto(f); drawPhoto(); }
-    catch (e) { console.warn(e); toast("That photo couldn't be read. Try another one."); }
-  });
-  drawPhoto();
+  const ph = { pics: null, thumb: null, focus: null };
+  const photo = photoField(ph);
 
   /* ---------- Saving ---------- */
   const msg = el("p", { class: "msg err", role: "alert" });
@@ -291,7 +278,7 @@ export function renderMake(main, id, fromId) {
     const killed = taken.filter(x => x.t.killed).map(x => x.p.drinkId);
     if (killed.length) { const k = logs.findIndex(f => f.uid === me); logs[k < 0 ? 0 : k].killed = killed; }
     // The photo goes with your own drink only: a friend couldn't delete their log if it carried your photo.
-    const ids = logs.map(f => saveLog(f, f.uid === me ? pics : null));
+    const ids = logs.map(f => f.uid === me && ph.pics ? saveLog({ ...f, focus: ph.focus }, ph.pics) : saveLog(f, null));
     if (order) serveOrder(order.id, ids[0]);
     const title = variant ? variantTitle(recipe, variant) : recipe.name;
     const done = ids.length > 1 ? `${title} logged for ${plural(ids.length, "person", "people")} 🍹` : `${title} logged 🍹`;
@@ -322,7 +309,7 @@ export function renderMake(main, id, fromId) {
       el("p", { class: "hint", text: "Each person gets one logged. Drinks you make for friends show you as the maker." }),
       el("h3", { text: "How many to make" }), servBox),
     summary,
-    el("section", { class: "card stack" }, el("h3", { text: "Photo" }), photoBox, photoIn,
+    el("section", { class: "card stack" }, el("h3", { text: "Photo" }), photo.node,
       el("p", { class: "hint", text: "Optional. It goes with your own drink and shows on the variant's page." })),
     el("section", { class: "card stack" }, el("label", { class: "check" },
       el("input", { type: "checkbox", onchange: e => { s.offFeed = e.target.checked; } }), el("span", {}, "🙈 Keep my drink off the feed")),

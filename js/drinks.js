@@ -18,6 +18,7 @@ import { haveSet } from "./makeablepage.js";
 import { householdOf } from "./stock.js";
 import { pickWhere } from "./barpage.js";
 import { giftable, giveNext } from "./logpage.js";
+import { focusStyle } from "./thumbfocus.js";
 
 // The Catalogue's search box and filters keep what was set while moving between screens (this session only).
 let query = "";
@@ -513,7 +514,7 @@ function photosCard(item) {
   return el("section", { class: "card stack" },
     el("h3", { text: "Photos" }),
     el("div", { class: "photo-grid" }, ...logs.map(l => {
-      const img = el("img", { alt: `${memberName(l.uid)}'s photo`, loading: "lazy" });
+      const img = el("img", { alt: `${memberName(l.uid)}'s photo`, loading: "lazy", style: focusStyle(l) });
       loadThumb(l.id).then(src => { if (src) img.src = src; else img.closest("a")?.remove(); });
       return el("a", { href: `#/l/${l.id}` }, img);
     })));

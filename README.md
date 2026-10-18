@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.18.5 (beta)
+**Current version:** 0.19.0 (beta)
 
 ## Features
 
@@ -23,11 +23,13 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **✉️ Email an invite (owner).** From Group admin: writes the invite in the owner's own email app, with what the app is, installing it on iPhone and Android, signing up and the invite code. It comes from their address and needs no email service.
 - **Profiles.** Each member has a name, an optional hometown and a favourite drink.
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
-- **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal. The form shows how much and where; who it's for, when, notes and photo, and keeping it off the feed are under **More options** (with a line saying what they're set to), and **Log it** stays on screen above the tabs.
+- **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal. The form shows how much, where and a photo; who it's for, when, notes and keeping it off the feed are under **More options** (with a line saying what they're set to), and **Log it** stays on screen above the tabs.
   - **How much:** sizes that fit the drink (Bottle 341 ml, Can, Tall can, Pint for beer; Single, Shot, Double for spirits; Glass and Bottle for wine; One or Double for a cocktail) or any amount. It shows the standard drinks as you pick. A cocktail's size and strength come from its recipe.
   - **Where:** pick from the group's shared places (yours come first) or add a new one. Logging again the same night suggests the same place.
   - **When:** now, or earlier for a drink you forgot to log.
-  - **Notes and a photo:** both optional, about this pour or this night. The photo is shrunk on the phone; lists show a small copy and the full one loads only when the log is opened.
+  - **📷 A photo:** optional, right on the form. Tap the photo area or **Camera** to take one with the camera inside the app (retake, front or back camera, and the flash where the phone has one), or pick one with **Gallery**. The camera stays in the app because opening the phone's own camera app can make Android close the browser and lose the photo; the camera app is only used where the in-app one can't run. The photo is shrunk on the phone; lists show a small copy and the full one loads only when the log is opened.
+  - **🎯 Adjust thumbnail:** lists and the feed show photos as squares. Tap or drag on the photo to move the square onto your drink (a tall glass or a label), with a live preview. It works when editing a log too.
+  - **Notes:** optional, about this pour or this night.
   - **Again:** your recent drinks on the Log screen (each cocktail variant on its own) have an **Again** button that logs the same drink again in one tap: same size, same variant, same place if it's the same night (with Undo).
   - **From home:** the Log screen also lists what's in your cooler and fridge, with **Drink one** to log it and take it out of stock in one tap.
   - **Never lost without a word:** every log is kept on the phone until the group has it. Home shows drinks waiting for signal, and if the server ever refuses one it says why, with **Try again** and **Discard**.
@@ -75,7 +77,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Ratings:** each variant is rated on its own (stars, flavours and a review, once per person), separately from the original cocktail's stars. **How was it?** on Home asks about the variant you made. Variants show in **Top rated** among the cocktails.
   - **👑 House Pour:** the group's best-rated variant of each cocktail (at least 2 ratings, so nobody crowns their own) wears the crown, is listed first, and is named on the cocktail's page. Ties go to more ratings, then the older variant.
   - **Compare:** put a variant side by side with the recipe as written or another variant: ratings, times made, strength, every ingredient row (differences highlighted), glass and garnish.
-  - **Photos:** add an optional photo when you make it. It goes with your own drink, and the variant's page shows the latest photos.
+  - **Photos:** add an optional photo when you make it, with the in-app camera or the gallery, and adjust its thumbnail. It goes with your own drink, and the variant's page shows the latest photos.
   - **Mixologist stats** on each profile: cocktails made, variants created, times friends made them, the average rating they get, and House Pours held.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
 - **🏠 Your bar & fridge.** The **Bar** tab. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
@@ -303,7 +305,7 @@ npm run deploy:rules
 - A drink given to someone has `givenBy` (the giver) and is logged as theirs, like `madeBy` for a cocktail made for someone. A drink from a friend's cooler is logged by the drinker with `givenBy` the friend who loaded it (cooler entries keep `loadedBy`). A drink marked "That's not right" has `disputed: true`. The Tab is worked out from these, with no documents of its own.
 - A drink from home has `from` (the stock document it came out of), and a pour that emptied bottles has `killed` (their drink ids).
 - Cocktail variants are stored in `variants`, with an id made from the original cocktail's id and a hash of what's in it (`whisky-sour~1x2y3z`), so the same drink made twice is one variant. A log of one keeps the original cocktail as its drink and adds `variantId`. A drink someone made for you is logged as yours, with their id in `madeBy`.
-- A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo.
+- A log's photos are stored in their own documents (`thumbs` for the small copy, `photos` for the full one, same id as the log), so opening the app never downloads every photo. Where its square thumbnail sits is `focus` on the log (`{ x, y }`, each 0 to 100; none means the middle).
 - Bar Menu orders are stored in `orders` (the bar, who ordered, what, a note, waiting / served / cancelled, who served it and the log).
 - Bring lists are stored in `bring` (night, who's bringing it, what, how many, arrived).
 - Drink Nights are stored in `nights` (host, name, place, start, optional end, who's there). Their drinks aren't marked on the logs: they're worked out from who's there and when.
@@ -388,6 +390,7 @@ Update this README's **Current version** and the changelog in the same commit. W
 
 ## Changelog
 
+- **0.19.0** (2026-Oct-18): **Photos like Lunker League.** The Log form has a **Photo** card of its own (out of More options): tap the photo area or **Camera** for a camera inside the app, with retake, front or back camera and the flash, or pick one with **Gallery**. Big photos are shrunk while they're opened, so 50-megapixel shots don't run Android out of memory. **🎯 Adjust thumbnail** moves the square that lists, the feed, night recaps and a variant's photos show, saved as `focus` on the log; it works when editing a log and in Make it too. **Changed `firestore.rules`** (the optional `focus` on logs): publish them before merging.
 - **0.18.5** (2026-Oct-15): **The Catalogue.** The Drinks tab is now three rows: What can I make, Top rated and the **Pour Decisions Catalogue**. The Catalogue has the search box, **Browse** (the category tiles that open the drill-down) and a **Filter** button: what kind, where from (Ontario, Canada, imports), only ones you haven't had, only ones the group has rated. Filters show as chips you can tap to clear, and they work with or without a search. Breadcrumbs start at Catalogue. No new security rules.
 
 - **0.18.4** (2026-Oct-15): **More whisky and seltzers.** About 145 more whiskies (Crown Royal Fine de Cognac and Bourbon Mash, Wiser's Double Still Rye, more BC single malts, Scotch from every region, more bourbon and rye, Irish pot still, Japanese and world whisky), now 684 in all, and about 45 more hard seltzers (more White Claw and Surge, Truly, NÜTRL and Cottage Springs flavours, plus Bud Light Seltzer, High Noon, Corona, Vizzy and Social Lite), now 65. About 1,770 drinks in the built-in list. No new security rules.
