@@ -1,7 +1,7 @@
 /* The Log tab: pick a drink, then size, place, a photo (camera or gallery), time and notes. Rating comes later, once per drink
    (see ratepage.js). Also a log's own page (#/l/<id>), editing it, adding a drink to the shared list, and the
    "Another one" shortcut. */
-import { el, fill, icon, field, toast, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
+import { el, fill, icon, field, toast, linkList, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
 import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount, onHand, stockIn } from "./stock.js";
 import { myLiveNight } from "./nights.js";
@@ -137,17 +137,101 @@ export function roundOf(item, entry, people) {
 }
 
 /* ---------- #/log: what are you drinking? ---------- */
+/* #/log asks first: having another, from home (cooler, fridge or bar) or the catalogue. Then #/log/again (your recent
+   drinks), #/log/home (which one), #/log/home/<cooler|fridge|bar> (what's in it) and #/log/search (the catalogue search).
+   #/log/<kind>/<id> is the form. Nothing opens the keyboard until you pick Search. */
 export function renderLog(main, kind, id) {
+  if (kind === "again") return renderAgain(main);
+  if (kind === "home") return id ? renderHomeStock(main, id) : renderHomePick(main);
+  if (kind === "search") return renderSearch(main);
   if (kind && id) return renderLogForm(main, itemById(kind, id));
+  const recent = recentDrinks(store.logs, uid());
+  const hh = myHousehold(), coolers = loadedCoolers();
+  fill(main,
+    el("h2", { class: "page-title", text: "What are you drinking?" }),
+    linkList([
+      { icon: "🔁", title: "Having another?", href: "#/log/again",
+        sub: recent.length ? `${titleOf(recent[0])}${recent.length > 1 ? ` and ${recent.length - 1} more you've had` : ""}` : "Nothing logged yet" },
+      { icon: "🏠", title: "From home", href: hh || coolers.length ? "#/log/home" : "#/bar",
+        sub: hh || coolers.length ? [coolers.length ? "The cooler" : "", hh ? "your fridge or bar" : ""].filter(Boolean).join(", ")
+          : "Set up your fridge and bar on the Bar tab" },
+      { icon: "🔎", title: "Search the catalogue", sub: "Beer, whisky, cocktails and more", href: "#/log/search" },
+    ]));
+}
+
+/* #/log/again: your recent drinks, each with Again. */
+function renderAgain(main) {
+  const recent = recentDrinks(store.logs, uid());
+  fill(main,
+    el("h2", { class: "page-title", text: "Having another?" }),
+    recent.length ? el("section", { class: "card stack" }, el("ul", { class: "item-list" }, ...recent.map(againRow).filter(Boolean)))
+      : el("section", { class: "card stack center" }, el("p", { class: "muted", text: "You haven't logged anything yet." }),
+        el("a", { class: "btn block", href: "#/log/search", text: "Search the catalogue" })));
+}
+
+/* Coolers that are out with drinks in them: yours first, then friends' (A to Z). */
+function loadedCoolers() {
+  const mine = (myHousehold() || {}).id;
+  return store.households.filter(h => store.stock.some(s => s.hh === h.id && s.where === "cooler" && s.kind === "drink" && fridgeCount(s) > 0))
+    .sort((a, b) => (b.id === mine) - (a.id === mine) || a.name.localeCompare(b.name));
+}
+
+/* #/log/home: the cooler first when one is out, then your fridge and your bar. */
+function renderHomePick(main) {
+  const hh = myHousehold(), coolers = loadedCoolers();
+  const n = where => hh ? stockIn(store.stock, hh.id, where).filter(e => e.kind === "drink" && e.thing.item && onHand(e)) : [];
+  const fridge = n("fridge"), bar = n("bar");
+  const drinks = list => list.reduce((t, e) => t + fridgeCount(e), 0);
+  const plural = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
+  fill(main,
+    el("h2", { class: "page-title", text: "From home" }),
+    linkList([
+      coolers.length ? { icon: "❄️", title: "The cooler", href: "#/log/home/cooler",
+        sub: coolers.map(h => `${h.id === (hh || {}).id ? "Yours" : h.name}: ${plural(drinks(stockIn(store.stock, h.id, "cooler")), "drink")}`).join(" · ") } : null,
+      hh ? { icon: "🧊", title: "Your fridge", sub: fridge.length ? plural(drinks(fridge), "drink") : "Empty", href: "#/log/home/fridge" } : null,
+      hh ? { icon: "🍾", title: "Your bar", sub: bar.length ? plural(bar.length, "bottle") : "Empty", href: "#/log/home/bar" } : null,
+    ]),
+    hh ? null : el("p", { class: "hint center" }, "Set up your fridge and bar on the ", el("a", { href: "#/bar", text: "Bar tab" }), "."));
+}
+
+/* #/log/home/<cooler|fridge|bar>: what's in it. Tap a drink for the form, or Drink one (Pour one) to log it now. */
+function renderHomeStock(main, where) {
+  const hh = myHousehold();
+  const titles = { cooler: "The cooler", fridge: "Your fridge", bar: "Your bar" };
+  if (!titles[where]) return renderHomePick(main);
+  const usable = list => list.filter(e => e.kind === "drink" && e.thing.item && onHand(e));
+  const groups = where === "cooler"
+    ? loadedCoolers().map(h => [h.id === (hh || {}).id ? "Your cooler" : `${h.name}'s cooler`, usable(stockIn(store.stock, h.id, "cooler"))])
+    : hh ? [[null, usable(stockIn(store.stock, hh.id, where))]] : [];
+  const shown = groups.filter(([, list]) => list.length);
+  fill(main,
+    el("h2", { class: "page-title", text: titles[where] }),
+    ...shown.map(([title, list]) => el("section", { class: "card stack" }, title && shown.length > 1 ? el("h3", { text: title }) : null,
+      el("ul", { class: "item-list" }, ...list.map(stockRow)))),
+    shown.length ? null : el("section", { class: "card stack center" },
+      el("p", { class: "muted", text: `Nothing in ${where === "cooler" ? "the cooler" : `your ${where}`} right now.` }),
+      el("a", { class: "btn block", href: "#/log/search", text: "Search the catalogue" })));
+}
+
+/* A drink in a cooler, fridge or bar: its form, or one tap to drink (or pour) one. */
+function stockRow(e) {
+  const pour = e.where === "bar" ? "Pour one" : "Drink one";
+  return el("li", { class: "log-row" },
+    el("a", { class: "item-row grow", href: `#/log/drink/${e.thing.item.id}` },
+      el("span", { class: "item-icon", text: e.thing.item.category.icon }),
+      el("span", { class: "grow" }, el("b", { text: e.thing.title }), el("span", { class: "muted small", text: sourceLabel(e) }))),
+    el("button", { class: "btn small", type: "button", text: pour, "aria-label": `${pour}: ${e.thing.title}`,
+      onclick: () => { drinkOne(e.thing.item, e); } }));
+}
+
+/* #/log/search: search the catalogue (the keyboard opens here, and only here). */
+function renderSearch(main) {
   const box = el("input", { type: "search", class: "search-input", placeholder: "Search beer, whisky, cocktails…", value: query,
     "aria-label": "Search for what you're drinking", autocomplete: "off", autocorrect: "off", spellcheck: "false" });
   const results = el("div", { class: "stack" });
-  const recent = recentDrinks(store.logs, uid());
   const draw = () => {
     query = box.value;
-    if (!query.trim()) return fill(results, recent.length ? el("section", { class: "card stack" },
-      el("h3", { text: "Having another?" }),
-      el("ul", { class: "item-list" }, ...recent.map(againRow).filter(Boolean))) : null, fromHomeCard());
+    if (!query.trim()) return fill(results, el("p", { class: "hint center", text: "Type a name, brand or style." }));
     const hits = search(query);
     fill(results,
       hits.length ? el("ul", { class: "item-list card" }, ...hits.slice(0, MAX_RESULTS).map(i => pickRow(i))) : null,
@@ -162,7 +246,7 @@ export function renderLog(main, kind, id) {
   const old = main.querySelector(".log-search"), refocus = !old || document.activeElement === old;
   box.classList.add("log-search");
   fill(main,
-    el("h2", { class: "page-title", text: "What are you drinking?" }),
+    el("h2", { class: "page-title", text: "Search the catalogue" }),
     el("label", { class: "search" }, el("span", { html: icon.search }), box),
     results);
   if (!query && refocus) box.focus({ preventScroll: true });
@@ -177,23 +261,6 @@ function againRow(l) {
       el("span", { class: "item-icon", text: i.category.icon }),
       el("span", { class: "grow" }, el("b", { text: titleOf(l) }), el("span", { class: "muted small", text: `Last: ${fmtVolume(l.ml, getUnits())} · ${fmtAgo(l.at)}` }))),
     el("button", { class: "btn small", type: "button", text: "Again", "aria-label": `Another ${titleOf(l)}`, onclick: () => anotherOne(l) }));
-}
-
-/* What's in your cooler and fridge, to drink one in a tap (it comes out of stock, with Undo). */
-function fromHomeCard() {
-  const hh = myHousehold();
-  if (!hh) return null;
-  const list = [...stockIn(store.stock, hh.id, "cooler"), ...stockIn(store.stock, hh.id, "fridge")]
-    .filter(e => e.kind === "drink" && e.thing.item && fridgeCount(e) > 0).slice(0, 8);
-  if (!list.length) return null;
-  return el("section", { class: "card stack" },
-    el("h3", { text: "From home" }),
-    el("ul", { class: "item-list" }, ...list.map(e => el("li", { class: "log-row" },
-      el("a", { class: "item-row grow", href: `#/log/drink/${e.thing.item.id}` },
-        el("span", { class: "item-icon", text: e.thing.item.category.icon }),
-        el("span", { class: "grow" }, el("b", { text: e.thing.title }), el("span", { class: "muted small", text: sourceLabel(e) }))),
-      el("button", { class: "btn small", type: "button", text: "Drink one", "aria-label": `Drink one: ${e.thing.title}`,
-        onclick: () => { drinkOne(e.thing.item, e); } })))));
 }
 
 function pickRow(i, last) {
