@@ -212,7 +212,7 @@ export function renderStyle(main, id) {
     items.length ? el("ul", { class: "item-list card" }, ...items.map(i => itemRow(i, { style: false })))
       : el("section", { class: "card stack center" },
           el("p", { class: "muted", text: "Nothing in the list in this style yet." }),
-          s.category.id === "cocktail" ? null : el("a", { class: "btn block", href: "#/log", text: "Log one and add it" })));
+          s.category.id === "cocktail" ? null : el("a", { class: "btn block", href: "#/log/search", text: "Log one and add it" })));
 }
 
 /* #/drink/<id> */

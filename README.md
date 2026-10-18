@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.19.1 (beta)
+**Current version:** 0.20.0 (beta)
 
 ## Features
 
@@ -23,7 +23,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **✉️ Email an invite (owner).** From Group admin: writes the invite in the owner's own email app, with what the app is, installing it on iPhone and Android, signing up and the invite code. It comes from their address and needs no email service.
 - **Profiles.** Each member has a name, an optional hometown and a favourite drink.
 - **Two looks.** **Happy Hour** is bright and sunny (sand, turquoise and coral). **Last Call** is the dark bar (wood, amber and a neon glow). **Auto** follows the phone's light or dark setting. Saved per phone.
-- **Logging a drink.** Tap Log, search for what you're drinking (or tap one of your recent drinks), and log it. Works with no signal. The form shows how much, where and a photo; who it's for, when, notes and keeping it off the feed are under **More options** (with a line saying what they're set to), and **Log it** stays on screen above the tabs.
+- **Logging a drink.** Tap Log and pick how: **Having another?** (your recent drinks, with **Again**), **From home** (the cooler first when one's out, then your fridge or bar, each opening to what's in it with **Drink one** or **Pour one**) or **Search the catalogue** (the keyboard only opens here). Then log it. Works with no signal. The form shows how much, where and a photo; who it's for, when, notes and keeping it off the feed are under **More options** (with a line saying what they're set to), and **Log it** stays on screen above the tabs.
   - **How much:** sizes that fit the drink (Bottle 341 ml, Can, Tall can, Pint for beer; Single, Shot, Double for spirits; Glass and Bottle for wine; One or Double for a cocktail) or any amount. It shows the standard drinks as you pick. A cocktail's size and strength come from its recipe.
   - **Where:** pick from the group's shared places (yours come first) or add a new one. Logging again the same night suggests the same place.
   - **When:** now, or earlier for a drink you forgot to log.
@@ -395,6 +395,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.20.0** (2026-Oct-18): **Logging asks first.** The Log tab no longer opens on the search box (and the keyboard). It asks how: **Having another?** opens your recent drinks with **Again**; **From home** asks which one (**The cooler** first when yours or a friend's is out, then **Your fridge** and **Your bar**) and opens what's in it, with **Drink one** (or **Pour one** for a bottle) or tap a drink for the form; **Search the catalogue** opens the search on its own page. Back steps back through each question. No new security rules.
 
 - **0.19.1** (2026-Oct-18): **Coors Seltzer.** 18 Coors Seltzer flavours in the built-in list: the original pack (Black Cherry, Mango, Lemon Lime, Grapefruit), Orange Cream Pop, the Splash Pack (Blue Raspberry, Peach, Strawberry, Fruit Punch), Island Breeze (Watermelon Daiquiri, Pineapple Colada, Mango Sunset), the Slushies (Grape, Orange, Cherry) and Mixables (Lemonade, Strawberry Bliss, Peach Dreams). Hard seltzers are now 83. No new security rules.
 

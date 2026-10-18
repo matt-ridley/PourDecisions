@@ -28,7 +28,8 @@ import { applyTheme } from "./theme.js";
    `tab` is the bottom-nav tab it belongs to; `sub` pages inside a tab show Back instead of the glass. */
 const ROUTES = {
   home: { tab: "home", live: true, render: renderHome },
-  log: { tab: "log", live: kind => !kind, render: renderLog }, // the search redraws as data arrives; the form doesn't
+  // #/log asks again, home or search, then drills down; those pages redraw as data arrives, the form (#/log/<kind>/<id>) doesn't.
+  log: { tab: "log", sub: a => !!a, live: a => !a || LOG_STEPS.includes(a), render: renderLog },
   l: { tab: null, live: true, render: renderLogDetail },
   edit: { tab: null, live: false, render: renderLogEdit },
   make: { tab: null, live: false, render: renderMake }, // not live: a friend's new log mustn't reset what you're making
@@ -70,6 +71,7 @@ const ROUTES = {
   post: { tab: null, live: true, render: renderPost }, // one feed post with its comments open (from an alert)
 };
 
+const LOG_STEPS = ["again", "home", "search"];
 const mineHh = id => { const h = householdOf(store.households, uid()); return !!h && h.id === id; };
 
 function parseRoute() {
@@ -83,6 +85,7 @@ function parseRoute() {
 
 /* Where Back goes when there's no earlier page in the app (opened from an alert, a link or a reload): one level up. */
 const PARENTS = {
+  log: (a, b) => a === "home" && b ? "#/log/home" : "#/log",
   l: "#/me", edit: a => `#/l/${a}`, make: a => `#/recipe/${a}`,
   bar: "#/bars", makeable: "#/bar", bars: "#/bar", run: "#/bar",
   tab: a => a ? "#/tab" : "#/us", generous: "#/tab", nights: "#/us", night: "#/nights", host: "#/nights", plan: a => `#/night/${a}`,
