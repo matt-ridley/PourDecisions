@@ -326,7 +326,7 @@ service cloud.firestore {
 
     // One document per thing in a household's fridge or bar; the id says which (household~where~kind~item).
     function stockOk(id, d) {
-      return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "loadedBy", "by", "at"])
+      return d.keys().hasOnly(["hh", "where", "kind", "item", "count", "low", "size", "left", "spares", "out", "loadedBy", "photoAt", "by", "at"])
         && d.hh is string && d.where in ["fridge", "bar", "cooler"] && d.kind in ["drink", "ing"]
         && d.item is string && d.item.size() > 0 && d.item.size() <= 80
         && id == d.hh + "~" + d.where + "~" + d.kind + "~" + d.item
@@ -339,6 +339,7 @@ service cloud.firestore {
         && (!("spares" in d) || (d.spares is int && d.spares >= 0 && d.spares <= 100))
         && (!("out" in d) || d.out is bool)
         && optText(d, "loadedBy", 128)
+        && (!("photoAt" in d) || (d.photoAt is int && d.where == "bar" && d.kind == "drink"))
         && d.by == me() && d.at is int;
     }
     match /stock/{id} {
@@ -349,6 +350,28 @@ service cloud.firestore {
         // A cooler out at a night is shared: anyone in the group can take a drink from it (or put one back on Undo).
         || (isMember() && resource.data.where == "cooler" && changed().hasOnly(["count", "by", "at"])));
       allow delete: if isMember() && (inHousehold(resource.data.hh) || isAdmin());
+    }
+
+    // A bar bottle's photo (small and full copies), same id as its stock document. The household takes and changes it;
+    // everyone can see it (the newest one shows on the drink's page).
+    function bottleOf(id) { return id.split("~"); }
+    function bottlePicOk(id, d, max) {
+      return bottleOf(id).size() == 4 && bottleOf(id)[1] == "bar" && bottleOf(id)[2] == "drink" && inHousehold(bottleOf(id)[0])
+        && d.keys().hasOnly(["src", "by", "at"]) && d.by == me() && d.at is int
+        && d.src is string && d.src.size() <= max && d.src.matches("data:image/jpeg;base64,.*");
+    }
+    function bottlePicGone(id) {
+      return isMember() && (inHousehold(bottleOf(id)[0]) || isAdmin() || !exists(householdPath(bottleOf(id)[0])));
+    }
+    match /bottlethumbs/{id} {
+      allow get: if isMember();
+      allow create, update: if bottlePicOk(id, request.resource.data, 80000);
+      allow delete: if bottlePicGone(id);
+    }
+    match /bottlephotos/{id} {
+      allow get: if isMember();
+      allow create, update: if bottlePicOk(id, request.resource.data, 600000);
+      allow delete: if bottlePicGone(id);
     }
 
     // ---------- Drink Nights (see js/nights.js) ----------

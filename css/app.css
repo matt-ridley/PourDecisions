@@ -266,6 +266,8 @@ a.member-row:active { background: var(--surface-2); }
 .meter.warn > i { background: var(--gold); }
 .meter.bad > i { background: #d9534f; }
 .bar-photo { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; }
+/* A bottle stands tall: show all of it rather than cropping the label. */
+.bar-photo.bottle { max-height: 320px; object-fit: contain; }
 .recap-lines { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 2px; }
 .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 32px; }
 .fold > summary::-webkit-details-marker { display: none; }

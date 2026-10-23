@@ -7,15 +7,15 @@ import { CATEGORIES } from "./catalog/styles.js";
 import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { ABOUT_CATEGORY, ABOUT_FAMILY } from "./catalog/about.js";
 import { adminDrinkTools } from "./moderation.js";
-import { search, filterItems, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor } from "./catalog.js";
+import { search, filterItems, browse, countIn, styleCount, itemById, allItems, aboutStyle, originName, styleOf, ingredientById, ingredientsOf, drinksFor, cocktailsUsing, missingFor, resolveId } from "./catalog.js";
 import { getUnits, setUnits, fmtAmount, fmtVolume, standardDrinks } from "./units.js";
-import { store, uid, isAdmin, memberName, renameVariant, loadThumb, updateMe } from "./cloud.js";
+import { store, uid, isAdmin, memberName, renameVariant, loadThumb, loadBottlePhoto, updateMe } from "./cloud.js";
 import { drinkHistory, recipeVolume, recipeAbv } from "./logs.js";
 import { madeVariants, variantCount, variantTitle, variantRecipe, changes, changeWords, makersOf, lineage, remixesOf, MAX_NAME,
   rankVariants, asItem, compareRows } from "./variants.js";
 import { ratingsCard, groupRatings, starText } from "./ratepage.js";
 import { haveSet } from "./makeablepage.js";
-import { householdOf } from "./stock.js";
+import { householdOf, bottlePhotoOf } from "./stock.js";
 import { pickWhere } from "./barpage.js";
 import { giftable, giveNext } from "./logpage.js";
 import { focusStyle } from "./thumbfocus.js";
@@ -231,7 +231,7 @@ export function renderDrink(main, id) {
   fill(main,
     crumbs(...styleTrail(d.style), [i.title]),
     el("section", { class: "hero card" },
-      el("span", { class: "hero-icon", text: i.category.icon }),
+      ...bottleHero(i),
       el("h2", { text: i.title }),
       el("p", { class: "muted", text: i.style.name }),
       drinkActions(i)),
@@ -239,6 +239,16 @@ export function renderDrink(main, id) {
     ratingsCard(i),
     useItIn(d),
     adminDrinkTools(i));
+}
+
+/* The top of a drink's page: the newest photo of a bottle of it in anyone's bar (and whose bar), or its icon. */
+function bottleHero(i) {
+  const s = bottlePhotoOf(store.stock, i.id, id => resolveId("drink", id));
+  const h = s && store.households.find(x => x.id === s.hh);
+  if (!s) return [el("span", { class: "hero-icon", text: i.category.icon })];
+  const img = el("img", { class: "bar-photo bottle", alt: i.title });
+  loadBottlePhoto(s).then(src => { if (src) img.src = src; else img.replaceWith(el("span", { class: "hero-icon", text: i.category.icon })); });
+  return [img, h ? el("a", { class: "muted small", href: `#/bar/${h.id}/bar`, text: `📷 From ${h.name}` }) : null];
 }
 
 /* Under a drink's name: Log it (how often you've had it), then add it to your fridge or bar, want to try it, or give

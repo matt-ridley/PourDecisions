@@ -69,7 +69,8 @@ const many = n => n === Infinity ? "lots of" : n.toLocaleString();
 
 /* Storage, and what each app open costs, against the free plan (on System info and Group admin). */
 export function freePlanCard() {
-  const photos = store.logs.filter(l => l.hasPhoto).length + store.households.filter(h => h.hasPhoto).length;
+  const photos = store.logs.filter(l => l.hasPhoto).length + store.households.filter(h => h.hasPhoto).length
+    + store.stock.filter(s => s.photoAt).length;
   const u = usage(collections(), photos);
   return el("section", { class: "card stack" },
     el("h3", { text: "📊 The free plan" }),

@@ -597,7 +597,10 @@ export function leaveHousehold(h) {
   const left = (h.members || []).filter(m => m !== uid());
   if (left.length) return updateHousehold(h.id, { members: left });
   const b = cloud.api.writeBatch(cloud.db);
-  for (const s of store.stock.filter(x => x.hh === h.id)) b.delete(ref("stock", s.id));
+  for (const s of store.stock.filter(x => x.hh === h.id)) {
+    b.delete(ref("stock", s.id));
+    if (s.photoAt) { b.delete(ref("bottlethumbs", s.id)); b.delete(ref("bottlephotos", s.id)); }
+  }
   b.delete(ref("households", h.id));
   write(b.commit());
 }
@@ -607,7 +610,42 @@ export function setStock(id, base, fields) { write(cloud.api.setDoc(ref("stock",
 export const changeStock = (id, fields) => write(cloud.api.updateDoc(ref("stock", id), { ...fields, ...stamp() }));
 /* Adds to (or, with a negative n, takes from) a fridge count. Increments add up even when made offline on two phones. */
 export const addToFridge = (id, n) => changeStock(id, { count: cloud.api.increment(n) });
-export const removeStock = id => write(cloud.api.deleteDoc(ref("stock", id)));
+/* Takes something out of a fridge or bar for good, with its bottle photo if it has one. */
+export function removeStock(id) {
+  const s = store.stock.find(x => x.id === id);
+  if (!s || !s.photoAt) return write(cloud.api.deleteDoc(ref("stock", id)));
+  const b = cloud.api.writeBatch(cloud.db);
+  b.delete(ref("stock", id)); b.delete(ref("bottlethumbs", id)); b.delete(ref("bottlephotos", id));
+  write(b.commit());
+}
+
+/* A bar bottle's photo: pics = { photo, thumb } (data URLs from shrinkPhoto) or null to remove it. The stock entry
+   keeps photoAt, so lists know there's one without downloading it. */
+export function setBottlePhoto(id, pics) {
+  const b = cloud.api.writeBatch(cloud.db), at = Date.now();
+  if (pics) {
+    b.set(ref("bottlethumbs", id), { src: pics.thumb, by: uid(), at });
+    b.set(ref("bottlephotos", id), { src: pics.photo, by: uid(), at });
+    b.update(ref("stock", id), { photoAt: at, ...stamp() });
+    // Shown from this phone's copy straight away, before (or without) a round trip.
+    bottleCache.set(`bottlethumbs|${id}|${at}`, Promise.resolve(pics.thumb));
+    bottleCache.set(`bottlephotos|${id}|${at}`, Promise.resolve(pics.photo));
+  } else {
+    b.delete(ref("bottlethumbs", id)); b.delete(ref("bottlephotos", id));
+    b.update(ref("stock", id), { photoAt: cloud.api.deleteField(), ...stamp() });
+  }
+  write(b.commit());
+}
+/* Loaded only when shown. Cached by id and photoAt, so a new photo is fetched and an unchanged one isn't. */
+const bottleCache = new Map();
+function loadBottlePic(name, s) {
+  const key = `${name}|${s.id}|${s.photoAt}`;
+  if (!bottleCache.has(key)) bottleCache.set(key, cloud.api.getDoc(ref(name, s.id))
+    .then(d => d.exists() ? d.data().src : null).catch(() => { bottleCache.delete(key); return null; }));
+  return bottleCache.get(key);
+}
+export const loadBottleThumb = s => loadBottlePic("bottlethumbs", s);
+export const loadBottlePhoto = s => loadBottlePic("bottlephotos", s);
 
 /* Takes a drink out of a fridge or cooler (n cans) or a bar bottle (ml poured; see pourFrom in stock.js).
    Returns { killed, undo }, or null when there's nothing left to take. Undo puts it back. */
