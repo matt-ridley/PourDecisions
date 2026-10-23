@@ -147,6 +147,29 @@ test("a bar's page: about, signature, menu and a photo kept in its own document"
   await assertSucceeds(deleteDoc(doc(db, "barphotos/h1")));
 });
 
+test("bottle photos: the household takes them for its bar bottles, everyone sees them", async () => {
+  await seedHouse();
+  const db = as(env, "member"), friend = as(env, "member2");
+  const ID = "h1~bar~drink~campari";
+  const bottle = { hh: "h1", where: "bar", kind: "drink", item: "campari", size: 750, left: 750, by: "member", at: Date.now() };
+  await assertSucceeds(setDoc(doc(db, `stock/${ID}`), bottle));
+  await assertSucceeds(updateDoc(doc(db, `stock/${ID}`), { photoAt: Date.now(), by: "member", at: Date.now() }));
+  await assertFails(setDoc(doc(db, "stock/h1~fridge~drink~molson-canadian"), beer("member", { photoAt: 1 })), "bar bottles only");
+  await assertFails(updateDoc(doc(db, `stock/${ID}`), { photoAt: "today", by: "member", at: Date.now() }));
+  const pic = by => ({ src: "data:image/jpeg;base64,AAAA", by, at: Date.now() });
+  await assertSucceeds(setDoc(doc(db, `bottlethumbs/${ID}`), pic("member")));
+  await assertSucceeds(setDoc(doc(db, `bottlephotos/${ID}`), pic("member")));
+  await assertFails(setDoc(doc(friend, `bottlephotos/${ID}`), pic("member2")), "only the household");
+  await assertFails(setDoc(doc(db, "bottlephotos/h1~fridge~drink~molson-canadian"), pic("member")), "bar bottles only");
+  await assertFails(setDoc(doc(db, "bottlephotos/nope~bar~drink~campari"), pic("member")), "not your household");
+  await assertFails(setDoc(doc(db, `bottlethumbs/${ID}`), { ...pic("member"), src: "data:image/jpeg;base64," + "A".repeat(80000) }), "small copy stays small");
+  await assertFails(setDoc(doc(db, `bottlephotos/${ID}`), { ...pic("member"), src: "data:image/png;base64,AAAA" }), "jpeg only");
+  await assertSucceeds(getDoc(doc(friend, `bottlephotos/${ID}`)), "everyone can see it");
+  await assertFails(deleteDoc(doc(friend, `bottlephotos/${ID}`)));
+  await assertSucceeds(deleteDoc(doc(db, `bottlephotos/${ID}`)));
+  await assertSucceeds(deleteDoc(doc(db, `bottlethumbs/${ID}`)));
+});
+
 test("orders: a guest orders, the household serves it or says no, the guest can take back a waiting one", async () => {
   await seedHouse();
   const host = as(env, "member"), guest = as(env, "member2");

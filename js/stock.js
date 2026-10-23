@@ -7,7 +7,8 @@
        fridge drink: count (cans or bottles; Firestore increments, so changes made offline add up), low (warn at or below)
        cooler drink: count, like the fridge. A household's cooler is loaded from its fridge for a night out, anyone in
                      the group can take a drink from it, and what's left goes back in the fridge afterwards.
-       bar drink:    size (bottle ml), left (ml in the open bottle), spares (sealed bottles of the same drink)
+       bar drink:    size (bottle ml), left (ml in the open bottle), spares (sealed bottles of the same drink),
+                     photoAt (when someone took a photo of it; the photo is in bottlethumbs and bottlephotos, same id)
        ingredient:   out (true = ran out; kept on the list so it's easy to restock)
      by and at: who changed it last, and when. */
 import { itemById, ingredientById, ingredientsOf, missingFor } from "./catalog.js";
@@ -33,6 +34,15 @@ export function stockIn(stock, hh, where) {
   const rows = stock.filter(s => s.hh === hh && s.where === where).map(s => ({ ...s, thing: thingOf(s) })).filter(s => s.thing);
   if (where !== "bar") return rows.sort((a, b) => (b.at || 0) - (a.at || 0));
   return rows.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "drink" ? -1 : 1) || a.thing.title.localeCompare(b.thing.title));
+}
+
+/* The newest photo anyone took of a bottle of this drink in their bar: its stock entry, or null.
+   resolve maps an old (merged) drink id to the one it now is. */
+export function bottlePhotoOf(stock, drinkId, resolve = id => id) {
+  let best = null;
+  for (const s of stock) if (s.where === "bar" && s.kind === "drink" && s.photoAt && resolve(s.item) === drinkId
+    && (!best || s.photoAt > best.photoAt)) best = s;
+  return best;
 }
 
 /* The drink (catalogue item) or ingredient an entry is for, as { title, ... }. */

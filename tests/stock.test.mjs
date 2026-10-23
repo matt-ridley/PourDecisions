@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { itemById } from "../js/catalog.js";
 import { coverMap, sortByHave } from "../js/makeable.js";
 import { allItems } from "../js/catalog.js";
-import { stockId, householdOf, defaultWhere, stockIn, level, levelText, onHand, isLow, fridgeCount, haveFromStock, homeless } from "../js/stock.js";
+import { stockId, householdOf, defaultWhere, stockIn, level, levelText, onHand, isLow, fridgeCount, haveFromStock, homeless, bottlePhotoOf } from "../js/stock.js";
 
 const covers = coverMap();
 const fridge = (item, count, extra = {}) => ({ id: stockId("h1", "fridge", "drink", item), hh: "h1", where: "fridge", kind: "drink", item, count, ...extra });
@@ -174,4 +174,14 @@ test("the LCBO run: what's low, plus the one thing missing for starred cocktails
   assert.equal(list[3].why, "For Whisky Sour (⭐ Me, Sue)");
   assert.ok(!list.some(r => r.why.includes("Rye and Ginger")), "ginger ale is already on the low list");
   assert.ok(runText(h, list).startsWith("🛒 LCBO run for The Basement\n- Molson Canadian (2 left)"));
+});
+
+test("a drink's page shows the newest photo of a bottle of it in anyone's bar", () => {
+  const mine = bottle("campari", 500, { photoAt: 10 });
+  const theirs = { ...bottle("campari", 750, { photoAt: 20 }), id: stockId("h2", "bar", "drink", "campari"), hh: "h2" };
+  const noPhoto = { ...bottle("campari", 750), id: stockId("h3", "bar", "drink", "campari"), hh: "h3" };
+  assert.equal(bottlePhotoOf([mine, theirs, noPhoto], "campari").hh, "h2");
+  assert.equal(bottlePhotoOf([mine, noPhoto], "campari").hh, "h1");
+  assert.equal(bottlePhotoOf([noPhoto, fridge("campari", 2, { photoAt: 30 })], "campari"), null, "fridge entries and bottles without one don't count");
+  assert.equal(bottlePhotoOf([{ ...mine, item: "old-campari" }], "campari", id => id === "old-campari" ? "campari" : id).hh, "h1", "merged drinks follow");
 });

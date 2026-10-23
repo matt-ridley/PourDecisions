@@ -2,10 +2,10 @@
    Everyone can look at every household; only its members change it. The data rules are in stock.js. */
 import { el, fill, icon, avatar, openSheet, closeSheet, toast, confirmButton, field, linkList } from "./ui.js";
 import { store, uid, cloud, memberName, createHousehold, updateHousehold, leaveHousehold, setStock, changeStock, addToFridge, removeStock,
-  loadCooler, unloadCooler, loadBarPhoto, setBarPhoto, placeOrder, cancelOrder, serveOrder } from "./cloud.js";
+  loadCooler, unloadCooler, loadBarPhoto, setBarPhoto, setBottlePhoto, loadBottleThumb, loadBottlePhoto, placeOrder, cancelOrder, serveOrder } from "./cloud.js";
 import { barIsOpen, orderable, queueOf, ordersBy, orderItem } from "./orders.js";
 import { makeForOrder } from "./makepage.js";
-import { shrinkPhoto } from "./photo.js";
+import { pickImage, shrinkPhoto } from "./photo.js";
 import { sortByHave } from "./makeable.js";
 import { currentCovers } from "./makeablepage.js";
 import { search, ingredientById, INGREDIENTS, normalize, allItems } from "./catalog.js";
@@ -388,7 +388,7 @@ function barCards(h, rows, mine) {
       el("h3", { text: `Bottles · ${bottles.length}` }),
       bottles.length ? el("ul", { class: "item-list" }, ...bottles.map(s => el("li", {},
         el("button", { type: "button", class: "item-row plain", disabled: !mine, onclick: () => bottleSheet(s) },
-          el("span", { class: "item-icon", text: thingIcon(s) }),
+          bottleThumb(s),
           el("span", { class: "grow" }, el("b", { text: s.thing.title }),
             el("span", { class: "muted small", text: [mlText(s.size), s.spares ? `+${plural(s.spares, "spare")}` : ""].filter(Boolean).join(" · ") })),
           gauge(s)))))
@@ -412,17 +412,54 @@ function gauge(s) {
     el("b", { class: "small", text: levelText(s) }));
 }
 
+/* A bottle's photo in a list (the small copy), or its icon when it has none. */
+function bottleThumb(s) {
+  if (!s.photoAt) return el("span", { class: "item-icon", text: thingIcon(s) });
+  const img = el("img", { class: "log-thumb", alt: "", loading: "lazy" });
+  loadBottleThumb(s).then(src => { if (src) img.src = src; else img.replaceWith(el("span", { class: "item-icon", text: thingIcon(s) })); });
+  return img;
+}
+
+/* The photo part of the bottle sheet: tap it (or Camera) to take one, Gallery to pick one. Saved straight away. */
+function bottlePhoto(cur, redraw) {
+  const msg = el("p", { class: "msg", role: "status" });
+  const area = el("button", { type: "button", class: "photo-pick", "aria-label": cur.photoAt ? "Retake the photo with the camera" : "Take a photo of this bottle",
+    onclick: () => take(true) });
+  if (cur.photoAt) {
+    const img = el("img", { alt: `Your ${cur.thing.title}` });
+    loadBottlePhoto(cur).then(src => { if (src) img.src = src; });
+    area.append(img);
+  } else area.append(el("div", { class: "photo-empty" }, el("span", { html: icon.camera }), el("span", { text: "Tap to take a photo of your bottle" })));
+  const take = async camera => {
+    const file = await pickImage({ camera });
+    if (!file) return;
+    msg.className = "msg ok"; msg.textContent = "Preparing photo…";
+    try { setBottlePhoto(cur.id, await shrinkPhoto(file)); msg.textContent = ""; toast("Photo saved 📷"); later(redraw); }
+    catch (e) { console.warn(e); msg.className = "msg err"; msg.textContent = "That photo couldn't be read. Try another one."; }
+  };
+  return el("div", { class: "stack" }, area,
+    el("div", { class: "row" },
+      el("button", { class: "btn", type: "button", html: icon.camera, onclick: () => take(true) }, "Camera"),
+      el("button", { class: "btn", type: "button", html: icon.image, onclick: () => take(false) }, "Gallery"),
+      cur.photoAt ? el("button", { class: "btn", type: "button", text: "Remove", onclick: () => { setBottlePhoto(cur.id, null); later(redraw); } }) : null),
+    msg);
+}
+
 function bottleSheet(s) {
   openSheet(box => {
+    let shown;
     const draw = () => {
       const now = store.stock.find(x => x.id === s.id);
       if (!now) return closeSheet();
       const cur = { ...s, ...now }, f = level(cur);
+      // Keeps the photo element across redraws unless the photo itself changed, so it doesn't flicker on every tap.
+      if (!shown || shown.at !== cur.photoAt) shown = { at: cur.photoAt, node: bottlePhoto(cur, draw) };
       fill(box, el("div", { class: "stack" },
         el("h2", { text: s.thing.title }),
         f > 0 || cur.spares ? el("div", { class: "row" },
           el("button", { class: "btn primary", type: "button", text: `${thingIcon(s)} Pour one`, onclick: () => { drinkOne(s.thing.item, cur); closeSheet(); } }),
           giveButton(cur, s.thing)) : null,
+        shown.node,
         el("h3", { text: "How full" }),
         el("div", { class: "seg small", role: "group", "aria-label": "How full" }, ...LEVELS.map(([q, label]) =>
           el("button", { type: "button", "aria-pressed": String(f === q), text: label, onclick: () => { changeStock(s.id, { left: Math.round(cur.size * q) }); later(draw); } }))),

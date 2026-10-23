@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.20.0 (beta)
+**Current version:** 0.21.0 (beta)
 
 ## Features
 
@@ -82,7 +82,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
 - **🏠 Your bar & fridge.** The **Bar** tab. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
   - **🧊 Fridge:** beer, cider and cans, counted. **−** and **+** on each, and tap one to **reload** (+1, 6, 12, 15, 24 or 30), set a **running low** warning, empty it or remove it. The most recently changed come first. Counts add up correctly even when two phones change them with no signal.
-  - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
+  - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. **📷 Take a photo** of it there (Camera or Gallery): the bar list shows it, and the drink's page in the Catalogue shows the newest photo anyone has taken of that bottle. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
   - **Drinks come out as you have them:** **Drink one** on a fridge drink (or **Pour one** on a bottle) logs it for you in its usual size and takes it out. Logging a drink you have at home asks **From home?** (picked for you unless you're somewhere), and **Make it** lists your own bottles first and takes what you pour out of them (a beer per serving from the fridge for a Boilermaker). Undo puts it back.
   - **❄️ Cooler:** heading out? **Load the cooler** from your fridge (pick how many of each, or All). Drinks then come out of the cooler, and anyone in the group can **Drink one** from it: it shows under **Coolers out** on Everyone's bars, and logging a drink that's in a cooler offers it. **Back in the fridge** puts whatever's left back when you're home.
   - **🎁 Give one:** next to Drink one on the fridge, bar and your cooler. Pick a friend: it's logged for them, comes out of your stock and goes on the Tab. When logging, **Who's it for?** does the same for any drink. The friend gets an alert, the feed shows who it was from, and the giver can delete it.
@@ -315,6 +315,7 @@ npm run deploy:rules
 - Bar Menu orders are stored in `orders` (the bar, who ordered, what, a note, waiting / served / cancelled, who served it and the log).
 - Bring lists are stored in `bring` (night, who's bringing it, what, how many, arrived).
 - Drink Nights are stored in `nights` (host, name, place, start, optional end, who's there). Their drinks aren't marked on the logs: they're worked out from who's there and when.
+- A bar bottle's photo is in `bottlethumbs` (small copy) and `bottlephotos` (full one), with the same id as its stock document; the stock document keeps `photoAt` so lists know there's one without downloading it.
 - A bar's page (about, signature drink, menu) is on its household's document; its photo is in `barphotos` (same id), so it isn't downloaded every time the app opens.
 - Households are stored in `households` (name and members). What's in each fridge and bar is stored in `stock`, one document per thing (id `household~fridge|bar|cooler~drink|ing~item`): a fridge count, a bottle's size, ml left and spares, or whether an ingredient is out.
 - Each phone also keeps its own unsent logs (with photos) in the browser's IndexedDB until the group has them.
@@ -395,6 +396,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.21.0** (2026-Oct-23): **📷 Bottle photos.** Tap a bottle in your bar and take a photo of it with **Camera** (or tap the photo area) or pick one with **Gallery**; **Remove** takes it away. The bar list shows the bottle's photo instead of its icon, and the drink's page in the Catalogue shows the newest bottle photo anyone in the group has taken, with whose bar it's from. Removing the bottle from the bar removes its photo too. Bottle photos count in the free-plan storage meter. **Changed `firestore.rules`** (new `bottlethumbs` and `bottlephotos`, and an optional `photoAt` on bar bottles).
 
 - **0.20.0** (2026-Oct-18): **Logging asks first.** The Log tab no longer opens on the search box (and the keyboard). It asks how: **Having another?** opens your recent drinks with **Again**; **From home** asks which one (**The cooler** first when yours or a friend's is out, then **Your fridge** and **Your bar**) and opens what's in it, with **Drink one** (or **Pour one** for a bottle) or tap a drink for the form; **Search the catalogue** opens the search on its own page. Back steps back through each question. No new security rules.
 
