@@ -5,7 +5,8 @@
    Starting from a variant (/<variant>) fills in its bottles and amounts: change anything and the new one is a remix of it. */
 import { el, fill, icon, toast, openSheet, closeSheet, avatar } from "./ui.js";
 import { store, uid, memberName, saveLog, deleteLog, saveVariant, takeOut, serveOrder } from "./cloud.js";
-import { householdOf, sourcesFor, makePours, levelText, fridgeCount } from "./stock.js";
+import { sourcesFor, makePours, levelText, fridgeCount } from "./stock.js";
+import { myPlace, placeWord } from "./myplace.js";
 import { ML_PER_OZ } from "./units.js";
 import { itemById, rawItem, drinksFor, ingredientById, ingredientsOf, search, normalize, INGREDIENTS } from "./catalog.js";
 import { COCKTAILS } from "./catalog/cocktails.js";
@@ -55,10 +56,10 @@ export function renderMake(main, id, fromId) {
   const build = () => buildVariant(recipe, rows(), { glass: s.glass, garnish: s.garnish, name: nameIn.value, from: start ? from.id : null });
   const existingOf = v => v && itemById("variant", v.id); // follows merges to the variant kept
   const servings = () => servingsFor(s.servings, s.drinkers);
-  // Your household's bar and fridge: their bottles come first in the picker, and what you pour comes out of them.
-  const hh = (householdOf(store.households, me) || {}).id;
+  // The bar and fridge of the place you're using: their bottles come first in the picker, and what you pour comes out of them.
+  const place = myPlace(), hh = (place || {}).id;
   const homeOf = drinkId => sourcesFor(store.stock, hh, drinkId).sort((a, b) => (a.where === "bar" ? 0 : 1) - (b.where === "bar" ? 0 : 1))[0];
-  const homeText = e => e.where === "bar" ? `In your bar · ${levelText(e)}` : `In your fridge · ${fridgeCount(e)}`;
+  const homeText = e => e.where === "bar" ? `In ${placeWord(place, "bar").replace(/^Your/, "your")} · ${levelText(e)}` : `In ${placeWord(place, "fridge").replace(/^Your/, "your")} · ${fridgeCount(e)}`;
 
   /* ---------- Ingredients ---------- */
   const units = () => getUnits();

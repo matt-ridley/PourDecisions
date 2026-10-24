@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.21.0 (beta)
+**Current version:** 0.22.0 (beta)
 
 ## Features
 
@@ -81,6 +81,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
   - **Mixologist stats** on each profile: cocktails made, variants created, times friends made them, the average rating they get, and House Pours held.
 - **Adding a drink.** Not in the list? Add it (brand, name, flavour, style, alcohol % and where it's from) and it's on the list for everyone. The form shows similar drinks already in the list. Only admins can add styles.
 - **🏠 Your bar & fridge.** The **Bar** tab. Start one for yourself, or share it with the people you live with (Household settings › Add someone). Everyone in the group can see every bar (**Everyone's bars**), and only the people who live there change it. Everything in a household is shared.
+  - **🏠 More than one place:** **Add another place** (a cottage, a trailer) gives it its own fridge, bar, cooler and people; anyone can be in several places. With more than one, chips at the top switch place, and the app remembers the one you used last on that phone: the Bar tab, From home, Make it, What can I make, the LCBO run and adding a drink all follow it. Logging a drink offers it from any of your places, running-low alerts and orders cover them all, and profiles list every place someone's in.
   - **🧊 Fridge:** beer, cider and cans, counted. **−** and **+** on each, and tap one to **reload** (+1, 6, 12, 15, 24 or 30), set a **running low** warning, empty it or remove it. The most recently changed come first. Counts add up correctly even when two phones change them with no signal.
   - **🍾 Bar:** bottles shown by how full they are (Full, ¾, ½, ¼, Empty) with their size, plus sealed spares. Tap a bottle to set the level, count spares, **Open a new bottle** when one's empty, or change the size. **📷 Take a photo** of it there (Camera or Gallery): the bar list shows it, and the drink's page in the Catalogue shows the newest photo anyone has taken of that bottle. Mixers, juices, syrups, bitters and garnishes go in too, as **Have it** or **Out**.
   - **Drinks come out as you have them:** **Drink one** on a fridge drink (or **Pour one** on a bottle) logs it for you in its usual size and takes it out. Logging a drink you have at home asks **From home?** (picked for you unless you're somewhere), and **Make it** lists your own bottles first and takes what you pour out of them (a beer per serving from the fridge for a Boilermaker). Undo puts it back.
@@ -396,6 +397,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.22.0** (2026-Oct-23): **🏠 More than one place.** **Add another place** on the Bar tab starts a second household (the cottage) with its own fridge, bar, cooler and people, and Household settings can now add anyone in the group, even people who already have a place. With more than one place, chips switch between them and the last one you used is remembered on this phone; From home, Make it, What can I make, the LCBO run, hosting a night and a drink page's 🏠 Add follow it. The log form offers the drink from any of your places, running-low alerts and Bar Menu orders cover every place you're in, a night at your cottage pours its rounds from the cottage, planning a night counts every guest's places, and profiles list all of someone's places. No new security rules.
 
 - **0.21.0** (2026-Oct-23): **📷 Bottle photos.** Tap a bottle in your bar and take a photo of it with **Camera** (or tap the photo area) or pick one with **Gallery**; **Remove** takes it away. The bar list shows the bottle's photo instead of its icon, and the drink's page in the Catalogue shows the newest bottle photo anyone in the group has taken, with whose bar it's from. Removing the bottle from the bar removes its photo too. Bottle photos count in the free-plan storage meter. **Changed `firestore.rules`** (new `bottlethumbs` and `bottlephotos`, and an optional `photoAt` on bar bottles).
 

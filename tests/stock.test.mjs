@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { itemById } from "../js/catalog.js";
 import { coverMap, sortByHave } from "../js/makeable.js";
 import { allItems } from "../js/catalog.js";
-import { stockId, householdOf, defaultWhere, stockIn, level, levelText, onHand, isLow, fridgeCount, haveFromStock, homeless, bottlePhotoOf } from "../js/stock.js";
+import { stockId, householdOf, defaultWhere, stockIn, level, levelText, onHand, isLow, fridgeCount, haveFromStock, notIn, householdsOf, bottlePhotoOf } from "../js/stock.js";
 
 const covers = coverMap();
 const fridge = (item, count, extra = {}) => ({ id: stockId("h1", "fridge", "drink", item), hh: "h1", where: "fridge", kind: "drink", item, count, ...extra });
@@ -15,11 +15,12 @@ test("stock ids name the household, where, kind and item", () => {
   assert.equal(stockId("h1", "bar", "ing", "lime-juice"), "h1~bar~ing~lime-juice");
 });
 
-test("someone's household, and who isn't in one yet", () => {
-  const hs = [{ id: "h1", members: ["a", "b"] }, { id: "h2", members: ["c"] }];
+test("someone's places (A to Z), and who could be added to one", () => {
+  const hs = [{ id: "h1", name: "Home", members: ["a", "b"] }, { id: "h2", name: "Cottage", members: ["c", "a"] }];
+  assert.deepEqual(householdsOf(hs, "a").map(h => h.id), ["h2", "h1"], "in two places");
   assert.equal(householdOf(hs, "b").id, "h1");
   assert.equal(householdOf(hs, "z"), null);
-  assert.deepEqual(homeless([{ id: "a" }, { id: "z" }], hs).map(m => m.id), ["z"]);
+  assert.deepEqual(notIn([{ id: "a" }, { id: "c" }, { id: "z" }], hs[0]).map(m => m.id), ["c", "z"], "people in other places can be added");
 });
 
 test("beer goes in the fridge, whisky in the bar", () => {
@@ -148,6 +149,12 @@ test("planning a night: everyone's bars together, and what to borrow from whom",
   const sour = cocktailOf("cocktail", "whisky-sour").data;
   const needs = borrowNeeds(sour, bars[0].have, bars);
   assert.deepEqual(needs.map(n => [n.line.ing.join(), n.from.map(b => b.hh)]), [["lemon-juice", ["h2"]], ["simple-syrup", ["h2"]]]);
+});
+
+test("planning a night: someone with two places brings both bars", () => {
+  const hs = [{ id: "h1", name: "Home", members: ["me"] }, { id: "h2", name: "Cottage", members: ["me", "dave"] }];
+  const bars = nightBars([], hs, ["me", "dave"], covers);
+  assert.deepEqual(bars.map(b => [b.hh, b.people]), [["h2", ["me", "dave"]], ["h1", ["me"]]]);
 });
 
 import { menuOf, signatureOf } from "../js/stock.js";

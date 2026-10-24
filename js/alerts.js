@@ -79,7 +79,7 @@ export function alertsFor(me, { logs = [], cheers = [], comments = [], ratings =
   // Bar Menu orders: new ones for your bar, and yours served.
   for (const o of orders) {
     if (!recent(o)) continue;
-    if (o.hh === myHh && o.by !== me && o.state === "waiting") out.push({ kind: "order", at: o.at, from: [o.by], order: o });
+    if ([].concat(myHh).includes(o.hh) && o.by !== me && o.state === "waiting") out.push({ kind: "order", at: o.at, from: [o.by], order: o });
     if (o.by === me && o.state === "served" && o.servedBy && o.servedBy !== me) out.push({ kind: "served", at: o.at, from: [o.servedBy], order: o });
   }
   // The morning after a Drink Night (until noon; see nights.js mornings).

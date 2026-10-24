@@ -8,7 +8,7 @@ import { logRow } from "./logpage.js";
 import { mixologistStats } from "./variants.js";
 import { varietyCard, volumeCard, tryNextCard } from "./statspage.js";
 import { groupRatings, starText } from "./ratepage.js";
-import { householdOf, stockIn, fridgeCount, emptiesOf, onHand } from "./stock.js";
+import { householdsOf, stockIn, fridgeCount, emptiesOf, onHand } from "./stock.js";
 import { itemById } from "./catalog.js";
 import { tabLine } from "./tabpage.js";
 
@@ -146,13 +146,15 @@ function emptiesCard(id) {
     all.length > 24 ? el("p", { class: "muted small", text: `And ${all.length - 24} more.` }) : null);
 }
 
-/* The household a friend is in, with what's in it. */
+/* The households (places) someone is in, with what's in each. */
 function barLink(id) {
-  const h = householdOf(store.households, id);
-  if (!h) return null;
-  const f = stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0);
-  const b = stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length;
-  return linkList([{ icon: "🏠", title: h.name, sub: `${f} in the fridge · ${b} bottle${b === 1 ? "" : "s"} in the bar`, href: `#/bar/${h.id}/fridge` }]);
+  const hs = householdsOf(store.households, id);
+  if (!hs.length) return null;
+  return linkList(hs.map(h => {
+    const f = stockIn(store.stock, h.id, "fridge").reduce((n, s) => n + fridgeCount(s), 0);
+    const b = stockIn(store.stock, h.id, "bar").filter(s => s.kind === "drink").length;
+    return { icon: "🏠", title: h.name, sub: `${f} in the fridge · ${b} bottle${b === 1 ? "" : "s"} in the bar`, href: `#/bar/${h.id}/fridge` };
+  }));
 }
 
 /* Cocktails made, variants created, how often friends made them, how they're rated, and House Pours held. */

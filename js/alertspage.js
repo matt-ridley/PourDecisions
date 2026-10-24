@@ -9,7 +9,8 @@ import { variantTitle } from "./variants.js";
 import { titleOf } from "./logpage.js";
 import { groupCrowns } from "./statspage.js";
 import { CROWN_INDEX } from "./crowns.js";
-import { householdOf, lowStock, fridgeCount, levelText } from "./stock.js";
+import { lowStock, fridgeCount, levelText } from "./stock.js";
+import { myPlaces } from "./myplace.js";
 import { mornings } from "./nights.js";
 import { orderItem } from "./orders.js";
 import { logStd } from "./logs.js";
@@ -20,9 +21,9 @@ function myAlerts() {
   const key = [uid(), store.logs, store.cheers, store.comments, store.ratings, store.variants, store.stock, store.households, store.nights, store.orders, Math.floor(Date.now() / 600000)];
   if (key.some((k, n) => k !== memo.key[n])) {
     memo = { key, list: alertsFor(uid(), { logs: store.logs, cheers: store.cheers, comments: store.comments, ratings: groupRatings(), crowns: groupCrowns().changes,
-      low: (h => h ? lowStock(store.stock, h.id) : [])(householdOf(store.households, uid())),
+      low: myPlaces().flatMap(h => lowStock(store.stock, h.id)),
       mornings: mornings(store.nights, store.logs, uid(), logStd),
-      orders: store.orders, myHh: (householdOf(store.households, uid()) || {}).id }) };
+      orders: store.orders, myHh: myPlaces().map(h => h.id) }) };
   }
   return memo.list;
 }

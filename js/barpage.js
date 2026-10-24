@@ -10,7 +10,8 @@ import { sortByHave } from "./makeable.js";
 import { currentCovers } from "./makeablepage.js";
 import { search, ingredientById, INGREDIENTS, normalize, allItems } from "./catalog.js";
 import { drinkOne, giftable } from "./logpage.js";
-import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, householdOf, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, homeless, coolerTotal,
+import { myPlace, isMyPlace, setMyPlace, placeSwitch } from "./myplace.js";
+import { RELOADS, BOTTLE_SIZES, LEVELS, stockId, defaultWhere, stockIn, fridgeCount, isLow, level, levelText, notIn, coolerTotal,
   menuOf, signatureOf, haveFromStock, runList } from "./stock.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -22,13 +23,15 @@ const thingIcon = s => s.kind === "ing" ? KIND_ICONS[s.thing.ing.kind] || "🍹"
 const memberList = h => (h.members || []).filter(id => store.members.has(id));
 const peopleText = h => memberList(h).map(memberName).join(" & ") || "Nobody yet";
 
-/* #/bar: your household's bar and fridge, or starting one. #/bar/<id>/<tab>: anyone's. */
+/* #/bar: your household's bar and fridge (the place you're using, when you have more than one), or starting one.
+   #/bar/<id>/<tab>: anyone's. */
 export function renderBar(main, hhId, tab) {
-  const mineHh = householdOf(store.households, uid());
-  const h = hhId ? store.households.find(x => x.id === hhId) : mineHh;
+  const h = hhId ? store.households.find(x => x.id === hhId) : myPlace();
   if (!h) return hhId ? fill(main, el("div", { class: "card" }, el("p", { text: "That household isn't here any more." })), allLink())
     : renderStart(main);
   const mine = (h.members || []).includes(uid());
+  // Opening one of your places makes it the one you're using (From home, Make it and the rest follow it).
+  if (mine) setMyPlace(h.id);
   tab = tab === "bar" || tab === "cooler" ? tab : "fridge";
   const fridge = stockIn(store.stock, h.id, "fridge"), bar = stockIn(store.stock, h.id, "bar"), cooler = stockIn(store.stock, h.id, "cooler");
   const base = `#/bar/${h.id}`;
@@ -37,6 +40,7 @@ export function renderBar(main, hhId, tab) {
   const photo = h.hasPhoto ? el("img", { class: "bar-photo", alt: `${h.name}` }) : null;
   if (photo) loadBarPhoto(h.id).then(src => { if (src) photo.src = src; else photo.remove(); });
   fill(main,
+    mine ? placeSwitch(h, p => { location.hash = `#/bar/${p.id}/${tab}`; }) : null,
     el("section", { class: "hero card" },
       photo || el("span", { class: "hero-icon", text: "🏠" }),
       el("h2", { text: h.name }),
@@ -73,6 +77,7 @@ export function renderBar(main, hhId, tab) {
     mine ? el("div", { class: "row" },
       el("button", { class: "btn grow", type: "button", text: "Edit the bar's page", onclick: () => pageSheet(h) }),
       el("button", { class: "btn grow", type: "button", html: icon.gear, "aria-label": "Household settings", onclick: () => settingsSheet(h) }, "Household")) : null,
+    mine ? el("button", { class: "btn block", type: "button", html: icon.plus, onclick: newPlaceSheet }, "Add another place") : null,
     allLink());
 }
 
@@ -87,17 +92,36 @@ function renderStart(main) {
       el("p", { text: "Keep track of what's in your fridge and your bar: the beer counted, the bottles by how full they are, and the mixers and juices on hand. Then see which cocktails you can make." }),
       el("p", { class: "hint", text: "Live with someone in the group? Start one and add them: you'll share it. Everyone in the group can see every bar." }),
       field("Name", name, "e.g. The Basement"),
-      el("button", { class: "btn primary block", type: "button", text: "Start my bar & fridge", onclick: () => {
-        const id = createHousehold(name.value);
-        location.hash = `#/bar/${id}/fridge`;
-      } })),
+      el("button", { class: "btn primary block", type: "button", text: "Start my bar & fridge", onclick: () => startPlace(name.value) })),
     allLink());
+}
+
+const startPlace = name => {
+  const id = createHousehold(name);
+  setMyPlace(id);
+  location.hash = `#/bar/${id}/fridge`;
+};
+
+/* Another place of yours (the cottage, the boat): its own fridge, bar, cooler and people. */
+function newPlaceSheet() {
+  openSheet(box => {
+    const name = el("input", { type: "text", maxlength: 40, autocapitalize: "words", placeholder: "e.g. The Cottage", "data-focus": "" });
+    box.append(el("div", { class: "stack" },
+      el("h2", { text: "Add another place" }),
+      el("p", { class: "muted", text: "A cottage, a trailer, the office: it gets its own fridge, bar and cooler. Add the people who share it in its Household settings." }),
+      field("Name", name),
+      el("button", { class: "btn primary block", type: "button", text: "Start it", onclick: () => {
+        if (!name.value.trim()) return name.focus();
+        closeSheet(); startPlace(name.value);
+      } }),
+      el("button", { class: "btn quiet block", type: "button", text: "Cancel", onclick: closeSheet })));
+  });
 }
 
 /* #/bars: every household, with what's in it. */
 export function renderBars(main) {
   const hs = [...store.households].sort((a, b) => a.name.localeCompare(b.name));
-  const mine = householdOf(store.households, uid());
+  const mine = myPlace();
   const out = hs.filter(h => coolerTotal(store.stock, h.id) > 0);
   fill(main,
     el("h2", { class: "page-title", text: "🏠 Everyone's bars" }),
@@ -537,6 +561,7 @@ export function pickWhere(h, i, tab, { stay = false } = {}) {
       let size = (have && have.size) || 750;
       fill(box, el("div", { class: "stack" },
         el("h2", { text: i.title }),
+        isMyPlace(h.id) ? placeSwitch(h, p => { h = p; draw(); }) : null,
         el("div", { class: "seg small", role: "group", "aria-label": "Where" }, ...[["fridge", "🧊 Fridge"], ["bar", "🍾 Bar"]].map(([k, label]) =>
           el("button", { type: "button", "aria-pressed": String(where === k), text: label, onclick: () => { where = k; draw(); } }))),
         where === "fridge"
@@ -565,8 +590,8 @@ export function pickWhere(h, i, tab, { stay = false } = {}) {
 function settingsSheet(h) {
   openSheet(box => {
     const name = el("input", { type: "text", maxlength: 40, autocapitalize: "words", value: h.name });
-    const free = homeless([...store.members.values()].filter(m => !m.suspended), store.households);
-    const add = el("select", { "aria-label": "Add someone" }, el("option", { value: "", text: free.length ? "Pick someone…" : "Everyone already has a household" }),
+    const free = notIn([...store.members.values()].filter(m => !m.suspended), h).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const add = el("select", { "aria-label": "Add someone" }, el("option", { value: "", text: free.length ? "Pick someone…" : "Everyone's already in" }),
       ...free.map(m => el("option", { value: m.id, text: m.displayName })));
     box.append(el("div", { class: "stack" },
       el("h2", { text: "Household settings" }),
@@ -574,7 +599,7 @@ function settingsSheet(h) {
       el("button", { class: "btn primary", type: "button", text: "Save name", onclick: () => { updateHousehold(h.id, { name: name.value }); closeSheet(); } }),
       el("h3", { text: "Who lives here" }),
       el("p", { class: "muted", text: peopleText(h) }),
-      field("Add someone you live with", add, "They share this fridge and bar and can change them. People already in a household aren't listed."),
+      field("Add someone who shares it", add, "They share this fridge and bar and can change them. They keep any other places they're in."),
       el("button", { class: "btn", type: "button", text: "Add them", disabled: !free.length, onclick: () => {
         if (!add.value) return;
         updateHousehold(h.id, { members: [...(h.members || []), add.value] }); closeSheet();

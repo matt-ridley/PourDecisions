@@ -6,7 +6,8 @@ import { INGREDIENT_KINDS } from "./catalog/ingredients.js";
 import { allItems, normalize } from "./catalog.js";
 import { coverMap, expandHave, usesIngredient, sortByHave, bestBuys, checklistIngredients } from "./makeable.js";
 import { store, uid } from "./cloud.js";
-import { householdOf, haveFromStock, stockIn, onHand } from "./stock.js";
+import { haveFromStock, stockIn, onHand } from "./stock.js";
+import { myPlace, myPlaces, setMyPlace } from "./myplace.js";
 
 const KEY = "pour-have";
 const KIND_ICONS = { spirit: "🥃", liqueur: "🍶", wine: "🍷", beer: "🍺", mixer: "🥤", juice: "🍋", syrup: "🍯", bitters: "💧",
@@ -34,7 +35,7 @@ let lastSource = null;
 function sourceOf(arg) {
   const want = arg || lastSource;
   if (want === "list") return null;
-  return store.households.find(h => h.id === want) || householdOf(store.households, uid());
+  return store.households.find(h => h.id === want) || myPlace();
 }
 
 /* Everything you have, or null when there's nothing to go on (so other pages can skip badges). */
@@ -55,6 +56,7 @@ const isMocktail = i => i.style && i.style.id === "mocktail";
 export function renderMakeable(main, arg) {
   const hh = sourceOf(arg);
   lastSource = hh ? hh.id : "list";
+  if (hh && (hh.members || []).includes(uid())) setMyPlace(hh.id); // one of your places: it's the one you're using now
   const have = ticked(), cov = currentCovers(), list = checklistIngredients();
   const results = el("div", { class: "stack" }), count = el("span", { class: "muted small" });
 
@@ -112,11 +114,11 @@ export function renderMakeable(main, arg) {
     ...[...list].sort((a, b) => a.name.localeCompare(b.name)).map(g => el("option", { value: g.id, text: g.name, selected: g.id === must })));
   pick.addEventListener("change", () => { must = pick.value; draw(); });
 
-  // From: your household first, then everyone else's, then the checklist.
-  const mine = householdOf(store.households, uid());
-  const others = store.households.filter(h => h !== mine).sort((a, b) => a.name.localeCompare(b.name));
+  // From: your places first, then everyone else's, then the checklist.
+  const minePlaces = myPlaces(), mine = minePlaces[0] || null;
+  const others = store.households.filter(h => !minePlaces.includes(h)).sort((a, b) => a.name.localeCompare(b.name));
   const from = el("select", { "aria-label": "From" },
-    mine ? el("option", { value: mine.id, text: `Your bar & fridge (${mine.name})`, selected: hh === mine }) : null,
+    ...minePlaces.map(p => el("option", { value: p.id, text: `Your bar & fridge (${p.name})`, selected: hh === p })),
     ...others.map(h => el("option", { value: h.id, text: h.name, selected: hh === h })),
     el("option", { value: "list", text: mine ? "Planning: tick by hand" : "A checklist I tick by hand", selected: !hh }));
   from.addEventListener("change", () => { location.hash = `#/makeable/${from.value}`; });

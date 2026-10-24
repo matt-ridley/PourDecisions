@@ -3,7 +3,8 @@
    "Another one" shortcut. */
 import { el, fill, icon, field, toast, linkList, openSheet, closeSheet, confirmButton, avatar, fmtDate, fmtAgo } from "./ui.js";
 import { store, uid, isAdmin, memberName, saveLog, updateLog, deleteLog, addPlace, addDrink, loadThumb, loadPhoto, takeOut } from "./cloud.js";
-import { householdOf, sourcesFor, coolersWith, levelText, fridgeCount, onHand, stockIn } from "./stock.js";
+import { sourcesFor, coolersWith, levelText, fridgeCount, onHand, stockIn } from "./stock.js";
+import { myPlace, myPlaces, isMyPlace, placeSwitch, placeWord } from "./myplace.js";
 import { myLiveNight } from "./nights.js";
 import { search, itemById, allItems } from "./catalog.js";
 import { CATEGORIES } from "./catalog/styles.js";
@@ -63,14 +64,15 @@ export function anotherOne(log) {
   toast(`Another ${titleOf(log)} logged 🍻`, { label: "Undo", run: () => deleteLog(id) });
 }
 
-/* ---------- Drinks from home: your household's fridge and bar ---------- */
-const myHousehold = () => householdOf(store.households, uid());
+/* ---------- Drinks from home: your households' fridges and bars ---------- */
+// The place you're using (see myplace.js); you may have more than one.
+const myHousehold = myPlace;
+// "Yours" with one place; the place's name when you have several (or it's a friend's).
+const coolerName = h => isMyPlace(h.id) && myPlaces().length < 2 ? "Your cooler" : `${h.name} cooler`;
 function sourceLabel(e) {
-  if (e.where === "cooler") {
-    const mine = e.hh === (myHousehold() || {}).id, h = store.households.find(x => x.id === e.hh);
-    return `❄️ ${mine ? "Your cooler" : `${h ? h.name : "A"} cooler`} (${fridgeCount(e)} left)`;
-  }
-  return e.where === "fridge" ? `🧊 Your fridge (${fridgeCount(e)} left)` : `🍾 Your bar (${levelText(e)})`;
+  const h = store.households.find(x => x.id === e.hh);
+  if (e.where === "cooler") return `❄️ ${h ? coolerName(h) : "A cooler"} (${fridgeCount(e)} left)`;
+  return e.where === "fridge" ? `🧊 ${placeWord(h, "fridge")} (${fridgeCount(e)} left)` : `🍾 ${placeWord(h, "bar")} (${levelText(e)})`;
 }
 
 /* Takes the drink out of the fridge or bar it came from and adds where it came from (and a bottle it emptied) to the
@@ -80,7 +82,7 @@ function fromHome(fields, entry) {
   if (!t) return () => {};
   fields.from = entry.id;
   // A drink from a friend's cooler is on the Tab: whoever loaded it gave it to you (not when it's your own household's).
-  if (entry.where === "cooler" && !fields.uid && entry.loadedBy && entry.loadedBy !== uid() && entry.hh !== (myHousehold() || {}).id)
+  if (entry.where === "cooler" && !fields.uid && entry.loadedBy && entry.loadedBy !== uid() && !isMyPlace(entry.hh))
     fields.givenBy = entry.loadedBy;
   if (t.killed) fields.killed = [fields.drinkId];
   return t.undo;
@@ -171,9 +173,8 @@ function renderAgain(main) {
 
 /* Coolers that are out with drinks in them: yours first, then friends' (A to Z). */
 function loadedCoolers() {
-  const mine = (myHousehold() || {}).id;
   return store.households.filter(h => store.stock.some(s => s.hh === h.id && s.where === "cooler" && s.kind === "drink" && fridgeCount(s) > 0))
-    .sort((a, b) => (b.id === mine) - (a.id === mine) || a.name.localeCompare(b.name));
+    .sort((a, b) => isMyPlace(b.id) - isMyPlace(a.id) || a.name.localeCompare(b.name));
 }
 
 /* #/log/home: the cooler first when one is out, then your fridge and your bar. */
@@ -185,11 +186,12 @@ function renderHomePick(main) {
   const plural = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
   fill(main,
     el("h2", { class: "page-title", text: "From home" }),
+    placeSwitch(hh, () => renderHomePick(main)),
     linkList([
       coolers.length ? { icon: "❄️", title: "The cooler", href: "#/log/home/cooler",
-        sub: coolers.map(h => `${h.id === (hh || {}).id ? "Yours" : h.name}: ${plural(drinks(stockIn(store.stock, h.id, "cooler")), "drink")}`).join(" · ") } : null,
-      hh ? { icon: "🧊", title: "Your fridge", sub: fridge.length ? plural(drinks(fridge), "drink") : "Empty", href: "#/log/home/fridge" } : null,
-      hh ? { icon: "🍾", title: "Your bar", sub: bar.length ? plural(bar.length, "bottle") : "Empty", href: "#/log/home/bar" } : null,
+        sub: coolers.map(h => `${isMyPlace(h.id) && myPlaces().length < 2 ? "Yours" : h.name}: ${plural(drinks(stockIn(store.stock, h.id, "cooler")), "drink")}`).join(" · ") } : null,
+      hh ? { icon: "🧊", title: placeWord(hh, "fridge"), sub: fridge.length ? plural(drinks(fridge), "drink") : "Empty", href: "#/log/home/fridge" } : null,
+      hh ? { icon: "🍾", title: placeWord(hh, "bar"), sub: bar.length ? plural(bar.length, "bottle") : "Empty", href: "#/log/home/bar" } : null,
     ]),
     hh ? null : el("p", { class: "hint center" }, "Set up your fridge and bar on the ", el("a", { href: "#/bar", text: "Bar tab" }), "."));
 }
@@ -197,11 +199,11 @@ function renderHomePick(main) {
 /* #/log/home/<cooler|fridge|bar>: what's in it. Tap a drink for the form, or Drink one (Pour one) to log it now. */
 function renderHomeStock(main, where) {
   const hh = myHousehold();
-  const titles = { cooler: "The cooler", fridge: "Your fridge", bar: "Your bar" };
+  const titles = { cooler: "The cooler", fridge: placeWord(hh, "fridge"), bar: placeWord(hh, "bar") };
   if (!titles[where]) return renderHomePick(main);
   const usable = list => list.filter(e => e.kind === "drink" && e.thing.item && onHand(e));
   const groups = where === "cooler"
-    ? loadedCoolers().map(h => [h.id === (hh || {}).id ? "Your cooler" : `${h.name}'s cooler`, usable(stockIn(store.stock, h.id, "cooler"))])
+    ? loadedCoolers().map(h => [coolerName(h), usable(stockIn(store.stock, h.id, "cooler"))])
     : hh ? [[null, usable(stockIn(store.stock, hh.id, where))]] : [];
   const shown = groups.filter(([, list]) => list.length);
   fill(main,
@@ -209,7 +211,7 @@ function renderHomeStock(main, where) {
     ...shown.map(([title, list]) => el("section", { class: "card stack" }, title && shown.length > 1 ? el("h3", { text: title }) : null,
       el("ul", { class: "item-list" }, ...list.map(stockRow)))),
     shown.length ? null : el("section", { class: "card stack center" },
-      el("p", { class: "muted", text: `Nothing in ${where === "cooler" ? "the cooler" : `your ${where}`} right now.` }),
+      el("p", { class: "muted", text: `Nothing in ${where === "cooler" ? "the cooler" : titles[where].replace(/^Your/, "your")} right now.` }),
       el("a", { class: "btn block", href: "#/log/search", text: "Search the catalogue" })));
 }
 
@@ -339,10 +341,14 @@ export function renderLogForm(main, item, editing = null) {
   // Notes
   const notesIn = el("textarea", { rows: 3, maxlength: 500, placeholder: "Anything about this one? (optional)", value: s.notes });
 
-  // From home: your cooler, fridge or bar when this drink is in one, or a friend's cooler. Your own cooler is picked by
-  // default (it's out with you); the fridge or bar only when you're not somewhere; a friend's cooler never.
+  // From home: your cooler, fridge or bar when this drink is in one (the place you're using first, then your other
+  // places), or a friend's cooler. Your own cooler is picked by default (it's out with you); the fridge or bar only when
+  // you're not somewhere; a friend's cooler never.
   const myHh = (myHousehold() || {}).id;
-  const homes = editing || item.kind !== "drink" ? [] : [...sourcesFor(store.stock, myHh, item.id), ...coolersWith(store.stock, item.id, myHh)];
+  const homes = editing || item.kind !== "drink" ? [] : [
+    ...sourcesFor(store.stock, myHh, item.id),
+    ...myPlaces().filter(h => h.id !== myHh).flatMap(h => sourcesFor(store.stock, h.id, item.id)),
+    ...coolersWith(store.stock, item.id).filter(c => !isMyPlace(c.hh))];
   s.from = homes.length && homes[0].hh === myHh && (homes[0].where === "cooler" || !s.placeId) ? homes[0].id : null;
   const fromBox = el("div", { class: "chips", role: "group", "aria-label": "From" });
   const drawFrom = () => fill(fromBox,
