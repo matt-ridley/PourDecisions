@@ -4,11 +4,12 @@
 import { el, fill, toast, openSheet, closeSheet, copyText } from "./ui.js";
 import { store, uid, setStock, changeStock, addToFridge } from "./cloud.js";
 import { drinksFor } from "./catalog.js";
-import { householdOf, runList, runText, stockId, RELOADS } from "./stock.js";
+import { runList, runText, stockId, RELOADS } from "./stock.js";
+import { myPlace, placeSwitch } from "./myplace.js";
 import { currentCovers } from "./makeablepage.js";
 
 export function renderRun(main) {
-  const h = householdOf(store.households, uid());
+  const h = myPlace();
   if (!h) return fill(main, el("h2", { class: "page-title", text: "🛒 LCBO run" }),
     el("section", { class: "card stack" }, el("p", { text: "Start your bar & fridge first: the run is made from what's running low in it." }),
       el("a", { class: "btn primary block", href: "#/bar", text: "Start my bar & fridge" })));
@@ -19,6 +20,7 @@ export function renderRun(main) {
     el("button", { class: "btn small primary", type: "button", text: "Got it", onclick: () => gotIt(h, r) }));
   fill(main,
     el("h2", { class: "page-title", text: "🛒 LCBO run" }),
+    placeSwitch(h, () => renderRun(main)),
     el("p", { class: "hint", text: `For ${h.name}. Everyone in the household sees the same list, and Got it puts it back in the bar or fridge.` }),
     list.length ? el("button", { class: "btn block", type: "button", text: "📤 Share the list", onclick: () => share(h, list) }) : null,
     el("section", { class: "card stack" },

@@ -21,7 +21,7 @@ import { renderRun } from "./runpage.js";
 import { renderTab, renderGenerous } from "./tabpage.js";
 import { renderNights, renderNight, renderHost, renderPlan } from "./nightpage.js";
 import { renderUs } from "./uspage.js";
-import { householdOf } from "./stock.js";
+import { isMyPlace } from "./myplace.js";
 import { applyTheme } from "./theme.js";
 
 /* Each route renders into <main>. `live` routes re-render when group data changes; the rest don't, so typing isn't lost.
@@ -72,7 +72,7 @@ const ROUTES = {
 };
 
 const LOG_STEPS = ["again", "home", "search"];
-const mineHh = id => { const h = householdOf(store.households, uid()); return !!h && h.id === id; };
+const mineHh = isMyPlace;
 
 function parseRoute() {
   const [name, arg, arg2] = location.hash.replace(/^#\/?/, "").split("/");

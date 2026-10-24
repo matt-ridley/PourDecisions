@@ -15,7 +15,8 @@ import { madeVariants, variantCount, variantTitle, variantRecipe, changes, chang
   rankVariants, asItem, compareRows } from "./variants.js";
 import { ratingsCard, groupRatings, starText } from "./ratepage.js";
 import { haveSet } from "./makeablepage.js";
-import { householdOf, bottlePhotoOf } from "./stock.js";
+import { bottlePhotoOf } from "./stock.js";
+import { myPlace } from "./myplace.js";
 import { pickWhere } from "./barpage.js";
 import { giftable, giveNext } from "./logpage.js";
 import { focusStyle } from "./thumbfocus.js";
@@ -254,7 +255,7 @@ function bottleHero(i) {
 /* Under a drink's name: Log it (how often you've had it), then add it to your fridge or bar, want to try it, or give
    one to a friend. */
 function drinkActions(i) {
-  const h = drinkHistory(store.logs, uid(), i.kind, i.id), hh = householdOf(store.households, uid());
+  const h = drinkHistory(store.logs, uid(), i.kind, i.id), hh = myPlace();
   const wants = (store.me && store.me.wants) || [], wanted = wants.includes(i.id);
   return el("div", { class: "stack drink-actions" },
     h.count ? el("p", { class: "muted small", text: `You've had it ${h.count === 1 ? "once" : `${h.count} times`} · last ${fmtDay(h.last)}` }) : null,

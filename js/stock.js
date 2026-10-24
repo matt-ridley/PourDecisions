@@ -1,6 +1,6 @@
 /* The bar and the fridge: what each household has. Pure functions (no screen or Firebase code), so they can be tested
    with node.
-   - households/{id}: { name, members: [uid], by, at }. One or more people who share a fridge and a bar. Everyone in
+   - households/{id}: { name, members: [uid], by, at }. One or more people who share a fridge and a bar; anyone can be in several (home, the cottage). Everyone in
      the group can see every household; its members change it. Everything in it is shared.
    - stock/{hh~where~kind~item}: one document per thing, so two people changing stock at once never overwrite each other.
        where: "fridge", "bar" or "cooler"; kind: "drink" (a drink in the list) or "ing" (a recipe ingredient, like lime juice)
@@ -23,7 +23,10 @@ const FRIDGE_CATS = ["beer", "cider-more", "na"];
 export const stockId = (hh, where, kind, item) => `${hh}~${where}~${kind}~${item}`;
 
 /* The household someone belongs to (the first, if a mistake ever put them in two). */
-export const householdOf = (households, uid) => households.find(h => (h.members || []).includes(uid)) || null;
+export const householdOf = (households, uid) => householdsOf(households, uid)[0] || null;
+/* Every household someone is in (home, the cottage...), A to Z. */
+export const householdsOf = (households, uid) => households.filter(h => (h.members || []).includes(uid))
+  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
 /* Where a new drink goes by default. */
 export const defaultWhere = item => item && item.category && FRIDGE_CATS.includes(item.category.id) ? "fridge" : "bar";
@@ -83,7 +86,8 @@ export function haveFromStock(stock, hh, covers) {
 }
 
 /* Members who aren't in any household yet, so they can be added to one. */
-export const homeless = (members, households) => members.filter(m => !householdOf(households, m.id));
+/* People who could be added to a household: everyone not in it already (you can live in more than one place). */
+export const notIn = (members, h) => members.filter(m => !(h.members || []).includes(m.id));
 
 /* ---------- Drinks taking stock out ---------- */
 
@@ -147,12 +151,10 @@ export const unloadMoves = (stock, hh) => stock.filter(s => s.hh === hh && s.whe
 
 /* ---------- Planning a night: everyone's bars together ---------- */
 
-/* The households of the people at a night (each once), with what each has. [{ hh, people: [uid], have: Set }] */
+/* The households of the people at a night (each once, every place each is in), with what each has. [{ hh, people: [uid], have: Set }] */
 export function nightBars(stock, households, guests, covers) {
   const out = new Map();
-  for (const g of guests) {
-    const h = householdOf(households, g);
-    if (!h) continue;
+  for (const g of guests) for (const h of householdsOf(households, g)) {
     if (!out.has(h.id)) out.set(h.id, { hh: h.id, name: h.name, people: [], have: haveFromStock(stock, h.id, covers) });
     out.get(h.id).people.push(g);
   }

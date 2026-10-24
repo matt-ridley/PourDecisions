@@ -8,6 +8,7 @@ import { sortByHave } from "./makeable.js";
 import { currentCovers } from "./makeablepage.js";
 import { nightLogs, nightStatus, nightcap, tonight, perPerson, roundPicks, bringFor, nightRecap, mornings } from "./nights.js";
 import { householdOf, sourcesFor, levelText, fridgeCount, nightBars, combinedHave, borrowNeeds } from "./stock.js";
+import { myPlace, isMyPlace, placeSwitch } from "./myplace.js";
 import { placesByUse, resolvePlace, findPlace, cleanPlaceName, logStd } from "./logs.js";
 import { logRow, giftable, roundOf } from "./logpage.js";
 
@@ -71,7 +72,8 @@ export function renderNights(main) {
 
 /* #/host: name, when, where, at your place or out, and who's coming. */
 export function renderHost(main) {
-  const me = store.me || {}, hh = householdOf(store.households, uid());
+  const me = store.me || {};
+  let hh = myPlace();
   const s = { start: null, placeId: null, home: !!hh, guests: new Set() };
   const name = el("input", { type: "text", maxlength: 40, autocapitalize: "words", value: `${me.displayName || "My"}'s night` });
   const startIn = el("input", { type: "datetime-local", class: "when-input", "aria-label": "Starts", value: toLocalInput(Date.now() + 3600000) });
@@ -91,6 +93,14 @@ export function renderHost(main) {
   drawPlaces();
 
   const homeIn = el("input", { type: "checkbox", checked: s.home ? true : null, onchange: e => { s.home = e.target.checked; } });
+  // With more than one place, chips pick which one (the rounds come from its fridge and bar).
+  const homeText = el("span"), homeSwitch = el("div");
+  const drawHome = () => {
+    if (!hh) return;
+    homeText.textContent = `🏠 At ${hh.name} (rounds can come from its fridge and bar)`;
+    fill(homeSwitch, placeSwitch(hh, p => { hh = p; s.home = true; homeIn.checked = true; drawHome(); }));
+  };
+  drawHome();
   const guestBox = el("div", { class: "chips", role: "group", "aria-label": "Who's coming" });
   const drawGuests = () => fill(guestBox, ...giftable().map(m => el("button", { type: "button", class: "chip-btn who", "aria-pressed": String(s.guests.has(m.id)),
     onclick: () => { s.guests.has(m.id) ? s.guests.delete(m.id) : s.guests.add(m.id); drawGuests(); } }, avatar(m, "xs"), m.displayName)));
@@ -103,7 +113,7 @@ export function renderHost(main) {
     el("section", { class: "card stack" }, el("h3", { text: "When" }), whenBox, whenRow,
       el("p", { class: "hint", text: "No end time needed: the night ends with its last drink (the Nightcap). You can end it yourself too." })),
     el("section", { class: "card stack" }, el("h3", { text: "Where" }), placeBox, newPlace,
-      hh ? el("label", { class: "check" }, homeIn, el("span", {}, `🏠 At ${hh.name} (rounds can come from your fridge and bar)`)) : null),
+      hh ? el("label", { class: "check" }, homeIn, homeText) : null, hh ? homeSwitch : null),
     el("section", { class: "card stack" }, el("h3", { text: "Who's coming" }), guestBox,
       el("p", { class: "hint", text: "Anyone else in the group can tap \"I'm here\" to join." })),
     msg,
@@ -260,7 +270,7 @@ export function morningHomeCard() {
 /* Who's bringing what, ticked off when it arrives. The bringer or the host ticks it; you add your own, the host adds for
    anyone. Drinks to share go in the bringer's cooler, so handing them out uses the cooler and goes on the Tab. */
 function bringCard(n, canAdd, open) {
-  const me = uid(), host = n.host === me, groups = bringFor(store.bring, n.id), myHh = householdOf(store.households, me);
+  const me = uid(), host = n.host === me, groups = bringFor(store.bring, n.id), myHh = n.hh && isMyPlace(n.hh) ? store.households.find(h => h.id === n.hh) : myPlace();
   const text = el("input", { type: "text", maxlength: 80, placeholder: "e.g. 12 Molson, ice, chips", autocapitalize: "sentences" });
   const count = el("input", { type: "number", inputmode: "numeric", min: "1", max: "99", placeholder: "How many", "aria-label": "How many (optional)" });
   const who = host ? el("select", { "aria-label": "Who's bringing it" }, ...(n.guests || []).map(g => el("option", { value: g, text: g === me ? "Me" : member(g).displayName }))) : null;
@@ -312,7 +322,8 @@ function pour(n, item, people, fromId) {
 }
 
 function roundSheet(n, list) {
-  const me = uid(), hh = (householdOf(store.households, me) || {}).id;
+  // Rounds at a night at one of your places come from there; otherwise from the place you're using.
+  const me = uid(), hh = n.hh && isMyPlace(n.hh) ? n.hh : (myPlace() || {}).id;
   const s = { item: null, people: new Set(n.guests || []), from: null };
   openSheet(box => {
     const q = el("input", { type: "search", class: "search-input", placeholder: "Search for a drink…", autocomplete: "off", autocorrect: "off", spellcheck: "false" });
