@@ -6,7 +6,7 @@ A private drink-tracking app for a group of friends. Log what you drink, rate an
 
 **Live app:** https://matt-ridley.github.io/PourDecisions/
 
-**Current version:** 0.22.0 (beta)
+**Current version:** 0.22.1 (beta)
 
 ## Features
 
@@ -397,6 +397,8 @@ The version number is the `VERSION` constant in [`js/config.js`](js/config.js), 
 Update this README's **Current version** and the changelog in the same commit. When adding a new file under `js/`, also add it to `APP_FILES` in [`sw.js`](sw.js) so it's available offline (`npm test` checks this).
 
 ## Changelog
+
+- **0.22.1** (2026-Nov-11): **Alberta Premium Batch 10 Legacy Reserve** (Canadian rye, 42%) in the built-in whisky list. No new security rules.
 
 - **0.22.0** (2026-Oct-23): **🏠 More than one place.** **Add another place** on the Bar tab starts a second household (the cottage) with its own fridge, bar, cooler and people, and Household settings can now add anyone in the group, even people who already have a place. With more than one place, chips switch between them and the last one you used is remembered on this phone; From home, Make it, What can I make, the LCBO run, hosting a night and a drink page's 🏠 Add follow it. The log form offers the drink from any of your places, running-low alerts and Bar Menu orders cover every place you're in, a night at your cottage pours its rounds from the cottage, planning a night counts every guest's places, and profiles list all of someone's places. No new security rules.
 

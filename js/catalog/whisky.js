@@ -33,6 +33,7 @@ const CANADIAN = [
   d("Dillon's", "Rye Whisky", "cdn-rye", 40, "CA-ON", { town: "Beamsville", ...A }),
   stillWaters("Stalk & Barrel Single Malt", "cdn-single-malt", 46), stillWaters("Stalk & Barrel 100% Rye", "cdn-rye", 46),
   alberta("", "cdn-rye", 40), alberta("Dark Horse", "cdn-rye", 45), alberta("Cask Strength Rye", "cdn-rye", 65, A),
+  alberta("Batch 10 Legacy Reserve", "cdn-rye", 42),
   d("Black Velvet", "", "cdn-blended", 40, "CA-AB", { town: "Lethbridge" }),
   d("Black Velvet", "", "cdn-flavoured", 35, "CA-AB", { town: "Lethbridge", variant: "Toasted Caramel", ...A }),
   d("Seagram's", "VO", "cdn-blended", 40, "CA"), d("Seagram's", "83", "cdn-blended", 40, "CA"),
